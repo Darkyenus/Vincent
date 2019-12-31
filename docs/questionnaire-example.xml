@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE questionnaire SYSTEM "../questionnaire.dtd">
+<questionnaire default-lang="en">
+    <title>Wine Questionnaire</title>
+    <title lang="de">Wein Fragebogen</title>
+    <title lang="it">Questionario sul vino</title>
+    <title lang="cs">Dotazník o víně</title>
+
+    <section>
+        <title>Welcome</title>
+        <title lang="cs">Vítejte</title>
+
+        <info>
+            <text>
+                This is an example questionnaire.
+                This is a <a href="https://darkyen.com">clickable link</a>.
+                Emoji test: 🧐
+            </text>
+            <text lang="cs">
+                Toto je ukázkový dotazník.
+                Toto je <a href="https://darkyen.com">klikatelný odkaz</a>.
+                Test emoji: 🤨
+            </text>
+        </info>
+    </section>
+
+    <section>
+        <title>Appearance</title>
+        <title lang="de">Aussehen</title>
+        <title lang="it">Aspetto</title>
+        <title lang="cs">Vzhled</title>
+
+        <question id="clarity">
+            <title>Clarity</title>
+            <one-of>
+                <option value="sediments">
+                    <title>Presence of sediments</title>
+                </option>
+                <option value="no-sediments">
+                    <title>Absence of sediments</title>
+                </option>
+            </one-of>
+        </question>
+
+        <question id="color-tonality">
+            <title>Color <i>tonality</i></title>
+            <one-of>
+                <category>
+                    <title>White</title>
+                    <option>Lemon</option>
+                    <option>Yellow</option>
+                    <option>Gold</option>
+                    <option>Amber</option>
+                </category>
+                <category>
+                    <title>Rosè</title>
+                    <option>Pink</option>
+                    <option>Salmon</option>
+                    <option>Copper</option>
+                </category>
+                <category>
+                    <title>Red</title>
+                    <option>Purple</option>
+                    <option>Ruby</option>
+                    <option>Garnet</option>
+                    <option>Tawny</option>
+                </category>
+            </one-of>
+        </question>
+
+        <question id="color-intensity">
+            <title>Color <i>intensity</i></title>
+            <scale min="1" max="5">
+                <min>Pale</min>
+                <max>Deep</max>
+            </scale>
+        </question>
+
+        <question id="fluidity">
+            <title>Fluidity</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+    </section>
+
+    <section>
+        <title>Nose</title>
+        <title lang="de">Nase</title>
+        <title lang="it">Naso</title>
+        <title lang="cs">Nos</title>
+
+        <question id="nose-condition">
+            <title>Condition</title>
+            <one-of>
+                <option>No fault</option>
+                <option>
+                    <title>With fault</title>
+                    <detail>Faults/Taints</detail>
+                </option>
+            </one-of>
+        </question>
+
+        <question id="intensity">
+            <title>Intensity</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+
+        <!-- TODO Replace with optional aroma tree -->
+        <question id="aromas">
+            <title>Aromas</title>
+            <free-text/>
+        </question>
+
+        <question id="complexity">
+            <title>Complexity</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+    </section>
+
+    <section>
+        <title>Palate</title>
+        <title lang="de">Gaumen</title>
+        <title lang="it">Palato</title>
+        <title lang="cs">Chuť</title>
+
+        <question id="body">
+            <title>Body</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+
+        <question id="alcohol">
+            <title>Alcohol</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+
+        <question id="sweetness">
+            <title>Sweetness</title>
+            <one-of>
+                <option value="1">Not sweet</option>
+                <option value="2">Sweet</option>
+                <option value="3">Very sweet</option>
+            </one-of>
+        </question>
+
+        <question id="acidity">
+            <title>Acidity</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+
+        <question id="astringency">
+            <title>Astringency</title>
+            <scale min="1" max="5">
+                <min>Low</min>
+                <max>High</max>
+            </scale>
+        </question>
+
+        <question id="balance">
+            <title>Balance</title>
+            <one-of>
+                <option value="no">Unbalanced</option>
+                <option value="yes">Well-Balanced</option>
+            </one-of>
+        </question>
+
+        <question id="retronasal">
+            <title>Retronasal</title>
+            <free-text/>
+        </question>
+
+        <question id="length/finish">
+            <title>Length/Finish</title>
+            <one-of>
+                <option value="1">Short</option>
+                <option value="2">Medium</option>
+                <option value="3">Long</option>
+            </one-of>
+        </question>
+
+        <question id="palate-condition">
+            <title>Condition</title>
+            <one-of>
+                <option>No fault</option>
+                <option>
+                    <title>With fault</title>
+                    <detail>Faults/Taints</detail>
+                </option>
+            </one-of>
+        </question>
+    </section>
+
+    <section>
+        <title>Overall quality</title>
+        <question id="overall-quality">
+            <one-of>
+                <option>Poor</option>
+                <option>Acceptable</option>
+                <option>Good</option>
+                <option>Very Good</option>
+                <option>Outstanding</option>
+            </one-of>
+        </question>
+
+        <info>
+            <text>Thank you for your participation.</text>
+        </info>
+    </section>
+</questionnaire>

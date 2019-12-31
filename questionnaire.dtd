@@ -1,0 +1,158 @@
+<!--
+Text formatting and presentation:
+All elements that present user-facing text are written in HTML, which means that it is possible to use formatting tags,
+such as <i>italics</i>, <b>bold</b>, etc.
+-->
+
+<!--
+<questionnaire> tag is the root tag for the whole questionnaire template.
+It consists of <title>(s) and one or more <section>s.
+-->
+<!ELEMENT questionnaire (title+, section+)>
+
+<!--
+default-lang: All <title>s that do not have explicit language set, will use this one.
+              This language is also used by default when user does not request any compatible language.
+-->
+<!ATTLIST questionnaire
+        default-lang CDATA #IMPLIED
+        >
+
+<!--
+<title> tag is used as a title of the whole questionnaire, sections, and individual questions.
+Multiple titles can appear after each other, as long as their languages are different.
+Only one title will be shown in that case - the one with the appropriate language.
+-->
+<!ELEMENT title ANY>
+<!--
+lang: ISO 639-1 language code (see https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
+      optionally followed by hyphen-separated ISO 3166-1 alpha 2 code (see https://en.wikipedia.org/wiki/ISO_3166-1)
+      Example: it, en-US, cs-CZ
+always: Add `always="true"` to ensure that the title will be visible even if a more suitable language mutation has been found.
+  -->
+<!ATTLIST title
+        lang CDATA #IMPLIED
+        always (true|false|yes|no) "false"
+        >
+
+<!--
+<section> is a set of questions on one page.
+After all required questions are answered, user can move to the next section.
+It is not possible to move back to previous sections.
+ -->
+<!ELEMENT section (title+, (info | question)*)>
+
+<!--
+<info> is visually similar to a <question>, but only presents some textual information.
+It may start with a <title> and then it may contain <text>
+-->
+<!ELEMENT info (title*, text*)>
+
+<!-- <text> works similarly to <title> with regard to localization, but presents a body of text instead of just the title. -->
+<!ELEMENT text ANY>
+<!ATTLIST text
+        lang CDATA #IMPLIED
+        >
+
+<!--
+<question> tag defines a single question that will appear in the resulting CSV.
+
+It may start with a <title>, <text> may follow, and finally the question body, which is one of the question type tags.
+<question> tag MUST specify a unique `id` attribute, which specifies how will the result appear in the resulting CSV (=column name).
+(NOTE: Some question types may not use the ID directly, but may derive multiple real IDs from it, for example <time-progression>).
+
+By default, all questions require a response. This can be changed through the `required` tag.
+-->
+<!ELEMENT question (title*, text*, (one-of, free-text, scale, time-progression))>
+<!ATTLIST question
+        id ID #REQUIRED
+        required (true|false|yes|no) "true"
+        >
+
+<!--
+<one-of> question type allows user to select one of the available options.
+Option is specified by <title> text.
+
+Options can be grouped by their category - those categories can have own titles.
+Note that still only one option from one category can be selected.
+
+Each option must have a distinct `value` attribute. This value will be shown in the resulting CSV (=cell value).
+-->
+<!ELEMENT one-of (category+ | option+)>
+<!ELEMENT category (title*, option+)>
+
+<!--
+May either contain titles, or if only one localization is required and no html tags are needed, the text directly.
+The value attribute specifies how will this option appear in the resulting CSV.
+If it is omitted, then the full text of the default title is used.
+
+It is an error to specify two options with the same value in one question.
+
+detail: If user can specify additional free-text detail when picking this option.
+The detail text will appear in a column with the same ID as the question, with "-detail" appended.
+For example: "condition", "condition-detail".
+
+If <detail> tag is specified, the <detail> text will be displayed as a prompt for the detail input.
+-->
+<!ELEMENT option (#PCDATA | (title+, detail*))>
+<!ATTLIST option
+        value CDATA #IMPLIED
+        detail (true|false|yes|no) "false"
+        detail-type (sentence|paragraph|number) "sentence"
+        >
+
+<!-- Works similarly to <title> -->
+<!ELEMENT detail ANY>
+<!ATTLIST detail
+        lang CDATA #IMPLIED
+        >
+
+<!--
+<free-text> question type allows user to input arbitrary text.
+Input type can be specified using the `type` attribute:
+- sentence - (default) single line of text is expected.
+- paragraph - more substantial amount of text is expected.
+- number - a number is expected ("real" numbers are allowed, including negatives and non-whole numbers)
+
+Placeholder value can be specified (text shown in dimmed styling when no input is entered).
+Default value can be specified.
+-->
+<!ELEMENT free-text EMPTY>
+<!ATTLIST free-text
+        type (sentence|paragraph|number) "sentence"
+        placeholder CDATA ""
+        default CDATA ""
+        >
+
+<!--
+<scale> is similar to <one-of>, only one option can be chosen, but the options are numbers in the range
+given by `min` and `max` attributes. Both ends of the range are inclusive.
+
+Ends of the scale can optionally be titled using <min> and <max> tags.
+-->
+<!ELEMENT scale (min, max)?>
+<!ATTLIST scale
+        min CDATA "1"
+        max CDATA "7">
+
+<!-- Similarly to <option>, title can be written directly in simple cases. -->
+<!ELEMENT min (#PCDATA | title+)>
+<!ELEMENT max (#PCDATA | title+)>
+
+<!--
+<time-progression> is a container that presents the same question repeatedly after given time intervals.
+Timer starts after responding for the first time and then presents the same question again in fixed intervals.
+If user does not manage to respond in time, value is left blank.
+
+Attributes:
+- interval - number of seconds (possibly decimal) between questions
+- repeats - how many times should the question be shown (whole number, greater than 1)
+
+In resulting CSV, the values will be in columns labelled `ID-N`, where ID is the question ID and N is the repeat.
+For example for <question id="taste"> <time-progression repeats="3">, those columns will be created: "taste-0", "taste-1", "taste-2".
+-->
+<!ELEMENT time-progression (one-of, scale)>
+<!ATTLIST time-progression
+        interval CDATA #REQUIRED
+        repeats CDATA #REQUIRED
+        >
