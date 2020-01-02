@@ -58,8 +58,10 @@ It may start with a <title> and then it may contain <text>
 <question> tag defines a single question that will appear in the resulting CSV.
 
 It may start with a <title>, <text> may follow, and finally the question body, which is one of the question type tags.
+
 <question> tag MUST specify a unique `id` attribute, which specifies how will the result appear in the resulting CSV (=column name).
 (NOTE: Some question types may not use the ID directly, but may derive multiple real IDs from it, for example <time-progression>).
+Total length of the generated question ID MUST not exceed 64 characters.
 
 By default, all questions require a response. This can be changed through the `required` tag.
 -->

@@ -26,6 +26,6 @@ fun trimToNullAndShorten(str: String?, maxLength: Int): String? {
 }
 
 /** Convenience wrapper for [Runtime.addShutdownHook].  */
-fun onShutdown(action: Runnable) {
+fun onShutdown(action: () -> Unit) {
 	Runtime.getRuntime().addShutdownHook(Thread(action, "onShutdown($action)"))
 }

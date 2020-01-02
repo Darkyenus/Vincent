@@ -1,5 +1,8 @@
 package it.unibz.vincent.util
 
+import com.google.common.cache.CacheBuilder
+import com.google.common.cache.CacheLoader
+import com.ibm.icu.util.ULocale
 import io.undertow.server.DefaultResponseListener
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
@@ -7,16 +10,21 @@ import io.undertow.server.handlers.form.EagerFormParsingHandler
 import io.undertow.server.handlers.form.FormDataParser
 import io.undertow.server.handlers.form.FormEncodedDataDefinition
 import io.undertow.server.handlers.form.FormParserFactory
+import io.undertow.util.AttachmentKey
 import io.undertow.util.Headers
+import io.undertow.util.Methods
 import io.undertow.util.PathTemplateMatch
 import io.undertow.util.StatusCodes
+import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
+import it.unibz.vincent.pages.base
+import it.unibz.vincent.session
 import kotlinx.html.HTML
-import kotlinx.html.body
+import kotlinx.html.div
 import kotlinx.html.h1
-import kotlinx.html.head
 import kotlinx.html.html
+import kotlinx.html.img
 import kotlinx.html.stream.appendHTML
-import kotlinx.html.title
+import kotlinx.html.style
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
@@ -62,40 +70,70 @@ fun pathIntNonNegative(exchange: HttpServerExchange, name: String): Int {
 	return value
 }
 
-/** Retrieve non-empty trimmed string from query parameter with given name.
- * Fails the request if such parameter does not exist.
- *
- * Only usable in [io.undertow.server.HttpHandler] which are used after
- * [wrapRootHandler] handler or similar.  */
-fun queryString(exchange: HttpServerExchange, name: String, maxSize: Int): String? {
-	trimToNullAndShorten(exchange.queryParameters[name]?.firstOrNull(), maxSize)?.let { return it }
+/** Retrieve URL-encoded or query parameter with [name]. */
+fun HttpServerExchange.formString(name: String): String? {
+	queryParameters[name]?.firstOrNull()?.let { return it }
 
-	val attachment = exchange.getAttachment(FormDataParser.FORM_DATA)
-			?: // The request might not have any and thus there is no content nor content-type
-			return null
-	val formValues = attachment[name]
-	if (formValues == null || formValues.isEmpty()) {
-		return null
+	return getAttachment(FormDataParser.FORM_DATA)?.get(name)?.find {
+		it != null && !it.isFileItem
+	}?.value
+}
+
+private val LanguageAttachment:AttachmentKey<LocaleStack> = AttachmentKey.create(List::class.java)
+private val languageCache = CacheBuilder.newBuilder()
+		.maximumSize(100)
+		.build<String, ULocale>(object:CacheLoader<String, ULocale>() {
+			override fun load(key: String): ULocale {
+				return ULocale(key)
+			}
+		})
+
+private fun HttpServerExchange.constructLanguages():LocaleStack {
+	val languages = requestHeaders[Headers.ACCEPT_LANGUAGE]?.peekFirst()?.split(',') ?: return emptyList()
+	class Weighted(val value:ULocale, val weight:Float) : Comparable<Weighted> {
+		override fun compareTo(other: Weighted): Int = weight.compareTo(other.weight)
 	}
-	for (value in formValues) {
-		if (value.isFileItem) {
+
+	val weightedLanguages = ArrayList<Weighted>(languages.size)
+	val weightSeparatorToken = ";q="
+
+	for (language in languages) {
+		val weightSeparator = language.indexOf(weightSeparatorToken[0])
+		val rawLanguage:String
+		var weight = 1f
+		if (weightSeparator < 0) {
+			rawLanguage = language
+		} else {
+			rawLanguage = language.substring(0, weightSeparator)
+			try {
+				weight = language.substring(weightSeparator + weightSeparatorToken.length).trim().toFloat()
+			} catch (e:java.lang.NumberFormatException) {}
+		}
+
+		if ('*' in rawLanguage || weight <= 0f /* just in case */) {
+			// Wildcard, we don't really care about that, not sure why is it even in the spec
 			continue
 		}
-		return trimToNullAndShorten(value.value, maxSize) ?: continue
+
+		val canonicalLanguage = ULocale.canonicalize(rawLanguage)
+		if (canonicalLanguage.isEmpty()) {
+			// Bogus language
+			continue
+		}
+
+		weightedLanguages.add(Weighted(languageCache[canonicalLanguage], weight))
 	}
-	return null
+
+	weightedLanguages.sortDescending()
+	return weightedLanguages.map { it.value }
 }
 
-/** Like [.queryString] but for enums.  */
-fun <T : Enum<T>?> queryEnum(exchange: HttpServerExchange, name: String, enumClass: Class<T>): T? {
-	val s = queryString(exchange, name, Int.MAX_VALUE) ?: return null
-	return try {
-		java.lang.Enum.valueOf(enumClass, s.toUpperCase())
-	} catch (e: IllegalArgumentException) {
-		null
-	}
+fun HttpServerExchange.languages():LocaleStack {
+	getAttachment(LanguageAttachment)?.let { return it }
+	val result = constructLanguages()
+	putAttachment(LanguageAttachment, result)
+	return result
 }
-
 
 fun HttpServerExchange.sendHtml(generateHtml: HTML.() -> Unit) {
 	val byteOut = object : ByteArrayOutputStream(50_000) {
@@ -127,8 +165,16 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 			.addParser(FormEncodedDataDefinition())
 			.withDefaultCharset(StandardCharsets.UTF_8.name())
 			.build()
-	val formParsingHandler = EagerFormParsingHandler(formParserFactory).apply {
-		next = handler
+	val formParsingHandler = EagerFormParsingHandler(formParserFactory)
+	formParsingHandler.next = HttpHandler { exchange ->
+		val session = exchange.session()
+		if (Methods.POST == exchange.requestMethod && session != null) {
+			if (session.csrfToken != exchange.formString(CSRF_FORM_TOKEN_NAME)) {
+				LOG.warn("POST request to {} by {} without CSRF token set!", exchange.requestPath, session)
+				throw HttpResponseException(StatusCodes.BAD_REQUEST, "Request is incomplete")
+			}
+		}
+		handler.handleRequest(exchange)
 	}
 
 	val defaultHandler = DefaultResponseListener { exchange ->
@@ -146,11 +192,16 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 
 
 		exchange.sendHtml {
-			head {
-				title { +message }
-			}
-			body {
-				h1 { +"$status - $message" }
+			base(title="Vincent - $message") {
+				div("container") {
+					style = "padding: 5%"
+
+					img(alt="Tomás Giner: St. Vincent, deacon and martyr, with a donor",
+							src="/internal/vincent.jpg", classes="u-centered") {
+						style = "height: 384px; margin-bottom: 2rem"
+					}
+					h1("u-centered") { +"$status - $message" }
+				}
 			}
 		}
 
@@ -159,6 +210,10 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 
 	return HttpHandler { exchange: HttpServerExchange ->
 		exchange.addDefaultResponseListener(defaultHandler)
+		// To prevent click-jacking through frames
+		// https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html
+		exchange.responseHeaders.put(Headers.CONTENT_SECURITY_POLICY, "frame-ancestors 'none'")
+		exchange.responseHeaders.put(Headers.X_FRAME_OPTIONS, "DENY")
 		formParsingHandler.handleRequest(exchange)
 	}
 }
