@@ -14,7 +14,11 @@ import it.unibz.vincent.util.createDatabase
 import it.unibz.vincent.util.onShutdown
 import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
+import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -96,5 +100,62 @@ fun main(args: Array<String>) {
 
 	createSchemaTables()
 
-	Undertow.builder().addHttpListener(port, host).setHandler(wrapRootHandler(routingHandler)).build().start()
+	val undertow = Undertow.builder().addHttpListener(port, host).setHandler(wrapRootHandler(routingHandler)).build()
+	undertow.start()
+
+	// Start CLI
+	InputStreamReader(System.`in`, Charsets.UTF_8).useLines { lines ->
+		val argSplitPattern = Regex("\\s+")
+		for (commandRaw in lines) {
+			val args = commandRaw.trim().split(argSplitPattern)
+			if (args.isEmpty() || args[0].isEmpty()) {
+				continue
+			}
+
+			LOG.info("CLI: {}", args.joinToString(" "))
+
+			when (args[0].toLowerCase()) {
+				"stop" -> {
+					LOG.info("CLI: Stopping the server")
+					undertow.stop()
+					exitProcess(0)
+				}
+				"account" -> {
+					val email = args.getOrNull(1)
+					val type = try { AccountType.valueOf(args.getOrNull(2)?.toUpperCase() ?: "") } catch (e:IllegalArgumentException) { null }
+					if (email == null || type == null || args.size != 3) {
+						println("usage: account <email> <${AccountType.values().joinToString("|")}>")
+					} else {
+						val updated = transaction { Accounts.update(where={ Accounts.email eq email }, limit=1) { it[accountType] = type } }
+						if (updated == 0) {
+							println("No such user")
+						} else {
+							LOG.info("CLI: Account level of {} changed to {}", email, type)
+						}
+					}
+				}
+				"list-accounts" -> {
+					transaction {
+						val rowFormat = "%8s | %20s | %20s | %6s | %24s | %24s"
+						println(rowFormat.format("ID", "E-Mail", "Name", "Type", "Registered", "Last Login"))
+						println(rowFormat.format("--------", "--------------------", "--------------------", "------", "------------------------", "------------------------"))
+						var total = 0
+						for (row in Accounts.selectAll()) {
+							println(rowFormat.format(row[Accounts.id], row[Accounts.email], row[Accounts.name], row[Accounts.accountType], row[Accounts.timeRegistered], row[Accounts.timeLastLogin]))
+							total++
+						}
+						println("\tTotal: $total")
+					}
+				}
+				else -> {
+					println("stop")
+					println("\tStop the server")
+					println("account <email> <${AccountType.values().joinToString("|")}>")
+					println("\tChange account type")
+					println("list-accounts")
+					println("\tList all accounts")
+				}
+			}
+		}
+	}
 }
