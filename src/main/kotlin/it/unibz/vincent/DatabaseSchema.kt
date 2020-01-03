@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 /** Dictates what the account can do.
  * Ordered from least to most privileged. */
-enum class AccountType {
+enum class AccountType : Comparable<AccountType> {
 	// NOTE: This is stored in DB by ordinal!
 	// Do not change the order or meaning of enum values without considering backward compatibility!
 
@@ -45,11 +45,18 @@ object QuestionnaireTemplates : Table() {
 	override val primaryKey: PrimaryKey = PrimaryKey(id)
 }
 
+enum class QuestionnaireState {
+	CREATED,
+	RUNNING,
+	CLOSED
+}
+
 object Questionnaires : Table() {
 
 	val id = long("id").autoIncrement()
 	val createdBy = long("created_by") references Accounts.id
 	val template = long("template") references QuestionnaireTemplates.id
+	val state = enumeration("state", QuestionnaireState::class).default(QuestionnaireState.CREATED)
 
 	override val primaryKey: PrimaryKey = PrimaryKey(id)
 }

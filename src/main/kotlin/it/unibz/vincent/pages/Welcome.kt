@@ -1,7 +1,5 @@
 package it.unibz.vincent.pages
 
-import com.google.common.cache.CacheBuilder
-import com.google.common.cache.CacheLoader
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.util.Headers
@@ -9,6 +7,8 @@ import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.createSession
+import it.unibz.vincent.destroySession
+import it.unibz.vincent.failedLoginAttemptLog
 import it.unibz.vincent.session
 import it.unibz.vincent.util.HashedPassword
 import it.unibz.vincent.util.checkPassword
@@ -38,15 +38,11 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
-import java.time.Duration
 import java.time.Instant
-import java.util.*
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.collections.ArrayList
 
 private val LOG = LoggerFactory.getLogger("WelcomePage")
 
-private fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, preFillValue:String?) {
+private fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, autoComplete:String, preFillValue:String?) {
 	label { htmlFor = fieldId; +"E-mail" }
 	emailInput(classes = "u-full-width") {
 		id = fieldId
@@ -58,10 +54,11 @@ private fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, preFil
 		if (preFillValue != null) {
 			value = preFillValue
 		}
+		attributes["autocomplete"] = autoComplete
 	}
 }
 
-private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String) {
+private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, autoComplete:String) {
 	label { htmlFor = fieldId; +"Password" }
 	passwordInput(classes = "u-full-width") {
 		id = fieldId
@@ -70,10 +67,11 @@ private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String) {
 		maxLength = MAX_PASSWORD_LENGTH.toString()
 		//placeholder = "●●●●●●●●●●●●●●"
 		required = true
+		attributes["autocomplete"] = autoComplete
 	}
 }
 
-private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, preFillValue:String?) {
+private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplete:String, preFillValue:String?) {
 	label { htmlFor = fieldId; +"Name" }
 	textInput(classes = "u-full-width") {
 		id = fieldId
@@ -85,6 +83,7 @@ private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, pre
 		if (preFillValue != null) {
 			value = preFillValue
 		}
+		attributes["autocomplete"] = autoComplete
 	}
 }
 
@@ -99,23 +98,23 @@ private const val ID_REGISTER_NAME = "rN"
 
 /** Show initial page where user can log in and register. */
 fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
+                                     info:String? = null,
                                      /* Pre-filled values */
                                      loginEmail:String? = null,
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
-	responseHeaders.put(Headers.CONTENT_LOCATION, "/")
 	sendBase("Welcome") { _, _ ->
 		div("container") {
 			style = "margin-top: 5%"
 
 			div("row") {
-				style = "margin-bottom: 5%"
+				style = "margin-bottom: 3rem"
 				h1 { +"Vincent" }
 				p("sub") { +"Patron of wine tasting" }
 			}
 
 			if (problems.isNotEmpty()) {
-				div("row warning-box") {
+				div("row warning box") {
 					if (problems.size == 1) {
 						+problems[0]
 					} else {
@@ -128,12 +127,18 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 				}
 			}
 
+			if (info != null) {
+				div("row info box") {
+					+info
+				}
+			}
+
 			div("row") {
 				div("w6 column container") {
 					h4 { +"Login" }
 					form(action = "/", method = FormMethod.post) {
-						div("row") { emailField(ID_LOGIN_EMAIL, loginEmail) }
-						div("row") { passwordField(ID_LOGIN_PASSWORD) }
+						div("row") { emailField(ID_LOGIN_EMAIL, "on", loginEmail) }
+						div("row") { passwordField(ID_LOGIN_PASSWORD, "current-password") }
 						div("row") {
 							submitInput(classes = "u-full-width") { value = "Log in" }
 						}
@@ -143,9 +148,9 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 				div("w6 column container") {
 					h4 { +"Register" }
 					form(action = "/register", method = FormMethod.post) {
-						div("row") { emailField(ID_REGISTER_EMAIL, registerEmail) }
-						div("row") { passwordField(ID_REGISTER_PASSWORD) }
-						div("row") { fullNameField(ID_REGISTER_NAME, registerName) }
+						div("row") { emailField(ID_REGISTER_EMAIL, "off", registerEmail) }
+						div("row") { passwordField(ID_REGISTER_PASSWORD, "new-password") }
+						div("row") { fullNameField(ID_REGISTER_NAME, "name", registerName) }
 						div("row") {
 							submitInput(classes = "u-full-width") { value = "Register" }
 						}
@@ -160,87 +165,35 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 private val INVALID_PASSWORD_CHARACTERS = Regex("[\n\r\u0000]")
 
-/*
-Rate-limiting system
---------------------
-
-Each failed login attempt (with a valid e-mail) earns the user a single penalty token.
-Penalty tokens decay after some time.
-If the user has too many penalty tokens (max), their login attempts will be rejected.
- */
-private val PENALTY_TOKEN_DECAYS_AFTER = Duration.ofMinutes(30)
-private const val MAX_PENALTY_TOKENS = 5
-/** The shortest time duration that the user can wait. */
-private val SHORT_TIME_DURATION = Duration.ofSeconds(5)
-
-private class PenaltyTokenBucket : ArrayDeque<Instant>(MAX_PENALTY_TOKENS){
-
-	/** To prevent logging in from two people at the same time.
-	 * Basically a non-blocking lock. */
-	private val loginInProgress = AtomicBoolean(false)
-
-	/** Attempt to begin logging in. If this returns `null`,
-	 * login attempt may proceed and [loginInProgress] MUST be set to `false` later.
-	 *
-	 * Otherwise, this returns a time after which the attempt may be tried again.
-	 * Do not change [loginInProgress] after this result! */
-	private fun beginLogin(now:Instant):Duration? {
-		if (!loginInProgress.compareAndSet(false, true)) {
-			// Login already in process, try again in few seconds
-			return SHORT_TIME_DURATION
-		}
-		cleanOldPenalties(now)
-		if (size >= MAX_PENALTY_TOKENS) {
-			// Too many penalty tokens!
-			loginInProgress.set(false)
-			val duration = Duration.between(now, peekFirst())
-			if (duration < SHORT_TIME_DURATION) {
-				return SHORT_TIME_DURATION
-			}
-			return duration
-		}
-		// Everything seems fine, proceed
-		return null
-	}
-
-	private fun cleanOldPenalties(now:Instant) {
-		while (isNotEmpty() && peekFirst().isBefore(now)) {
-			removeFirst()
-		}
-	}
-
-	fun attemptLogin(mayAttemptAfter:(Duration) -> Unit, mayAttempt:(now:Instant) -> Unit) {
-		val now = Instant.now()
-		val after = beginLogin(now)
-		if (after == null) {
-			mayAttempt(now)
-		} else {
-			try {
-				mayAttemptAfter(after)
-			} finally {
-				loginInProgress.set(false)
-			}
-		}
-	}
-
-	fun addPenalty(now:Instant) {
-		addLast(now.plus(PENALTY_TOKEN_DECAYS_AFTER))
-	}
-}
-
-private val failedLoginAttemptLog = CacheBuilder.newBuilder()
-		.expireAfterWrite(PENALTY_TOKEN_DECAYS_AFTER)
-		.expireAfterAccess(PENALTY_TOKEN_DECAYS_AFTER).build(object : CacheLoader<Long, PenaltyTokenBucket>() {
-			override fun load(key: Long): PenaltyTokenBucket = PenaltyTokenBucket()
-		})
-
 fun RoutingHandler.setupWelcomeRoutes() {
 	get("/") { exchange ->
+		val logout = when {
+			exchange.formString("logout") != null -> {
+				exchange.destroySession(false)
+			}
+			exchange.formString("logout-fully") != null -> {
+				exchange.destroySession(true)
+			}
+			else -> 0
+		}
+
 		val session = exchange.session()
 		if (session != null) {
 			exchange.home(session)
 		} else {
-			exchange.loginRegister()
+			val info = when {
+				logout == 1 -> {
+					"Logged out successfully"
+				}
+				logout == 2 -> {
+					"Logged out successfully from this and 1 more browser"
+				}
+				logout > 2 -> {
+					"Logged out successfully from this and ${logout - 1} more browsers"
+				}
+				else -> null
+			}
+			exchange.loginRegister(info=info)
 		}
 	}
 
@@ -292,7 +245,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			LOG.info("{} - Attempted login too soon (from {})", accountId, exchange.sourceAddress)
 
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
-			exchange.loginRegister(listOf("Too many login attempts, try again in ${wait.toHumanReadableString(l)}"), loginEmail = email, registerEmail = email)
+			exchange.loginRegister(listOf("Too many failed login attempts, try again in ${wait.toHumanReadableString(l)}"), loginEmail = email, registerEmail = email)
 		}) { now ->
 			val validPassword = checkPassword(providedPassword.toByteArray(Charsets.UTF_8), storedPassword)
 

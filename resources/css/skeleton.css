@@ -165,8 +165,8 @@ form:valid input[type="submit"] {
 @keyframes submit-glow {
   to {
     color: #FFF;
-    background-color: #33d662;
-    border-color: #33d662;
+    background-color: #33D662;
+    border-color: #33D662;
   }
 }
 
@@ -183,6 +183,12 @@ input[type="button"].button-primary:focus {
   color: #FFF;
   background-color: #1EAEDB;
   border-color: #1EAEDB; }
+
+button.dangerous {
+	color: #FFF;
+	background-color: #A60F0F;
+	border-color: #A60F0F;
+}
 
 
 /* Forms */
@@ -338,13 +344,25 @@ hr {
   display: table;
   clear: both; }
 
-/* Warning box */
-.warning-box {
+/* Info boxes */
+.box {
 	border-radius:4px;
     padding:1rem 1.5rem;
-    margin:1rem;
+    margin-left: 3rem;
+    margin-right: 3rem;
+    margin-bottom: 3rem;
     background:#ffecec;
     border:1px solid #f5aca6;
+}
+
+.warning.box {
+    background:#ffecec;
+    border:1px solid #f5aca6;
+}
+
+.info.box {
+    background:#ecfffc;
+    border:1px solid #a6eaf5;
 }
 
 /* Media Queries

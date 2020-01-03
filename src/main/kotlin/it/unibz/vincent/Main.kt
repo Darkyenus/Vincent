@@ -15,7 +15,6 @@ import it.unibz.vincent.util.onShutdown
 import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
