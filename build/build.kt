@@ -13,6 +13,7 @@ val Vincent by project {
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }
 	runArguments add { "--database=${cacheDirectory.get() / "-database/vincent" }" }
+	runArguments add { "--host=10.0.0.6" }
 
 	repositories add { Jitpack }
 	repositories add { JCenter }

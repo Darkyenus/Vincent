@@ -3,26 +3,35 @@ package it.unibz.vincent.util
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
 import com.ibm.icu.util.ULocale
+import io.undertow.predicate.Predicate
 import io.undertow.server.DefaultResponseListener
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import io.undertow.server.RoutingHandler
 import io.undertow.server.handlers.form.EagerFormParsingHandler
 import io.undertow.server.handlers.form.FormDataParser
 import io.undertow.server.handlers.form.FormEncodedDataDefinition
 import io.undertow.server.handlers.form.FormParserFactory
 import io.undertow.util.AttachmentKey
 import io.undertow.util.Headers
-import io.undertow.util.Methods
 import io.undertow.util.PathTemplateMatch
 import io.undertow.util.StatusCodes
+import it.unibz.vincent.AccountType
+import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.pages.base
+import it.unibz.vincent.pages.loginRegister
 import it.unibz.vincent.session
+import kotlinx.html.ButtonType
+import kotlinx.html.FlowContent
 import kotlinx.html.HTML
+import kotlinx.html.a
+import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.html
 import kotlinx.html.img
+import kotlinx.html.onClick
 import kotlinx.html.stream.appendHTML
 import kotlinx.html.style
 import org.slf4j.Logger
@@ -156,6 +165,29 @@ fun HttpServerExchange.sendHtml(generateHtml: HTML.() -> Unit) {
 	responseSender.send(byteBuffer)
 }
 
+private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, message: FlowContent.() -> Unit) {
+	statusCode = code
+	sendHtml {
+		base(title="Vincent - $title") {
+			div("container") {
+				style = "padding: 5%"
+
+				a(href="https://en.wikipedia.org/wiki/Vincent_of_Saragossa") {
+					img(alt="Tomás Giner: St. Vincent, deacon and martyr, with a donor",
+							src="/internal/vincent.jpg", classes="u-centered") {
+						style = "height: 384px; margin-bottom: 2rem"
+					}
+				}
+
+				h1("u-centered") {
+					message()
+					button(type = ButtonType.button) { onClick="javascript:history.back()"; +"Back" }
+				}
+			}
+		}
+	}
+}
+
 /** Wrap [handler] for extra functionality:
  * - make "urlencoded" content accessible
  * - make [HttpResponseException] work
@@ -166,16 +198,7 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 			.withDefaultCharset(StandardCharsets.UTF_8.name())
 			.build()
 	val formParsingHandler = EagerFormParsingHandler(formParserFactory)
-	formParsingHandler.next = HttpHandler { exchange ->
-		val session = exchange.session()
-		if (Methods.POST == exchange.requestMethod && session != null) {
-			if (session.csrfToken != exchange.formString(CSRF_FORM_TOKEN_NAME)) {
-				LOG.warn("POST request to {} by {} without CSRF token set!", exchange.requestPath, session)
-				throw HttpResponseException(StatusCodes.BAD_REQUEST, "Request is incomplete")
-			}
-		}
-		handler.handleRequest(exchange)
-	}
+	formParsingHandler.next = handler
 
 	val defaultHandler = DefaultResponseListener { exchange ->
 		if (exchange.isResponseStarted || !exchange.isResponseChannelAvailable) {
@@ -190,20 +213,7 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 		}
 		message = message ?: StatusCodes.getReason(status)!!
 
-
-		exchange.sendHtml {
-			base(title="Vincent - $message") {
-				div("container") {
-					style = "padding: 5%"
-
-					img(alt="Tomás Giner: St. Vincent, deacon and martyr, with a donor",
-							src="/internal/vincent.jpg", classes="u-centered") {
-						style = "height: 384px; margin-bottom: 2rem"
-					}
-					h1("u-centered") { +"$status - $message" }
-				}
-			}
-		}
+		exchange.sendPageOfDisapproval(status, message) { +"$status - $message" }
 
 		true
 	}
@@ -227,3 +237,61 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
  */
 class HttpResponseException(val code: Int,
 		val customMessage: String? = StatusCodes.getReason(code)) : Exception()
+
+const val ROUTE_ACTION_PARAM_NAME = "action"
+
+private fun KHttpHandler.handleAuthenticated(accessLevel: AccountType?, checkCsrf:Boolean):HttpHandler {
+	if (accessLevel == null) {
+		return HttpHandler { this(it) }
+	} else {
+		return HttpHandler { exchange ->
+			val session = exchange.session()
+			if (session == null) {
+				exchange.statusCode = StatusCodes.FORBIDDEN
+				exchange.loginRegister(listOf("Please log-in first"))
+			} else if (session.get(Accounts.accountType) < accessLevel) {
+				// This guy is fired
+				exchange.sendPageOfDisapproval(StatusCodes.FORBIDDEN, "Forbidden") {
+					+"You don't have a permission to do that"
+				}
+			} else if (checkCsrf && session.csrfToken != exchange.formString(CSRF_FORM_TOKEN_NAME)) {
+				// This guy brought shame and disgrace on his family name for generations to come
+				LOG.warn("POST request to {} by {} without CSRF token set!", exchange.requestPath, session)
+				exchange.sendPageOfDisapproval(StatusCodes.FORBIDDEN, "Forbidden") {
+					+"You really don't have a permission to do that"
+				}
+			} else {
+				this(exchange)
+			}
+		}
+	}
+}
+
+private fun routeActionPredicate(action:String):Predicate {
+	return Predicate { exchange ->
+		action.equals(exchange.formString(ROUTE_ACTION_PARAM_NAME), ignoreCase = true)
+	}
+}
+
+// SAM Conversion crutch, TODO: Remove after upgrading to Kotlin 1.4
+typealias KHttpHandler = (HttpServerExchange) -> Unit
+
+@Suppress("FunctionName")
+fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeAction:String? = null, handler:KHttpHandler) {
+	val authHandler = handler.handleAuthenticated(accessLevel, false)
+	if (routeAction == null) {
+		get(template, authHandler)
+	} else {
+		get(template, routeActionPredicate(routeAction), authHandler)
+	}
+}
+
+@Suppress("FunctionName")
+fun RoutingHandler.POST(template:String, accessLevel: AccountType? = null, routeAction:String? = null, handler:KHttpHandler) {
+	val authHandler = handler.handleAuthenticated(accessLevel, true)
+	if (routeAction == null) {
+		post(template, authHandler)
+	} else {
+		post(template, routeActionPredicate(routeAction), authHandler)
+	}
+}

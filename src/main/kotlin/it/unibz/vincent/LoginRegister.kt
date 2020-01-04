@@ -50,7 +50,7 @@ class Session(val sessionId:String, val userId:Long) {
 
 	fun <T> get(column: Column<T>):T {
 		return transaction {
-			Accounts.select { Accounts.id eq userId }.single()[column]
+			Accounts.slice(column).select { Accounts.id eq userId }.single()[column]
 		}
 	}
 }

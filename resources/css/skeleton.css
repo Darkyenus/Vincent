@@ -83,11 +83,23 @@ h4 { font-size: 2.4rem; line-height: 1.35; letter-spacing: -.08rem; }
 h5 { font-size: 1.8rem; line-height: 1.5;  letter-spacing: -.05rem; }
 h6 { font-size: 1.5rem; line-height: 1.6;  letter-spacing: 0; }
 
-h1 + p.sub {
+h1 + p.sub,
+h2 + p.sub,
+h3 + p.sub,
+h4 + p.sub {
 	margin-top: -1.7rem;
 	margin-bottom: 2rem;
 	margin-left: 2rem;
 	font-size: 1.8rem;
+	color: #666;
+}
+
+h5 + p.sub,
+h6 + p.sub {
+	margin-top: -1.7rem;
+	margin-bottom: 2rem;
+	margin-left: 2rem;
+	font-size: 1.3rem;
 	color: #666;
 }
 

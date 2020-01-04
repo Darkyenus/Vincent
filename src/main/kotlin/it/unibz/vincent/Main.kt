@@ -7,6 +7,7 @@ import io.undertow.server.RoutingHandler
 import io.undertow.server.handlers.ResponseCodeHandler
 import io.undertow.server.handlers.resource.PathResourceManager
 import io.undertow.server.handlers.resource.ResourceHandler
+import it.unibz.vincent.pages.setupHomeRoutes
 import it.unibz.vincent.pages.setupWelcomeRoutes
 import it.unibz.vincent.util.Option
 import it.unibz.vincent.util.closeDatabase
@@ -90,6 +91,7 @@ fun main(args: Array<String>) {
 		handler, path -> ResourceHandler(PathResourceManager.builder().setBase(path).build(), handler) }
 
 	routingHandler.setupWelcomeRoutes()
+	routingHandler.setupHomeRoutes()
 
 	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
 	onShutdown {
@@ -107,23 +109,23 @@ fun main(args: Array<String>) {
 	InputStreamReader(System.`in`, Charsets.UTF_8).useLines { lines ->
 		val argSplitPattern = Regex("\\s+")
 		for (commandRaw in lines) {
-			val args = commandRaw.trim().split(argSplitPattern)
-			if (args.isEmpty() || args[0].isEmpty()) {
+			val cliArgs = commandRaw.trim().split(argSplitPattern)
+			if (cliArgs.isEmpty() || cliArgs[0].isEmpty()) {
 				continue
 			}
 
-			LOG.info("CLI: {}", args.joinToString(" "))
+			LOG.info("CLI: {}", cliArgs.joinToString(" "))
 
-			when (args[0].toLowerCase()) {
+			when (cliArgs[0].toLowerCase()) {
 				"stop" -> {
 					LOG.info("CLI: Stopping the server")
 					undertow.stop()
 					exitProcess(0)
 				}
 				"account" -> {
-					val email = args.getOrNull(1)
-					val type = try { AccountType.valueOf(args.getOrNull(2)?.toUpperCase() ?: "") } catch (e:IllegalArgumentException) { null }
-					if (email == null || type == null || args.size != 3) {
+					val email = cliArgs.getOrNull(1)
+					val type = try { AccountType.valueOf(cliArgs.getOrNull(2)?.toUpperCase() ?: "") } catch (e:IllegalArgumentException) { null }
+					if (email == null || type == null || cliArgs.size != 3) {
 						println("usage: account <email> <${AccountType.values().joinToString("|")}>")
 					} else {
 						val updated = transaction { Accounts.update(where={ Accounts.email eq email }, limit=1) { it[accountType] = type } }

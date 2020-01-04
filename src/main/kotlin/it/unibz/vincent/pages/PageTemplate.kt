@@ -4,17 +4,19 @@ import io.undertow.server.HttpServerExchange
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
 import it.unibz.vincent.util.LocaleStack
+import it.unibz.vincent.util.ROUTE_ACTION_PARAM_NAME
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.sendHtml
 import kotlinx.html.BODY
+import kotlinx.html.BUTTON
+import kotlinx.html.ButtonType
 import kotlinx.html.FORM
 import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
-import kotlinx.html.HtmlTagMarker
 import kotlinx.html.body
-import kotlinx.html.div
+import kotlinx.html.button
 import kotlinx.html.form
 import kotlinx.html.head
 import kotlinx.html.hiddenInput
@@ -58,11 +60,35 @@ fun HTML.base(lang:String = "en", title:String = "Vincent", description:String =
 	}
 }
 
-/** Version of [form] when in a session. Includes CSRF protection token.  */
-fun FlowContent.sessionForm(session: Session, action : String? = null, encType : FormEncType? = null, method : FormMethod? = FormMethod.post, classes : String? = null, block : FORM.() -> Unit = {}) {
-	form(action, encType, method, classes) {
-		block()
-		hiddenInput(name = CSRF_FORM_TOKEN_NAME) { value = session.csrfToken }
+/** Include necessary extra data into the form (anti-CSRF token). */
+fun FORM.session(session: Session) {
+	hiddenInput(name = CSRF_FORM_TOKEN_NAME) { value = session.csrfToken }
+}
+
+fun FORM.routeAction(routeAction:String?) {
+	if (routeAction != null) {
+		hiddenInput(name= ROUTE_ACTION_PARAM_NAME) { value = routeAction }
+	}
+}
+
+fun FlowContent.getButton(url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, block : BUTTON.() -> Unit) {
+	form(url, method=FormMethod.get) {
+		button(type= ButtonType.submit, classes=classes){ block() }
+		routeAction(routeAction)
+		for ((k, v) in extraParams) {
+			hiddenInput(name= k) { value = v }
+		}
+	}
+}
+
+fun FlowContent.postButton(session:Session, url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, block : BUTTON.() -> Unit) {
+	form(url, method=FormMethod.post) {
+		button(type= ButtonType.submit, classes=classes){ block() }
+		routeAction(routeAction)
+		session(session)
+		for ((k, v) in extraParams) {
+			hiddenInput(name= k) { value = v }
+		}
 	}
 }
 

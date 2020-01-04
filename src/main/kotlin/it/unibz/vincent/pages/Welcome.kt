@@ -10,7 +10,9 @@ import it.unibz.vincent.createSession
 import it.unibz.vincent.destroySession
 import it.unibz.vincent.failedLoginAttemptLog
 import it.unibz.vincent.session
+import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.HashedPassword
+import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.checkPassword
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
@@ -23,7 +25,6 @@ import kotlinx.html.emailInput
 import kotlinx.html.form
 import kotlinx.html.h1
 import kotlinx.html.h4
-import kotlinx.html.id
 import kotlinx.html.label
 import kotlinx.html.li
 import kotlinx.html.p
@@ -43,58 +44,60 @@ import java.time.Instant
 private val LOG = LoggerFactory.getLogger("WelcomePage")
 
 private fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, autoComplete:String, preFillValue:String?) {
-	label { htmlFor = fieldId; +"E-mail" }
-	emailInput(classes = "u-full-width") {
-		id = fieldId
-		name = fieldId
-		minLength = "3"
-		maxLength = Accounts.MAX_EMAIL_LENGTH.toString()
-		placeholder = "your-email@example.com"
-		required = true
-		if (preFillValue != null) {
-			value = preFillValue
+	label {
+		+"E-mail"
+		emailInput(classes = "u-full-width") {
+			name = fieldId
+			minLength = "3"
+			maxLength = Accounts.MAX_EMAIL_LENGTH.toString()
+			placeholder = "your-email@example.com"
+			required = true
+			if (preFillValue != null) {
+				value = preFillValue
+			}
+			attributes["autocomplete"] = autoComplete
 		}
-		attributes["autocomplete"] = autoComplete
 	}
 }
 
 private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, autoComplete:String) {
-	label { htmlFor = fieldId; +"Password" }
-	passwordInput(classes = "u-full-width") {
-		id = fieldId
-		name = fieldId
-		minLength = MIN_PASSWORD_LENGTH.toString()
-		maxLength = MAX_PASSWORD_LENGTH.toString()
-		//placeholder = "●●●●●●●●●●●●●●"
-		required = true
-		attributes["autocomplete"] = autoComplete
+	label {
+		+"Password"
+		passwordInput(classes = "u-full-width") {
+			name = fieldId
+			minLength = MIN_PASSWORD_LENGTH.toString()
+			maxLength = MAX_PASSWORD_LENGTH.toString()
+			//placeholder = "●●●●●●●●●●●●●●"
+			required = true
+			attributes["autocomplete"] = autoComplete
+			// TODO(jp): Unmask functionality
+		}
 	}
 }
 
 private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplete:String, preFillValue:String?) {
-	label { htmlFor = fieldId; +"Name" }
-	textInput(classes = "u-full-width") {
-		id = fieldId
-		name = fieldId
-		minLength = "1"
-		maxLength = Accounts.MAX_NAME_LENGTH.toString()
-		placeholder = "John Doe"
-		required = true
-		if (preFillValue != null) {
-			value = preFillValue
+	label {
+		+"Name"
+		textInput(classes = "u-full-width") {
+			name = fieldId
+			minLength = "1"
+			maxLength = Accounts.MAX_NAME_LENGTH.toString()
+			placeholder = "John Doe"
+			required = true
+			if (preFillValue != null) {
+				value = preFillValue
+			}
+			attributes["autocomplete"] = autoComplete
 		}
-		attributes["autocomplete"] = autoComplete
 	}
 }
 
-private const val ID_LOGIN_EMAIL = "lE"
-private const val ID_LOGIN_PASSWORD = "lP"
+private const val FORM_EMAIL = "e"
+private const val FORM_PASSWORD = "p"
+private const val FORM_FULL_NAME = "n"
+
 private const val MIN_PASSWORD_LENGTH = 8
 private const val MAX_PASSWORD_LENGTH = 1000
-
-private const val ID_REGISTER_EMAIL = "rE"
-private const val ID_REGISTER_PASSWORD = "rP"
-private const val ID_REGISTER_NAME = "rN"
 
 /** Show initial page where user can log in and register. */
 fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
@@ -137,8 +140,9 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 				div("w6 column container") {
 					h4 { +"Login" }
 					form(action = "/", method = FormMethod.post) {
-						div("row") { emailField(ID_LOGIN_EMAIL, "on", loginEmail) }
-						div("row") { passwordField(ID_LOGIN_PASSWORD, "current-password") }
+						routeAction("login")
+						div("row") { emailField(FORM_EMAIL, "on", loginEmail) }
+						div("row") { passwordField(FORM_PASSWORD, "current-password") }
 						div("row") {
 							submitInput(classes = "u-full-width") { value = "Log in" }
 						}
@@ -147,10 +151,11 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 
 				div("w6 column container") {
 					h4 { +"Register" }
-					form(action = "/register", method = FormMethod.post) {
-						div("row") { emailField(ID_REGISTER_EMAIL, "off", registerEmail) }
-						div("row") { passwordField(ID_REGISTER_PASSWORD, "new-password") }
-						div("row") { fullNameField(ID_REGISTER_NAME, "name", registerName) }
+					form(action = "/", method = FormMethod.post) {
+						routeAction("register")
+						div("row") { emailField(FORM_EMAIL, "off", registerEmail) }
+						div("row") { passwordField(FORM_PASSWORD, "new-password") }
+						div("row") { fullNameField(FORM_FULL_NAME, "name", registerName) }
 						div("row") {
 							submitInput(classes = "u-full-width") { value = "Register" }
 						}
@@ -165,47 +170,48 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 private val INVALID_PASSWORD_CHARACTERS = Regex("[\n\r\u0000]")
 
-fun RoutingHandler.setupWelcomeRoutes() {
-	get("/") { exchange ->
-		val logout = when {
-			exchange.formString("logout") != null -> {
-				exchange.destroySession(false)
-			}
-			exchange.formString("logout-fully") != null -> {
-				exchange.destroySession(true)
-			}
-			else -> 0
+private fun logoutMessage(sessionsDestroyed:Int):String? {
+	return when {
+		sessionsDestroyed == 1 -> {
+			"Logged out successfully"
 		}
+		sessionsDestroyed == 2 -> {
+			"Logged out successfully from this and 1 more browser"
+		}
+		sessionsDestroyed > 2 -> {
+			"Logged out successfully from this and ${sessionsDestroyed - 1} more browsers"
+		}
+		else -> null
+	}
+}
 
+fun RoutingHandler.setupWelcomeRoutes() {
+	POST("/", routeAction = "logout") { exchange ->
+		exchange.loginRegister(info=logoutMessage(exchange.destroySession(false)))
+	}
+
+	POST("/", routeAction = "logout-fully") { exchange ->
+		exchange.loginRegister(info=logoutMessage(exchange.destroySession(true)))
+	}
+
+	GET("/") { exchange ->
 		val session = exchange.session()
 		if (session != null) {
 			exchange.home(session)
 		} else {
-			val info = when {
-				logout == 1 -> {
-					"Logged out successfully"
-				}
-				logout == 2 -> {
-					"Logged out successfully from this and 1 more browser"
-				}
-				logout > 2 -> {
-					"Logged out successfully from this and ${logout - 1} more browsers"
-				}
-				else -> null
-			}
-			exchange.loginRegister(info=info)
+			exchange.loginRegister()
 		}
 	}
 
-	post("/") { exchange ->
+	POST("/", routeAction = "login") { exchange ->
 		val l = exchange.languages()
 
-		val email = exchange.formString(ID_LOGIN_EMAIL)
-		val providedPassword = exchange.formString(ID_LOGIN_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
+		val email = exchange.formString(FORM_EMAIL)
+		val providedPassword = exchange.formString(FORM_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
 		if (email == null || providedPassword == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(listOf("Incomplete login form"), loginEmail = email)
-			return@post
+			return@POST
 		}
 
 		val problems = ArrayList<String>()
@@ -222,13 +228,13 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		if (problems.isNotEmpty()) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(problems, loginEmail = email)
-			return@post
+			return@POST
 		}
 
 		var accountId = 0L
 		var storedPasswordN:HashedPassword? = null
 		transaction {
-			Accounts.select { Accounts.email eq email }.limit(1).singleOrNull()?.let {
+			Accounts.slice(Accounts.id, Accounts.password).select { Accounts.email eq email }.limit(1).singleOrNull()?.let {
 				accountId = it[Accounts.id]
 				storedPasswordN = it[Accounts.password]
 			}
@@ -237,7 +243,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		val storedPassword = storedPasswordN ?: run {
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
 			exchange.loginRegister(listOf("User with this e-mail does not exist - you may register instead"), loginEmail = email, registerEmail = email)
-			return@post
+			return@POST
 		}
 
 		val rateLimiter = failedLoginAttemptLog[accountId]!!
@@ -269,14 +275,14 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	post("/register") { exchange ->
-		val email = exchange.formString(ID_REGISTER_EMAIL)
-		val password = exchange.formString(ID_REGISTER_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
-		val name = exchange.formString(ID_REGISTER_NAME)
+	POST("/", routeAction = "register") { exchange ->
+		val email = exchange.formString(FORM_EMAIL)
+		val password = exchange.formString(FORM_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
+		val name = exchange.formString(FORM_FULL_NAME)
 		if (email == null || password == null || name == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(listOf("Incomplete registration form"), registerEmail=email, registerName=name)
-			return@post
+			return@POST
 		}
 
 		val problems = ArrayList<String>()
@@ -296,7 +302,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		if (problems.isNotEmpty()) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(problems, registerEmail=email, registerName=name)
-			return@post
+			return@POST
 		}
 
 		var emailAlreadyUsed = false
@@ -325,7 +331,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		if (emailAlreadyUsed) {
 			exchange.statusCode = StatusCodes.CONFLICT
 			exchange.loginRegister(listOf("Account with this email already exits, log in instead"), loginEmail=email, registerEmail=email, registerName=name)
-			return@post
+			return@POST
 		}
 
 		LOG.info("Successful registration of {} (from {})", newAccountId, exchange.sourceAddress)
