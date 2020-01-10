@@ -1,6 +1,7 @@
 package it.unibz.vincent.pages
 
 import io.undertow.server.HttpServerExchange
+import io.undertow.util.AttachmentKey
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
 import it.unibz.vincent.util.LocaleStack
@@ -17,13 +18,16 @@ import kotlinx.html.FormMethod
 import kotlinx.html.HTML
 import kotlinx.html.body
 import kotlinx.html.button
+import kotlinx.html.div
 import kotlinx.html.form
 import kotlinx.html.head
 import kotlinx.html.hiddenInput
 import kotlinx.html.lang
+import kotlinx.html.li
 import kotlinx.html.link
 import kotlinx.html.meta
 import kotlinx.html.title
+import kotlinx.html.ul
 
 /** Build head and body. */
 fun HTML.base(lang:String = "en", title:String = "Vincent", description:String = "", createBody: BODY.() -> Unit) {
@@ -98,6 +102,77 @@ fun HttpServerExchange.sendBase(title:String = "", createBody: BODY.(HttpServerE
 	sendHtml {
 		base("en", title, "Wine evaluation questionnaires") {
 			createBody(this@sendBase, languages)
+		}
+	}
+}
+
+private class Messages {
+	var warningMessages:ArrayList<String>? = null
+	var infoMessages:ArrayList<String>? = null
+}
+
+private val messageAttachment = AttachmentKey.create(Messages::class.java)
+
+fun HttpServerExchange.messageWarning(text:String?) {
+	text ?: return
+	val messages = getAttachment(messageAttachment) ?: Messages().also {
+		putAttachment(messageAttachment, it)
+	}
+	val list = messages.warningMessages ?: ArrayList<String>().also {
+		messages.warningMessages = it
+	}
+	list.add(text)
+}
+
+fun HttpServerExchange.messageWarningCount():Int {
+	val messages = getAttachment(messageAttachment) ?: return 0
+	val list = messages.warningMessages ?: return 0
+	return list.size
+}
+
+fun HttpServerExchange.messageInfo(text:String?) {
+	text ?: return
+	val messages = getAttachment(messageAttachment) ?: Messages().also {
+		putAttachment(messageAttachment, it)
+	}
+	val list = messages.infoMessages ?: ArrayList<String>().also {
+		messages.infoMessages = it
+	}
+	list.add(text)
+}
+
+fun FlowContent.renderMessages(exchange:HttpServerExchange) {
+	val messages = exchange.getAttachment(messageAttachment) ?: return
+
+	messages.warningMessages?.let {
+		if (it.isNotEmpty()) {
+			div("row warning box") {
+				if (it.size == 1) {
+					+it[0]
+				} else {
+					ul {
+						for (message in it) {
+							li { +message }
+						}
+					}
+				}
+			}
+		}
+	}
+
+	messages.infoMessages?.let {
+		if (it.isNotEmpty()) {
+			div("row info box") {
+				if (it.size == 1) {
+					+it[0]
+				} else {
+					ul {
+						for (message in it) {
+							li { +message }
+						}
+					}
+				}
+			}
 		}
 	}
 }

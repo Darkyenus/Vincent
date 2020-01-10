@@ -13,7 +13,7 @@ val Vincent by project {
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }
 	runArguments add { "--database=${cacheDirectory.get() / "-database/vincent" }" }
-	runArguments add { "--host=10.0.0.6" }
+	runArguments add { "--host=localhost" }
 
 	repositories add { Jitpack }
 	repositories add { JCenter }
@@ -29,6 +29,8 @@ val Vincent by project {
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib"),
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib-common")
 	)) }
+	// Coroutines
+	libraryDependencies add { dependency("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.3.3") }
 
 	// Logging
 	libraryDependencies add { dependency("org.slf4j", "slf4j-api", "1.7.25") }

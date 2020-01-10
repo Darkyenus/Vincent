@@ -2,14 +2,29 @@ package it.unibz.vincent.util
 
 import com.lambdaworks.crypto.SCrypt
 import java.security.SecureRandom
+import java.text.Normalizer
 import kotlin.experimental.or
 import kotlin.experimental.xor
 
 /**
  * Utility for password hashing.
+ *
+ * Resources:
+ * [NIST Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html#sec5)
  */
 
+/** Bytes of a raw password, as entered by the user. */
 typealias RawPassword = ByteArray
+
+/** These should be impossible to enter into the form, so trim them. They could only appear as a mistake or something. */
+private val INVALID_PASSWORD_CHARACTERS = Regex("[\n\r\u0000]")
+
+fun String.toRawPassword():RawPassword {
+	return this
+			.replace(INVALID_PASSWORD_CHARACTERS, "")
+			.let { Normalizer.normalize(it, Normalizer.Form.NFKC) }
+			.toByteArray(Charsets.UTF_8)
+}
 
 /**
  * Contains derived hash + metadata in following order:

@@ -18,6 +18,7 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.toHumanReadableString
+import it.unibz.vincent.util.toRawPassword
 import kotlinx.html.FlowOrInteractiveOrPhrasingContent
 import kotlinx.html.FormMethod
 import kotlinx.html.div
@@ -26,13 +27,11 @@ import kotlinx.html.form
 import kotlinx.html.h1
 import kotlinx.html.h4
 import kotlinx.html.label
-import kotlinx.html.li
 import kotlinx.html.p
 import kotlinx.html.passwordInput
 import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.textInput
-import kotlinx.html.ul
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
@@ -100,9 +99,7 @@ private const val MIN_PASSWORD_LENGTH = 8
 private const val MAX_PASSWORD_LENGTH = 1000
 
 /** Show initial page where user can log in and register. */
-fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
-                                     info:String? = null,
-                                     /* Pre-filled values */
+fun HttpServerExchange.loginRegister(/* Pre-filled values */
                                      loginEmail:String? = null,
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
@@ -116,25 +113,7 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 				p("sub") { +"Patron of wine tasting" }
 			}
 
-			if (problems.isNotEmpty()) {
-				div("row warning box") {
-					if (problems.size == 1) {
-						+problems[0]
-					} else {
-						ul {
-							for (problem in problems) {
-								li { +problem }
-							}
-						}
-					}
-				}
-			}
-
-			if (info != null) {
-				div("row info box") {
-					+info
-				}
-			}
+			renderMessages(this@loginRegister)
 
 			div("row") {
 				div("w6 column container") {
@@ -168,7 +147,6 @@ fun HttpServerExchange.loginRegister(problems:List<String> = emptyList(),
 
 // From https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#Validation
 private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-private val INVALID_PASSWORD_CHARACTERS = Regex("[\n\r\u0000]")
 
 private fun logoutMessage(sessionsDestroyed:Int):String? {
 	return when {
@@ -186,15 +164,17 @@ private fun logoutMessage(sessionsDestroyed:Int):String? {
 }
 
 fun RoutingHandler.setupWelcomeRoutes() {
-	POST("/", routeAction = "logout") { exchange ->
-		exchange.loginRegister(info=logoutMessage(exchange.destroySession(false)))
+	POST("/", routeAction = "logout", accessLevel=null) { exchange ->
+		exchange.messageInfo(logoutMessage(exchange.destroySession(false)))
+		exchange.loginRegister()
 	}
 
-	POST("/", routeAction = "logout-fully") { exchange ->
-		exchange.loginRegister(info=logoutMessage(exchange.destroySession(true)))
+	POST("/", routeAction = "logout-fully", accessLevel=null) { exchange ->
+		exchange.messageInfo(logoutMessage(exchange.destroySession(true)))
+		exchange.loginRegister()
 	}
 
-	GET("/") { exchange ->
+	GET("/", accessLevel=null) { exchange ->
 		val session = exchange.session()
 		if (session != null) {
 			exchange.home(session)
@@ -203,31 +183,30 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	POST("/", routeAction = "login") { exchange ->
+	POST("/", routeAction = "login", accessLevel=null) { exchange ->
 		val l = exchange.languages()
 
 		val email = exchange.formString(FORM_EMAIL)
-		val providedPassword = exchange.formString(FORM_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
+		val providedPassword = exchange.formString(FORM_PASSWORD)
 		if (email == null || providedPassword == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
-			exchange.loginRegister(listOf("Incomplete login form"), loginEmail = email)
+			exchange.messageWarning("Incomplete login form")
+			exchange.loginRegister(loginEmail = email)
 			return@POST
 		}
 
-		val problems = ArrayList<String>()
-
 		if (!EMAIL_PATTERN.matches(email)) {
-			problems.add("Email is not valid")
+			exchange.messageWarning("Email is not valid")
 		}
 		if (providedPassword.length < MIN_PASSWORD_LENGTH) {
-			problems.add("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
+			exchange.messageWarning("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
 		} else if (providedPassword.length > MAX_PASSWORD_LENGTH) {
-			problems.add("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
+			exchange.messageWarning("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
 		}
 
-		if (problems.isNotEmpty()) {
+		if (exchange.messageWarningCount() > 0) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
-			exchange.loginRegister(problems, loginEmail = email)
+			exchange.loginRegister(loginEmail = email)
 			return@POST
 		}
 
@@ -242,7 +221,8 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 		val storedPassword = storedPasswordN ?: run {
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
-			exchange.loginRegister(listOf("User with this e-mail does not exist - you may register instead"), loginEmail = email, registerEmail = email)
+			exchange.messageWarning("User with this e-mail does not exist - you may register instead")
+			exchange.loginRegister(loginEmail = email, registerEmail = email)
 			return@POST
 		}
 
@@ -251,16 +231,18 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			LOG.info("{} - Attempted login too soon (from {})", accountId, exchange.sourceAddress)
 
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
-			exchange.loginRegister(listOf("Too many failed login attempts, try again in ${wait.toHumanReadableString(l)}"), loginEmail = email, registerEmail = email)
+			exchange.messageWarning("Too many failed login attempts, try again in ${wait.toHumanReadableString(l)}")
+			exchange.loginRegister(loginEmail = email, registerEmail = email)
 		}) { now ->
-			val validPassword = checkPassword(providedPassword.toByteArray(Charsets.UTF_8), storedPassword)
+			val validPassword = checkPassword(providedPassword.toRawPassword(), storedPassword)
 
 			if (!validPassword) {
 				// Add penalty token
 				LOG.info("{} - Failed login attempt (from {})", accountId, exchange.sourceAddress)
 				rateLimiter.addPenalty(now)
 				exchange.statusCode = StatusCodes.UNAUTHORIZED
-				exchange.loginRegister(listOf("Invalid password"), loginEmail = email)
+				exchange.messageWarning("Invalid password")
+				exchange.loginRegister(loginEmail = email)
 			} else {
 				// Store last login time
 				LOG.info("{} - Successful login attempt (from {})", accountId, exchange.sourceAddress)
@@ -275,33 +257,33 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	POST("/", routeAction = "register") { exchange ->
+	POST("/", routeAction = "register", accessLevel=null) { exchange ->
 		val email = exchange.formString(FORM_EMAIL)
-		val password = exchange.formString(FORM_PASSWORD)?.replace(INVALID_PASSWORD_CHARACTERS, "")
+		// https://pages.nist.gov/800-63-3/sp800-63b.html#sec5
+		val password = exchange.formString(FORM_PASSWORD)
 		val name = exchange.formString(FORM_FULL_NAME)
 		if (email == null || password == null || name == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
-			exchange.loginRegister(listOf("Incomplete registration form"), registerEmail=email, registerName=name)
+			exchange.messageWarning("Incomplete registration form")
+			exchange.loginRegister(registerEmail=email, registerName=name)
 			return@POST
 		}
 
-		val problems = ArrayList<String>()
-
 		if (!EMAIL_PATTERN.matches(email)) {
-			problems.add("Email is not valid")
+			exchange.messageWarning("Email is not valid")
 		}
 		if (password.length < MIN_PASSWORD_LENGTH) {
-			problems.add("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
+			exchange.messageWarning("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
 		} else if (password.length > MAX_PASSWORD_LENGTH) {
-			problems.add("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
+			exchange.messageWarning("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
 		}
 		if (name.isEmpty()) {
-			problems.add("Name must not be empty")
+			exchange.messageWarning("Name must not be empty")
 		}
 
-		if (problems.isNotEmpty()) {
+		if (exchange.messageWarningCount() > 0) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
-			exchange.loginRegister(problems, registerEmail=email, registerName=name)
+			exchange.loginRegister(registerEmail=email, registerName=name)
 			return@POST
 		}
 
@@ -311,7 +293,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 				Accounts.insert {
 					it[Accounts.name] = name
 					it[Accounts.email] = email
-					it[Accounts.password] = hashPassword(password.toByteArray(Charsets.UTF_8))
+					it[Accounts.password] = hashPassword(password.toRawPassword())
 					it[accountType] = AccountType.NORMAL
 					val now = Instant.now()
 					it[timeRegistered] = now
@@ -330,7 +312,8 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 		if (emailAlreadyUsed) {
 			exchange.statusCode = StatusCodes.CONFLICT
-			exchange.loginRegister(listOf("Account with this email already exits, log in instead"), loginEmail=email, registerEmail=email, registerName=name)
+			exchange.messageWarning("Account with this email already exits, log in instead")
+			exchange.loginRegister(loginEmail=email, registerEmail=email, registerName=name)
 			return@POST
 		}
 

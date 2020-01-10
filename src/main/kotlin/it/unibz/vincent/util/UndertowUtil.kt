@@ -9,9 +9,11 @@ import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.server.handlers.form.EagerFormParsingHandler
+import io.undertow.server.handlers.form.FormData
 import io.undertow.server.handlers.form.FormDataParser
 import io.undertow.server.handlers.form.FormEncodedDataDefinition
 import io.undertow.server.handlers.form.FormParserFactory
+import io.undertow.server.handlers.form.MultiPartParserDefinition
 import io.undertow.util.AttachmentKey
 import io.undertow.util.Headers
 import io.undertow.util.PathTemplateMatch
@@ -21,6 +23,7 @@ import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.pages.base
 import it.unibz.vincent.pages.loginRegister
+import it.unibz.vincent.pages.messageWarning
 import it.unibz.vincent.session
 import kotlinx.html.ButtonType
 import kotlinx.html.FlowContent
@@ -87,6 +90,17 @@ fun HttpServerExchange.formString(name: String): String? {
 		it != null && !it.isFileItem
 	}?.value
 }
+
+/** Retrieve uploaded file with [name]. */
+fun HttpServerExchange.formFile(name:String): FormData.FileItem? {
+	return getAttachment(FormDataParser.FORM_DATA)?.get(name)?.find {
+		it != null && it.isFileItem
+	}?.fileItem
+}
+
+private const val MB = 1L shl 20
+const val MAX_UPLOAD_FILE_SIZE = 500 * MB
+private const val UPLOAD_FILE_MEMORY_THRESHOLD = 20 * MB
 
 private val LanguageAttachment:AttachmentKey<LocaleStack> = AttachmentKey.create(List::class.java)
 private val languageCache = CacheBuilder.newBuilder()
@@ -194,8 +208,12 @@ private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, mes
  * - serve nice error pages */
 fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 	val formParserFactory = FormParserFactory.builder(false)
-			.addParser(FormEncodedDataDefinition())
 			.withDefaultCharset(StandardCharsets.UTF_8.name())
+			.addParser(FormEncodedDataDefinition())
+			.addParser(MultiPartParserDefinition(null).apply {
+				maxIndividualFileSize = MAX_UPLOAD_FILE_SIZE
+				setFileSizeThreshold(UPLOAD_FILE_MEMORY_THRESHOLD)
+			})
 			.build()
 	val formParsingHandler = EagerFormParsingHandler(formParserFactory)
 	formParsingHandler.next = handler
@@ -248,7 +266,8 @@ private fun KHttpHandler.handleAuthenticated(accessLevel: AccountType?, checkCsr
 			val session = exchange.session()
 			if (session == null) {
 				exchange.statusCode = StatusCodes.FORBIDDEN
-				exchange.loginRegister(listOf("Please log-in first"))
+				exchange.messageWarning("Please log-in first")
+				exchange.loginRegister()
 			} else if (session.get(Accounts.accountType) < accessLevel) {
 				// This guy is fired
 				exchange.sendPageOfDisapproval(StatusCodes.FORBIDDEN, "Forbidden") {

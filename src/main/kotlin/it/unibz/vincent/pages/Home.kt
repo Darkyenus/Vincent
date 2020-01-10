@@ -6,8 +6,11 @@ import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.QuestionnaireTemplates
 import it.unibz.vincent.Session
+import it.unibz.vincent.template.parseTemplate
+import it.unibz.vincent.util.Failable
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
+import it.unibz.vincent.util.formFile
 import kotlinx.html.FlowContent
 import kotlinx.html.div
 import kotlinx.html.fileInput
@@ -54,6 +57,8 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 private fun FlowContent.questionnairesToManage(session:Session) {
 	//TODO
 }
+
+private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
 
 /**
  * Show table of questionnaire templates.
@@ -105,7 +110,8 @@ private fun FlowContent.questionnaireTemplates(session:Session) {
 
 	postForm("/template-new") {
 		session(session)
-		fileInput(name = "template-xml") { +"Template XML" }
+		// TODO(jp): Client side size validation (https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5/Constraint_validation)
+		fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) { required=true; accept=".xml,application/xml,text/xml"; multiple=false; +"Template XML" }
 		submitInput { +"Upload new template" }
 	}
 }
@@ -118,6 +124,8 @@ fun HttpServerExchange.home(session: Session) {
 	sendBase { _, _ ->
 		div("container") {
 			h1 { +"Welcome $userName" }
+
+			renderMessages(this@home)
 
 			// Show available questionnaires to fill
 			div("column w4") {
@@ -157,6 +165,9 @@ fun HttpServerExchange.home(session: Session) {
 
 fun RoutingHandler.setupHomeRoutes() {
 	POST("/questionnaire-new", AccountType.STAFF) { exchange ->
+		exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)?.let {
+			parseTemplate(it.inputStream)
+		} ?: Failable.failure("No file specified")
 		TODO()
 	}
 

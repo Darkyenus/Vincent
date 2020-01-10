@@ -84,7 +84,7 @@ Each option must have a distinct `value` attribute. This value will be shown in 
 <!ELEMENT category (title*, option+)>
 
 <!--
-May either contain titles, or if only one localization is required and no html tags are needed, the text directly.
+Contains titles.
 The value attribute specifies how will this option appear in the resulting CSV.
 If it is omitted, then the full text of the default title is used.
 
@@ -96,7 +96,8 @@ For example: "condition", "condition-detail".
 
 If <detail> tag is specified, the <detail> text will be displayed as a prompt for the detail input.
 -->
-<!ELEMENT option (#PCDATA | (title+, detail*))>
+<!-- Actual constraint: (#PCDATA | (title+, detail*)) (not supported by DTD) -->
+<!ELEMENT option (#PCDATA | title | detail)*>
 <!ATTLIST option
         value CDATA #IMPLIED
         detail (true|false|yes|no) "false"
@@ -138,8 +139,9 @@ Ends of the scale can optionally be titled using <min> and <max> tags.
         max CDATA "7">
 
 <!-- Similarly to <option>, title can be written directly in simple cases. -->
-<!ELEMENT min (#PCDATA | title+)>
-<!ELEMENT max (#PCDATA | title+)>
+<!-- Actual constraint: (#PCDATA | title+) (not supported by DTD) -->
+<!ELEMENT min (#PCDATA | title)*>
+<!ELEMENT max (#PCDATA | title)*>
 
 <!--
 <time-progression> is a container that presents the same question repeatedly after given time intervals.
