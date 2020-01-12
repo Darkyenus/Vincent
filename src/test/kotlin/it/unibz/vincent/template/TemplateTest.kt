@@ -1,5 +1,6 @@
 package it.unibz.vincent.template
 
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.xml.sax.Attributes
 import org.xml.sax.InputSource
@@ -13,6 +14,7 @@ import javax.xml.parsers.SAXParserFactory
  */
 class TemplateTest {
 
+	@Disabled("dev exploration only")
 	@Test
 	fun saxParserEventExploration() {
 		val spf = SAXParserFactory.newInstance()
@@ -111,6 +113,23 @@ class TemplateTest {
 				}
 			})
 		}
+	}
+
+	@Test
+	fun parseSimpleTest() {
+		val parsed = TemplateTest::class.java.classLoader.getResourceAsStream("questionnaire-test.xml")!!.use {
+			parseTemplate(it)
+		}
+
+		for (error in parsed.errors) {
+			println("Error: $error")
+		}
+
+		for (warning in parsed.warnings) {
+			println("Warning: $warning")
+		}
+
+		println("Template: ${parsed.result}")
 	}
 
 }

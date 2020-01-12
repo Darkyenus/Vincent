@@ -8,13 +8,14 @@
 
     <section>
         <title>Welcome</title>
-        <title lang="cs">Vítejte</title>
+        <title lang="cs">    Vítejte     </title>
 
         <info>
             <text>
                 This is an example questionnaire.
                 This is a <a href="https://darkyen.com">clickable link</a>.
                 Emoji test: 🧐
+                Element test: Bob &amp; Bobek, &lt;Nazeem&gt;
             </text>
             <text lang="cs">
                 Toto je ukázkový dotazník.

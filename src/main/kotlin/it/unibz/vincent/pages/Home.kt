@@ -165,9 +165,9 @@ fun HttpServerExchange.home(session: Session) {
 
 fun RoutingHandler.setupHomeRoutes() {
 	POST("/questionnaire-new", AccountType.STAFF) { exchange ->
-		exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)?.let {
+		val parsed = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)?.let {
 			parseTemplate(it.inputStream)
-		} ?: Failable.failure("No file specified")
+		}
 		TODO()
 	}
 

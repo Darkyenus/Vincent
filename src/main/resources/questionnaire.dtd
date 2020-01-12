@@ -15,7 +15,7 @@ default-lang: All <title>s that do not have explicit language set, will use this
               This language is also used by default when user does not request any compatible language.
 -->
 <!ATTLIST questionnaire
-        default-lang CDATA #IMPLIED
+        default-lang CDATA "en"
         >
 
 <!--
@@ -104,7 +104,7 @@ If <detail> tag is specified, the <detail> text will be displayed as a prompt fo
         detail-type (sentence|paragraph|number) "sentence"
         >
 
-<!-- Works similarly to <title> -->
+<!-- Works similarly to <text> -->
 <!ELEMENT detail ANY>
 <!ATTLIST detail
         lang CDATA #IMPLIED
@@ -118,13 +118,23 @@ Input type can be specified using the `type` attribute:
 - number - a number is expected ("real" numbers are allowed, including negatives and non-whole numbers)
 
 Placeholder value can be specified (text shown in dimmed styling when no input is entered).
-Default value can be specified.
+Default value can also be specified.
 -->
-<!ELEMENT free-text EMPTY>
+<!ELEMENT free-text (placeholder*, default*)>
 <!ATTLIST free-text
         type (sentence|paragraph|number) "sentence"
-        placeholder CDATA ""
-        default CDATA ""
+        >
+
+<!-- Works similarly to <text> -->
+<!ELEMENT placeholder ANY>
+<!ATTLIST placeholder
+        lang CDATA #IMPLIED
+        >
+
+<!-- Works similarly to <text> -->
+<!ELEMENT default ANY>
+<!ATTLIST default
+        lang CDATA #IMPLIED
         >
 
 <!--
@@ -155,7 +165,7 @@ Attributes:
 In resulting CSV, the values will be in columns labelled `ID-N`, where ID is the question ID and N is the repeat.
 For example for <question id="taste"> <time-progression repeats="3">, those columns will be created: "taste-0", "taste-1", "taste-2".
 -->
-<!ELEMENT time-progression (one-of, scale)>
+<!ELEMENT time-progression (one-of | scale)>
 <!ATTLIST time-progression
         interval CDATA #REQUIRED
         repeats CDATA #REQUIRED

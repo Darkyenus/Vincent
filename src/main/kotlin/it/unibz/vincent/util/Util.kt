@@ -29,3 +29,17 @@ fun trimToNullAndShorten(str: String?, maxLength: Int): String? {
 fun onShutdown(action: () -> Unit) {
 	Runtime.getRuntime().addShutdownHook(Thread(action, "onShutdown($action)"))
 }
+
+fun <T> StringBuilder.appendList(list:List<T>, itemPrefix:String = "", itemSuffix:String = "", itemSeparator:String = ", ", lastItemSeparator:String = itemSeparator):StringBuilder {
+	for (i in list.indices) {
+		if (i != 0) {
+			if (i == list.lastIndex) {
+				append(lastItemSeparator)
+			} else {
+				append(itemSeparator)
+			}
+		}
+		append(itemPrefix).append(list[i]).append(itemSuffix)
+	}
+	return this
+}
