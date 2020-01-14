@@ -17,7 +17,7 @@ import it.unibz.vincent.util.checkPassword
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
-import it.unibz.vincent.util.toHumanReadableString
+import it.unibz.vincent.util.toHumanReadableTime
 import it.unibz.vincent.util.toRawPassword
 import kotlinx.html.FlowOrInteractiveOrPhrasingContent
 import kotlinx.html.FormMethod
@@ -227,11 +227,11 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 
 		val rateLimiter = failedLoginAttemptLog[accountId]!!
-		rateLimiter.attemptLogin({ wait ->
+		rateLimiter.attemptLogin({ waitUntil ->
 			LOG.info("{} - Attempted login too soon (from {})", accountId, exchange.sourceAddress)
 
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
-			exchange.messageWarning("Too many failed login attempts, try again in ${wait.toHumanReadableString(l)}")
+			exchange.messageWarning("Too many failed login attempts, try again ${waitUntil.toHumanReadableTime(l, relative = true)}")
 			exchange.loginRegister(loginEmail = email, registerEmail = email)
 		}) { now ->
 			val validPassword = checkPassword(providedPassword.toRawPassword(), storedPassword)

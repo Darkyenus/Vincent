@@ -1,17 +1,23 @@
 package it.unibz.vincent.pages
 
+import com.ibm.icu.util.ULocale
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
+import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.QuestionnaireTemplates
 import it.unibz.vincent.Session
+import it.unibz.vincent.session
 import it.unibz.vincent.template.parseTemplate
-import it.unibz.vincent.util.Failable
 import it.unibz.vincent.util.GET
+import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formFile
+import it.unibz.vincent.util.languages
+import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.FlowContent
+import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
@@ -25,9 +31,14 @@ import kotlinx.html.td
 import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.io.InputStream
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 /**
  * Show table of all questionnaires that you can start (are invited to)/that are in progress.
@@ -73,7 +84,7 @@ private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
  * Standalone actions:
  * - Upload a new template (\w name)
  */
-private fun FlowContent.questionnaireTemplates(session:Session) {
+private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Session) {
 	h1 { +"Questionnaire templates" }
 
 	table {
@@ -95,9 +106,9 @@ private fun FlowContent.questionnaireTemplates(session:Session) {
 						.slice(QuestionnaireTemplates.id, QuestionnaireTemplates.name, Accounts.name, QuestionnaireTemplates.timeCreated)
 						.selectAll()) {
 					tr {
-						td { row[QuestionnaireTemplates.name] }
-						td { row[Accounts.name] }
-						td { row[QuestionnaireTemplates.timeCreated] }
+						td { +row[QuestionnaireTemplates.name] }
+						td { +row[Accounts.name] }
+						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
 						td { postButton(session, "/questionnaire-new", "template" to templateId) { +"Use" } }
 						td { getButton("/template-download", "template" to templateId) { +"Download" } }
@@ -108,11 +119,13 @@ private fun FlowContent.questionnaireTemplates(session:Session) {
 		}
 	}
 
-	postForm("/template-new") {
+	postForm("/") {
+		encType = FormEncType.multipartFormData
 		session(session)
+		routeAction("template-new")
 		// TODO(jp): Client side size validation (https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5/Constraint_validation)
-		fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) { required=true; accept=".xml,application/xml,text/xml"; multiple=false; +"Template XML" }
-		submitInput { +"Upload new template" }
+		fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) { required=true; accept=".xml,application/xml,text/xml"; multiple=false; }
+		submitInput { value="Upload new template" }
 	}
 }
 
@@ -120,6 +133,7 @@ private fun FlowContent.questionnaireTemplates(session:Session) {
 fun HttpServerExchange.home(session: Session) {
 	val userName = session.get(Accounts.name)
 	val userLevel = session.get(Accounts.accountType)
+	val locale = languages()
 
 	sendBase { _, _ ->
 		div("container") {
@@ -128,34 +142,36 @@ fun HttpServerExchange.home(session: Session) {
 			renderMessages(this@home)
 
 			// Show available questionnaires to fill
-			div("column w4") {
+			div("column w12") {
 				questionnairesToAnswer(session)
 			}
 
 			// Show running questionnaires
 			if (userLevel >= AccountType.STAFF) {
-				div("column w4") {
+				div("column w12") {
 					questionnairesToManage(session)
 				}
 			}
 
 			// Show questionnaire templates
 			if (userLevel >= AccountType.STAFF) {
-				div("column w4") {
-					questionnaireTemplates(session)
+				div("column w12") {
+					questionnaireTemplates(locale, session)
 				}
 			}
 		}
 
 		div("container") {
 			style = "margin-top: 5rem"
-			div("o3 w6 column") {
+			val showLogoutFully = userLevel >= AccountType.STAFF
+
+			div("${if (showLogoutFully) "o3" else "o5"} w3 column") {
 				postButton(session, "/", routeAction = "logout", classes="dangerous u-centered") { style = "min-width: 50%"; +"Logout" }
 			}
 
-			if (userLevel >= AccountType.STAFF) {
+			if (showLogoutFully) {
 				// Let's not confuse ordinary users with this
-				div("o3 w6 column") {
+				div("w3 column") {
 					postButton(session, "/", routeAction = "logout-fully", classes = "dangerous u-centered") { style = "min-width: 50%"; +"Logout from all browsers" }
 				}
 			}
@@ -164,22 +180,61 @@ fun HttpServerExchange.home(session: Session) {
 }
 
 fun RoutingHandler.setupHomeRoutes() {
-	POST("/questionnaire-new", AccountType.STAFF) { exchange ->
-		val parsed = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)?.let {
+	POST("/", AccountType.STAFF, "questionnaire-new") { exchange ->
+		TODO()
+	}
+
+	GET("/", AccountType.STAFF, "template-download") { exchange ->
+		TODO()
+	}
+
+	POST("/", AccountType.STAFF, "template-delete") { exchange ->
+		TODO()
+	}
+
+	POST("/", AccountType.STAFF, "template-new") { exchange ->
+		val session = exchange.session()!!
+
+		val formFile = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)
+		val parsed = formFile?.let {
 			parseTemplate(it.inputStream)
 		}
-		TODO()
-	}
 
-	GET("/template-download", AccountType.STAFF) { exchange ->
-		TODO()
-	}
+		if (parsed == null) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST
+			exchange.messageWarning("No template xml specified")
+			exchange.home(session)
+			return@POST
+		}
 
-	POST("/template-delete", AccountType.STAFF) { exchange ->
-		TODO()
-	}
+		if (parsed.errors.isNotEmpty()) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST // UNPROCESSABLE_ENTITY would also be correct in some cases
+			for (error in parsed.errors) {
+				exchange.messageWarning(error)
+			}
+			exchange.home(session)
+			return@POST
+		}
 
-	POST("/template-new", AccountType.STAFF) { exchange ->
-		TODO()
+		for (warning in parsed.warnings) {
+			exchange.messageWarning(warning)
+		}
+		exchange.messageInfo("Questionnaire template added")
+
+		val databaseName = parsed.result.run {
+			title.mainTitle(listOf(ULocale.ENGLISH)) ?: "Without a name (${DateTimeFormatter.ISO_INSTANT.format(Instant.now())})"
+		}
+
+		transaction {
+			QuestionnaireTemplates.insert {
+				it[createdBy] = session.userId
+				it[name] = databaseName
+				/* This is magic, but should work. Maybe. */
+				@Suppress("UNCHECKED_CAST")
+				it[template_xml as Column<InputStream>] = formFile.inputStream
+			}
+		}
+
+		exchange.home(session)
 	}
 }

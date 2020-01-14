@@ -33,7 +33,7 @@ const val CSRF_FORM_TOKEN_NAME = "csrf_token"
 
 /**
  * @param sessionId The ID of the session, stored in session cookie
- * @param userId ID of the user whose session this is
+ * @param userId database ID of the user whose session this is
  */
 class Session(val sessionId:String, val userId:Long) {
 
@@ -168,16 +168,16 @@ class PenaltyTokenBucket : ArrayDeque<Instant>(MAX_PENALTY_TOKENS){
 		return size
 	}
 
-	fun attemptLogin(mayAttemptAfter:(Duration) -> Unit, mayAttempt:(now: Instant) -> Unit) {
+	fun attemptLogin(mayAttemptAfter:(after:Instant) -> Unit, mayAttempt:(now: Instant) -> Unit) {
 		val now = Instant.now()
-		val attemptAfterWait:Duration? = if (!loginInProgress.compareAndSet(false, true)) {
+		val attemptAfterWait:Instant? = if (!loginInProgress.compareAndSet(false, true)) {
 			// Login already in process, try again in few seconds
 			LOG.warn("Simultaneous logins!")
-			SHORT_TIME_DURATION
+			now.plus(SHORT_TIME_DURATION)
 		} else if (activePenalties(now) >= MAX_PENALTY_TOKENS) {
 			// Too many failed logins, do not try to authenticate any further
 			loginInProgress.set(false)
-			Duration.between(now, peekFirst())
+			peekFirst()
 		} else null
 
 		try {

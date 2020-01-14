@@ -1,5 +1,6 @@
 package it.unibz.vincent.template
 
+import com.ibm.icu.util.LocaleMatcher
 import com.ibm.icu.util.ULocale
 import it.unibz.vincent.util.XmlBuilder
 import java.time.Duration
@@ -41,6 +42,34 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	class Category(val title:List<Title>, val options:List<Option>)
 	class Option(val value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>)
+
+	fun List<Title>.mainTitle(languages:List<ULocale>):String? {
+		if (this.isEmpty()) {
+			return null
+		}
+		val builder = LocaleMatcher.builder()
+		for (title in this) {
+			builder.addSupportedULocale(title.language ?: defaultLanguage)
+		}
+		builder.setDefaultULocale(defaultLanguage)
+		val bestMatch = builder.build().getBestMatch(languages)
+		return this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
+	}
+
+	fun List<Title>.fullTitle(languages:List<ULocale>):Pair<String, List<String>>? {
+		if (this.isEmpty()) {
+			return null
+		}
+		val builder = LocaleMatcher.builder()
+		for (title in this) {
+			builder.addSupportedULocale(title.language ?: defaultLanguage)
+		}
+		builder.setDefaultULocale(defaultLanguage)
+		val bestMatch = builder.build().getBestMatch(languages)
+		val main = this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
+		val always = this.mapNotNull { if (it.always && it.text != main) it.text else null }
+		return main to always
+	}
 
 	override fun toString(): String {
 		return XmlBuilder {

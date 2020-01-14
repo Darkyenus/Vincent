@@ -35,6 +35,7 @@ import kotlinx.html.h1
 import kotlinx.html.html
 import kotlinx.html.img
 import kotlinx.html.onClick
+import kotlinx.html.p
 import kotlinx.html.stream.appendHTML
 import kotlinx.html.style
 import org.slf4j.Logger
@@ -194,7 +195,7 @@ private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, mes
 				}
 
 				h1("u-centered") {
-					message()
+					p { message() }
 					button(type = ButtonType.button) { onClick="javascript:history.back()"; +"Back" }
 				}
 			}
