@@ -9,6 +9,7 @@ val Vincent by project {
 	projectVersion set { "0.1-SNAPSHOT" }
 
 	mainClass set { "it.unibz.vincent.Main" }
+	runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources"}" }
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }

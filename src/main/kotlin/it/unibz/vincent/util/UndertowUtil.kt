@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.io.OutputStreamWriter
 import java.nio.ByteBuffer
+import java.nio.CharBuffer
 import java.nio.charset.StandardCharsets
 
 private val LOG: Logger = LoggerFactory.getLogger("UndertowUtil")
@@ -314,4 +315,76 @@ fun RoutingHandler.POST(template:String, accessLevel: AccountType? = null, route
 	} else {
 		post(template, routeActionPredicate(routeAction), authHandler)
 	}
+}
+
+private val HEX_DIGIT = "0123456789ABCDEF".toCharArray()
+
+fun contentDispositionAttachment(fileName:String):String {
+	val sb = StringBuilder()
+	sb.append("attachment; filename=\"")
+	var fileNameNonAscii = false
+	for (c in fileName) {
+		if (c > '\u0127') {
+			fileNameNonAscii = true
+			sb.append('_')
+		} else if (c == '\"') {
+			sb.append("\\\"")
+		} else if (c == '\\') {
+			sb.append("\\\\")
+		} else {
+			sb.append(c)
+		}
+	}
+	sb.append('"')
+
+	if (fileNameNonAscii) {
+		sb.append("; filename*=UTF-8''")
+
+		val codePoint = CharArray(2)
+		val codePointBuf = CharBuffer.wrap(codePoint)
+		var i = 0
+		val length = fileName.length
+		chars@while (i < length) {
+			val c1 = fileName[i++]
+			if (!Character.isHighSurrogate(c1) || i >= length) {
+				when (c1) {
+					in 'a'..'z',
+					in 'A'..'Z',
+					in '0'..'9',
+					'!', '#', '$', '&',
+					'+', '-', '.', '^',
+					'_', '`', '|', '~' -> {
+						sb.append(c1)
+						continue@chars
+					}
+					else -> {
+						codePoint[0] = c1
+						codePointBuf.limit(1)
+					}
+				}
+			} else {
+				val c2 = fileName[i]
+				if (Character.isLowSurrogate(c2)) {
+					i++;
+					codePoint[0] = c1
+					codePoint[1] = c2
+				} else {
+					codePoint[0] = c1
+					codePointBuf.limit(1)
+				}
+			}
+
+			val utf8Bytes = Charsets.UTF_8.encode(codePointBuf)
+			codePointBuf.clear()
+
+			while (utf8Bytes.hasRemaining()) {
+				val byte = utf8Bytes.get().toInt()
+				sb.append('%')
+				sb.append(HEX_DIGIT[(byte ushr 4) and 0xF])
+				sb.append(HEX_DIGIT[byte and 0xF])
+			}
+		}
+	}
+
+	return sb.toString()
 }

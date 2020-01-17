@@ -26,11 +26,12 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	sealed class QuestionType {
 		/** Can be presented repeatedly by [TimeProgression]. */
-		abstract class TimeVariable : QuestionType()
+		sealed class TimeVariable : QuestionType() {
+			class OneOf(val categories:List<Category>) : TimeVariable()
+			class Scale(val min:Int, val max:Int, val minLabel:List<Min>, val maxLabel:List<Max>) : TimeVariable()
+		}
 
-		class OneOf(val categories:List<Category>) : TimeVariable()
 		class FreeText(val type:InputType, val placeholder:List<Placeholder>, val default:List<Default>) : QuestionType()
-		class Scale(val min:Int, val max:Int, val minLabel:List<Min>, val maxLabel:List<Max>) : TimeVariable()
 		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType()
 	}
 
@@ -133,14 +134,14 @@ private fun XmlBuilder.build(e: QuestionnaireTemplate.SectionContent.Question) {
 
 private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType) {
 	when (e) {
-		is QuestionnaireTemplate.QuestionType.OneOf -> build(e)
+		is QuestionnaireTemplate.QuestionType.TimeVariable.OneOf -> build(e)
+		is QuestionnaireTemplate.QuestionType.TimeVariable.Scale -> build(e)
 		is QuestionnaireTemplate.QuestionType.FreeText -> build(e)
-		is QuestionnaireTemplate.QuestionType.Scale -> build(e)
 		is QuestionnaireTemplate.QuestionType.TimeProgression -> build(e)
 	}
 }
 
-private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.OneOf) {
+private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf) {
 	"one-of" {
 		for (category in e.categories) {
 			build(category)
@@ -159,7 +160,7 @@ private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.FreeText) {
 	}
 }
 
-private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.Scale) {
+private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.TimeVariable.Scale) {
 	"scale"("min" to e.min, "max" to e.max) {
 		for (title in e.minLabel) {
 			build(title, "min")

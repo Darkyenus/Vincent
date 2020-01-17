@@ -3,6 +3,7 @@ package it.unibz.vincent.pages
 import com.ibm.icu.util.ULocale
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
+import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
@@ -13,7 +14,9 @@ import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.POST
+import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formFile
+import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.FlowContent
@@ -32,11 +35,14 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.leftJoin
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.InputStream
+import java.nio.ByteBuffer
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
@@ -110,9 +116,9 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						td { +row[Accounts.name] }
 						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
-						td { postButton(session, "/questionnaire-new", "template" to templateId) { +"Use" } }
-						td { getButton("/template-download", "template" to templateId) { +"Download" } }
-						td { postButton(session, "/template-delete", "template" to templateId, classes="dangerous") { +"Delete" } }
+						td { postButton(session, "/", "template" to templateId, routeAction = "questionnaire-new") { +"Use" } }
+						td { getButton("/", "template" to templateId, routeAction = "template-download") { +"Download" } }
+						td { postButton(session, "/", "template" to templateId, routeAction = "template-delete", classes="dangerous") { +"Delete" } }
 					}
 				}
 			}
@@ -185,11 +191,66 @@ fun RoutingHandler.setupHomeRoutes() {
 	}
 
 	GET("/", AccountType.STAFF, "template-download") { exchange ->
-		TODO()
+		val session = exchange.session()!!
+
+		val template = exchange.formString("template")?.toLongOrNull()
+		if (template == null) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST
+			exchange.messageWarning("No template specified")
+			exchange.home(session)
+			return@GET
+		}
+
+		var templateName:String? = null
+		val templateXmlBytes = transaction {
+			QuestionnaireTemplates
+					.slice(QuestionnaireTemplates.name, QuestionnaireTemplates.template_xml)
+					.select { QuestionnaireTemplates.id eq template }
+					.limit(1)
+					.orderBy(QuestionnaireTemplates.timeCreated)
+					.firstOrNull()?.let {
+						templateName = it[QuestionnaireTemplates.name]
+						it[QuestionnaireTemplates.template_xml].bytes
+					}
+		}
+
+		if (templateXmlBytes == null) {
+			exchange.statusCode = StatusCodes.NOT_FOUND
+			exchange.messageWarning("Template no longer exists")
+			exchange.home(session)
+			return@GET
+		}
+
+		exchange.statusCode = StatusCodes.OK
+		exchange.responseHeaders.put(Headers.CONTENT_DISPOSITION, contentDispositionAttachment("${templateName ?: "template"}.xml"))
+		exchange.responseSender.send(ByteBuffer.wrap(templateXmlBytes))
 	}
 
 	POST("/", AccountType.STAFF, "template-delete") { exchange ->
-		TODO()
+		val session = exchange.session()!!
+
+		val template = exchange.formString("template")?.toLongOrNull()
+		if (template == null) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST
+			exchange.messageWarning("No template specified")
+			exchange.home(session)
+			return@POST
+		}
+
+		val deleted = transaction {
+			QuestionnaireTemplates.deleteWhere(limit=1) { QuestionnaireTemplates.id eq template }
+		}
+
+		if (deleted == 0) {
+			exchange.statusCode = StatusCodes.NOT_FOUND
+			exchange.messageWarning("Template no longer exists")
+			exchange.home(session)
+			return@POST
+		}
+
+		exchange.statusCode = StatusCodes.OK
+		exchange.messageInfo("Template deleted")
+		exchange.home(session)
 	}
 
 	POST("/", AccountType.STAFF, "template-new") { exchange ->
@@ -235,6 +296,7 @@ fun RoutingHandler.setupHomeRoutes() {
 			}
 		}
 
+		exchange.statusCode = StatusCodes.CREATED
 		exchange.home(session)
 	}
 }

@@ -679,17 +679,17 @@ private class CategoryParserState : SequenceParserState<QuestionnaireTemplate.Ca
 	}
 }
 
-private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.OneOf>() {
+private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.OneOf>() {
 
 	private val categories by group<Any>(min = 1, exclusive = true) {
 		"category" { CategoryParserState() }
 		"option" { OptionParserState() }
 	}
 
-	override fun result(): QuestionnaireTemplate.QuestionType.OneOf {
+	override fun result(): QuestionnaireTemplate.QuestionType.TimeVariable.OneOf {
 		val categoriesOrOptions = categories
 		if (categoriesOrOptions.isEmpty()) {
-			return QuestionnaireTemplate.QuestionType.OneOf(emptyList())
+			return QuestionnaireTemplate.QuestionType.TimeVariable.OneOf(emptyList())
 		}
 
 		val fallbackCategoryOptions = ArrayList<QuestionnaireTemplate.Option>()
@@ -707,7 +707,7 @@ private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.Quest
 			categories.add(QuestionnaireTemplate.Category(emptyList(), fallbackCategoryOptions))
 		}
 
-		return QuestionnaireTemplate.QuestionType.OneOf(categories)
+		return QuestionnaireTemplate.QuestionType.TimeVariable.OneOf(categories)
 	}
 }
 
@@ -741,15 +741,15 @@ private class MinMaxParserState : SequenceParserState<List<QuestionnaireTemplate
 	}
 }
 
-private class ScaleParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.Scale>() {
+private class ScaleParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.Scale>() {
 	private val min by intProperty("min", 1)
 	private val max by intProperty("max", 7)
 
 	private val minDescription by tag("min", min=0, max=1) { MinMaxParserState() }
 	private val maxDescription by tag("max", min=0, max=1) { MinMaxParserState() }
 
-	override fun result(): QuestionnaireTemplate.QuestionType.Scale {
-		return QuestionnaireTemplate.QuestionType.Scale(min, max, minDescription.filterNotNull().flatten(), maxDescription.filterNotNull().flatten())
+	override fun result(): QuestionnaireTemplate.QuestionType.TimeVariable.Scale {
+		return QuestionnaireTemplate.QuestionType.TimeVariable.Scale(min, max, minDescription.filterNotNull().flatten(), maxDescription.filterNotNull().flatten())
 	}
 }
 
@@ -767,7 +767,7 @@ private class TimeProgressionParserState : SequenceParserState<QuestionnaireTemp
 
 	override fun result(): QuestionnaireTemplate.QuestionType.TimeProgression {
 		return QuestionnaireTemplate.QuestionType.TimeProgression(interval, repeats, base.firstOrNull()
-				?: QuestionnaireTemplate.QuestionType.Scale(1, 3, emptyList(), emptyList()))
+				?: QuestionnaireTemplate.QuestionType.TimeVariable.Scale(1, 3, emptyList(), emptyList()))
 	}
 }
 
