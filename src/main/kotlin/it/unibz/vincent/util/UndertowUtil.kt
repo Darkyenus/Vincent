@@ -54,34 +54,14 @@ private val LOG: Logger = LoggerFactory.getLogger("UndertowUtil")
  *
  * Only usable in [io.undertow.server.HttpHandler] which are used after
  * [io.undertow.server.RoutingHandler] has set path parameters.  */
-fun pathString(exchange: HttpServerExchange, name: String): String {
-	val attachment = exchange.getAttachment(PathTemplateMatch.ATTACHMENT_KEY)
+fun HttpServerExchange.pathString(name: String): String {
+	val attachment = getAttachment(PathTemplateMatch.ATTACHMENT_KEY)
 	if (attachment == null) {
 		LOG.error("pathString({}) - no attachment", name)
 		throw HttpResponseException(StatusCodes.INTERNAL_SERVER_ERROR, "Failure to parse path")
 	}
 	return trimToNullAndShorten(attachment.parameters[name], Int.MAX_VALUE)
 			?: throw HttpResponseException(StatusCodes.BAD_REQUEST, "Path part '$name' is missing")
-}
-
-/** Retrieve integer path parameter.
- * @see pathString */
-fun pathInt(exchange: HttpServerExchange, name: String): Int {
-	return try {
-		pathString(exchange, name).toInt()
-	} catch (e: NumberFormatException) {
-		throw HttpResponseException(StatusCodes.BAD_REQUEST, "Path part '$name' must be a number")
-	}
-}
-
-/** Retrieve non-negative integer path parameter.
- * @see pathString */
-fun pathIntNonNegative(exchange: HttpServerExchange, name: String): Int {
-	val value = pathInt(exchange, name)
-	if (value < 0) {
-		throw HttpResponseException(StatusCodes.BAD_REQUEST, "Path part '$name' must be a non-negative number")
-	}
-	return value
 }
 
 /** Retrieve URL-encoded or query parameter with [name]. */

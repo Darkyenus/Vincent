@@ -7,7 +7,10 @@ import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.QuestionnaireParticipants
+import it.unibz.vincent.QuestionnaireParticipationState
 import it.unibz.vincent.QuestionnaireTemplates
+import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.Session
 import it.unibz.vincent.session
 import it.unibz.vincent.template.parseTemplate
@@ -24,7 +27,6 @@ import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
-import kotlinx.html.p
 import kotlinx.html.postForm
 import kotlinx.html.style
 import kotlinx.html.submitInput
@@ -35,8 +37,10 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
@@ -55,9 +59,43 @@ import java.time.format.DateTimeFormatter
  * - Start
  */
 private fun FlowContent.questionnairesToAnswer(session:Session) {
-	h1 { +"Open questionnaires" }
-	p("sub") { +"You have been invited to" }
-	//TODO
+	h1 { +"Questionnaire invitations" }
+
+	table {
+		thead {
+			tr {
+				th { +"Name" }
+				th { +"State" }
+				// Open detail page
+			}
+		}
+
+		tbody {
+			transaction {
+				for (row in QuestionnaireParticipants
+						.leftJoin(Questionnaires, { questionnaire }, { id })
+						.slice(Questionnaires.id, Questionnaires.name, QuestionnaireParticipants.state)
+						.select { (QuestionnaireParticipants.participant eq session.userId) and (QuestionnaireParticipants.state neq QuestionnaireParticipationState.DONE) }
+						.orderBy(QuestionnaireParticipants.state)) {
+					tr {
+						td { +row[Questionnaires.name] }
+						val state = row[QuestionnaireParticipants.state]
+						td { +state.toString() /* TODO: Localize */ }
+						val id = row[Questionnaires.id].value
+						td {
+							getButton("/questionnaire/$id") {
+								+if (state == QuestionnaireParticipationState.INVITED) {
+									"Start"
+								} else {
+									"Continue"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -71,10 +109,51 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
  * Actions per questionnaire:
  * - Open detail page
  */
-private fun FlowContent.questionnairesToManage(session:Session) {
-	//TODO
+private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
+	h1 { +"Questionnaires" }
+
+	table {
+		thead {
+			tr {
+				th { +"State" }
+				th { +"Name" }
+				th { +"Author" }
+				th { +"Template" }
+				th { +"Created" }
+				th { +"Participants" }
+				// Open detail page
+			}
+		}
+
+		tbody {
+			transaction {
+				for (row in Questionnaires
+						.leftJoin(Accounts, { createdBy }, { id })
+						.leftJoin(QuestionnaireTemplates, { Questionnaires.template }, { id })
+						.slice(Questionnaires.id, Questionnaires.state, Questionnaires.name, Accounts.name, QuestionnaireTemplates.name, Questionnaires.timeCreated)
+						.selectAll()
+						.orderBy(Questionnaires.timeCreated)) {
+					tr {
+						td { +row[Questionnaires.state].toString() /* TODO: Localize */ }
+						td { +row[Questionnaires.name] }
+						td { +row[Accounts.name] }
+						td { +row[QuestionnaireTemplates.name] }
+						td { +row[Questionnaires.timeCreated].toHumanReadableTime(locale) }
+						val questionnaireId = row[Questionnaires.id].value
+						td {
+							// Participants
+							val participantCount = QuestionnaireParticipants.select { QuestionnaireParticipants.questionnaire eq questionnaireId }.count()
+							+(participantCount.toString())
+						}
+						td { getButton("/questionnaire/$questionnaireId/edit", routeAction = "questionnaire-detail") { +"Detail" } }
+					}
+				}
+			}
+		}
+	}
 }
 
+private const val PARAM_TEMPLATE_ID = "template"
 private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
 
 /**
@@ -110,15 +189,16 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 				for (row in QuestionnaireTemplates
 						.leftJoin(Accounts, { createdBy }, { id })
 						.slice(QuestionnaireTemplates.id, QuestionnaireTemplates.name, Accounts.name, QuestionnaireTemplates.timeCreated)
-						.selectAll()) {
+						.selectAll()
+						.orderBy(QuestionnaireTemplates.timeCreated)) {
 					tr {
 						td { +row[QuestionnaireTemplates.name] }
 						td { +row[Accounts.name] }
 						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
-						td { postButton(session, "/", "template" to templateId, routeAction = "questionnaire-new") { +"Use" } }
-						td { getButton("/", "template" to templateId, routeAction = "template-download") { +"Download" } }
-						td { postButton(session, "/", "template" to templateId, routeAction = "template-delete", classes="dangerous") { +"Delete" } }
+						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "questionnaire-new") { +"Use" } }
+						td { getButton("/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-download") { +"Download" } }
+						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous") { +"Delete" } }
 					}
 				}
 			}
@@ -148,20 +228,20 @@ fun HttpServerExchange.home(session: Session) {
 			renderMessages(this@home)
 
 			// Show available questionnaires to fill
-			div("column w12") {
+			div("row") {
 				questionnairesToAnswer(session)
 			}
 
 			// Show running questionnaires
 			if (userLevel >= AccountType.STAFF) {
-				div("column w12") {
-					questionnairesToManage(session)
+				div("row") {
+					questionnairesToManage(locale)
 				}
 			}
 
 			// Show questionnaire templates
 			if (userLevel >= AccountType.STAFF) {
-				div("column w12") {
+				div("row") {
 					questionnaireTemplates(locale, session)
 				}
 			}
@@ -187,13 +267,33 @@ fun HttpServerExchange.home(session: Session) {
 
 fun RoutingHandler.setupHomeRoutes() {
 	POST("/", AccountType.STAFF, "questionnaire-new") { exchange ->
-		TODO()
+		val session = exchange.session()!!
+
+		val templateId = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
+		if (templateId == null) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST
+			exchange.messageWarning("No template specified")
+			exchange.home(session)
+			return@POST
+		}
+
+		val newQuestionnaireId = transaction {
+			Questionnaires.insertAndGetId {
+				it[name] = "New questionnaire ${Instant.now()}" // TODO(jp): Better default name
+				it[createdBy] = session.userId
+				it[template] = templateId
+			}.value
+		}
+
+		// Redirect
+		exchange.statusCode = StatusCodes.CREATED
+		exchange.responseHeaders.put(Headers.LOCATION, "/questionnaire/$newQuestionnaireId/edit")
 	}
 
 	GET("/", AccountType.STAFF, "template-download") { exchange ->
 		val session = exchange.session()!!
 
-		val template = exchange.formString("template")?.toLongOrNull()
+		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
 		if (template == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.messageWarning("No template specified")
@@ -207,7 +307,6 @@ fun RoutingHandler.setupHomeRoutes() {
 					.slice(QuestionnaireTemplates.name, QuestionnaireTemplates.template_xml)
 					.select { QuestionnaireTemplates.id eq template }
 					.limit(1)
-					.orderBy(QuestionnaireTemplates.timeCreated)
 					.firstOrNull()?.let {
 						templateName = it[QuestionnaireTemplates.name]
 						it[QuestionnaireTemplates.template_xml].bytes
@@ -229,7 +328,7 @@ fun RoutingHandler.setupHomeRoutes() {
 	POST("/", AccountType.STAFF, "template-delete") { exchange ->
 		val session = exchange.session()!!
 
-		val template = exchange.formString("template")?.toLongOrNull()
+		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
 		if (template == null) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.messageWarning("No template specified")
@@ -237,6 +336,7 @@ fun RoutingHandler.setupHomeRoutes() {
 			return@POST
 		}
 
+		// TODO(jp): This will fail if there are any existing questionnaires using this template!
 		val deleted = transaction {
 			QuestionnaireTemplates.deleteWhere(limit=1) { QuestionnaireTemplates.id eq template }
 		}

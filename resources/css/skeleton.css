@@ -309,11 +309,12 @@ td:first-child {
 th:last-child,
 td:last-child {
   padding-right: 0; }
+td > form { display: table-cell; }
 
 
 /* Spacing */
-button,
-.button {
+button:not(td > form > button),
+.button:not(td > form > .button) {
   margin-bottom: 1rem; }
 input,
 textarea,

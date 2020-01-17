@@ -101,6 +101,7 @@ fun HttpServerExchange.sendBase(title:String = "", createBody: BODY.(HttpServerE
 	// TODO(jp): Localize!
 	sendHtml {
 		base("en", title, "Wine evaluation questionnaires") {
+			// TODO(jp): Header with logged-in-as and logout buttons?
 			createBody(this@sendBase, languages)
 		}
 	}
