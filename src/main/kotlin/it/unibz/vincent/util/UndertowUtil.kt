@@ -206,6 +206,11 @@ fun wrapRootHandler(handler:HttpHandler): HttpHandler {
 		}
 		val exception = exchange.getAttachment(DefaultResponseListener.EXCEPTION)
 		var status = exchange.statusCode
+		if (status/100 == 3 && exchange.responseHeaders.contains(Headers.LOCATION)) {
+			// All that is needed
+			return@DefaultResponseListener false
+		}
+
 		var message: String? = null
 		if (exception is HttpResponseException) {
 			status = exception.code

@@ -3,11 +3,9 @@ package it.unibz.vincent.util
 import org.h2.Driver
 import org.h2.jdbcx.JdbcConnectionPool
 import org.h2.jdbcx.JdbcDataSource
+import java.sql.SQLException
 import javax.sql.DataSource
 
-/**
- *
- */
 /**
  * Create a new Query runner upon given url.
  * Returned [DataSource] MUST be disposed when no longer used with [.closeDatabase].
@@ -40,4 +38,29 @@ fun closeDatabase(ds: DataSource) {
 	} else {
 		throw IllegalArgumentException("Unrecognized data source: $ds")
 	}
+}
+
+enum class SQLErrorType(val state:String) {
+	CONSTRAINT_VIOLATION("23000"),
+	/** [org.h2.api.ErrorCode.NULL_NOT_ALLOWED] */
+	NULL_NOT_ALLOWED("23502"),
+	/** [org.h2.api.ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_CHILD_EXISTS_1] */
+	FOREIGN_CHILD_EXISTS("23503"),
+	/** [org.h2.api.ErrorCode.DUPLICATE_KEY_1] */
+	DUPLICATE_KEY("23505"),
+	/** [org.h2.api.ErrorCode.REFERENTIAL_INTEGRITY_VIOLATED_PARENT_MISSING_1] */
+	FOREIGN_PARENT_MISSING("23506"),
+	/** [org.h2.api.ErrorCode.NO_DEFAULT_SET_1] */
+	NO_DEFAULT_SET("23507"),
+	/** [org.h2.api.ErrorCode.CHECK_CONSTRAINT_VIOLATED_1] */
+	CHECK_CONSTRAINT_VIOLATED("23513"),
+	/** [org.h2.api.ErrorCode.CHECK_CONSTRAINT_INVALID] */
+	CHECK_CONSTRAINT_INVALID("23514")
+}
+
+private val SQL_ERROR_TYPES = SQLErrorType.values()
+
+fun SQLException.type():SQLErrorType? {
+	val state = sqlState?.takeIf { it.length == 5 } ?: return null
+	return SQL_ERROR_TYPES.find { it.state == state }
 }

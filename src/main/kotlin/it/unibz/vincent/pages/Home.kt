@@ -9,6 +9,7 @@ import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.QuestionnaireParticipationState
+import it.unibz.vincent.QuestionnaireState
 import it.unibz.vincent.QuestionnaireTemplates
 import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.Session
@@ -75,7 +76,9 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 				for (row in QuestionnaireParticipants
 						.leftJoin(Questionnaires, { questionnaire }, { id })
 						.slice(Questionnaires.id, Questionnaires.name, QuestionnaireParticipants.state)
-						.select { (QuestionnaireParticipants.participant eq session.userId) and (QuestionnaireParticipants.state neq QuestionnaireParticipationState.DONE) }
+						.select { (QuestionnaireParticipants.participant eq session.userId) and
+								(QuestionnaireParticipants.state neq QuestionnaireParticipationState.DONE) and
+								(Questionnaires.state eq QuestionnaireState.RUNNING)}
 						.orderBy(QuestionnaireParticipants.state)) {
 					tr {
 						td { +row[Questionnaires.name] }
@@ -286,7 +289,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		}
 
 		// Redirect
-		exchange.statusCode = StatusCodes.CREATED
+		exchange.statusCode = StatusCodes.SEE_OTHER
 		exchange.responseHeaders.put(Headers.LOCATION, "/questionnaire/$newQuestionnaireId/edit")
 	}
 

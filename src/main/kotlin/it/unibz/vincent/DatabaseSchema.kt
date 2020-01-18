@@ -32,6 +32,7 @@ object Accounts : LongIdTable() {
 	val email = varchar("email", MAX_EMAIL_LENGTH).uniqueIndex()
 	val password = binary("password", HASHED_PASSWORD_SIZE)
 	val accountType = enumeration("account_type", AccountType::class)
+	val code = integer("code")//.uniqueIndex() TODO enable unique codes
 
 	val timeRegistered = timestamp("time_registered")
 	val timeLastLogin = timestamp("time_last_login")
@@ -70,7 +71,7 @@ enum class QuestionnaireParticipationState {
 object QuestionnaireParticipants : Table() {
 	val participant = long("participant").references(Accounts.id)
 	val questionnaire = long("questionnaire").references(Questionnaires.id)
-	val state = enumeration("state", QuestionnaireParticipationState::class)
+	val state = enumeration("state", QuestionnaireParticipationState::class).default(QuestionnaireParticipationState.INVITED)
 
 	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire)
 }

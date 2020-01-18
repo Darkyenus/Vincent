@@ -13,12 +13,15 @@ import it.unibz.vincent.session
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.HashedPassword
 import it.unibz.vincent.util.POST
+import it.unibz.vincent.util.SQLErrorType
 import it.unibz.vincent.util.checkPassword
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.toHumanReadableTime
 import it.unibz.vincent.util.toRawPassword
+import it.unibz.vincent.util.type
+import kotlinx.html.FORM
 import kotlinx.html.FlowOrInteractiveOrPhrasingContent
 import kotlinx.html.FormMethod
 import kotlinx.html.div
@@ -26,6 +29,7 @@ import kotlinx.html.emailInput
 import kotlinx.html.form
 import kotlinx.html.h1
 import kotlinx.html.h4
+import kotlinx.html.hiddenInput
 import kotlinx.html.label
 import kotlinx.html.p
 import kotlinx.html.passwordInput
@@ -33,7 +37,7 @@ import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.textInput
 import org.jetbrains.exposed.exceptions.ExposedSQLException
-import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -91,6 +95,21 @@ private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, aut
 	}
 }
 
+private const val POST_LOGIN_REDIRECT = "post-login-redirect"
+fun FORM.postLoginRedirect(exchange:HttpServerExchange) {
+	val relativePath = exchange.relativePath ?: ""
+	if (relativePath.isNotEmpty() && relativePath != "/") {
+		hiddenInput(name=POST_LOGIN_REDIRECT) { value=relativePath }
+	}
+}
+
+fun HttpServerExchange.handlePostLoginRedirect():Boolean {
+	val redirectUrl = formString(POST_LOGIN_REDIRECT) ?: return false
+	statusCode = StatusCodes.SEE_OTHER
+	responseHeaders.put(Headers.LOCATION, redirectUrl)
+	return true
+}
+
 private const val FORM_EMAIL = "e"
 private const val FORM_PASSWORD = "p"
 private const val FORM_FULL_NAME = "n"
@@ -120,6 +139,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 					h4 { +"Login" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("login")
+						postLoginRedirect(this@loginRegister)
 						div("row") { emailField(FORM_EMAIL, "on", loginEmail) }
 						div("row") { passwordField(FORM_PASSWORD, "current-password") }
 						div("row") {
@@ -132,6 +152,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 					h4 { +"Register" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("register")
+						postLoginRedirect(this@loginRegister)
 						div("row") { emailField(FORM_EMAIL, "off", registerEmail) }
 						div("row") { passwordField(FORM_PASSWORD, "new-password") }
 						div("row") { fullNameField(FORM_FULL_NAME, "name", registerName) }
@@ -214,7 +235,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		var storedPasswordN:HashedPassword? = null
 		transaction {
 			Accounts.slice(Accounts.id, Accounts.password).select { Accounts.email eq email }.limit(1).singleOrNull()?.let {
-				accountId = it[Accounts.id]
+				accountId = it[Accounts.id].value
 				storedPasswordN = it[Accounts.password]
 			}
 		}
@@ -252,7 +273,9 @@ fun RoutingHandler.setupWelcomeRoutes() {
 				}
 
 				val session = exchange.createSession(accountId)
-				exchange.home(session)
+				if (!exchange.handlePostLoginRedirect()) {
+					exchange.home(session)
+				}
 			}
 		}
 	}
@@ -290,18 +313,18 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		var emailAlreadyUsed = false
 		val newAccountId = transaction {
 			try {
-				Accounts.insert {
+				Accounts.insertAndGetId {
 					it[Accounts.name] = name
 					it[Accounts.email] = email
 					it[Accounts.password] = hashPassword(password.toRawPassword())
 					it[accountType] = AccountType.NORMAL
+					it[code] = 0 // TODO Make unique
 					val now = Instant.now()
 					it[timeRegistered] = now
 					it[timeLastLogin] = now
-				} get Accounts.id
+				}.value
 			} catch (e: ExposedSQLException) {
-				// https://stackoverflow.com/questions/1988570/how-to-catch-a-specific-exception-in-jdbc
-				if (e.sqlState.startsWith("23")) {
+				if (e.type() == SQLErrorType.DUPLICATE_KEY) {
 					emailAlreadyUsed = true
 					-1L
 				} else {
@@ -319,7 +342,9 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 		LOG.info("Successful registration of {} (from {})", newAccountId, exchange.sourceAddress)
 		exchange.createSession(newAccountId)
-		exchange.statusCode = StatusCodes.SEE_OTHER
-		exchange.responseHeaders.put(Headers.LOCATION, "/")
+		if (!exchange.handlePostLoginRedirect()) {
+			exchange.statusCode = StatusCodes.SEE_OTHER
+			exchange.responseHeaders.put(Headers.LOCATION, "/")
+		}
 	}
 }
