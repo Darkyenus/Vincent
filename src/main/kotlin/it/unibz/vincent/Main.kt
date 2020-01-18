@@ -17,6 +17,8 @@ import it.unibz.vincent.util.createDatabase
 import it.unibz.vincent.util.onShutdown
 import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -153,6 +155,47 @@ fun main(args: Array<String>) {
 						println("\tTotal: $total")
 					}
 				}
+				"reserve-code" -> {
+					val userEmail = cliArgs.getOrNull(1)
+					val newCode = cliArgs.getOrNull(2)?.toIntOrNull()
+					if (userEmail == null || newCode == null) {
+						println("usage: reserve-code <email> <code>")
+					} else {
+						transaction {
+							val alreadyGivenTo = Accounts.slice(Accounts.email).select { Accounts.code eq newCode }.firstOrNull()?.let { it[Accounts.email] }
+							if (alreadyGivenTo == userEmail) {
+								println("User '$userEmail' already has that code")
+							} else if (alreadyGivenTo != null) {
+								println("Code already assigned to a user '$alreadyGivenTo'")
+							} else {
+								var idWithThatEmail = 0L
+								var codeWithThatEmail = 0
+								var emailExists = false
+
+								Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq userEmail }.firstOrNull()?.let {
+									idWithThatEmail = it[Accounts.id].value
+									codeWithThatEmail = it[Accounts.code]
+									emailExists = true
+								}
+
+								if (emailExists) {
+									val success = Accounts.update(where = { Accounts.id eq idWithThatEmail }, limit=1) { it[code] = newCode } > 0
+									if (success) {
+										LOG.info("CLI: Code of user '$userEmail' changed from $codeWithThatEmail to $newCode")
+									} else {
+										println("Failed to change code of user '$userEmail' from $codeWithThatEmail to $newCode")
+									}
+								} else {
+									AccountCodeReservations.insert {
+										it[email] = userEmail
+										it[code] = newCode
+									}
+									LOG.info("CLI: Reserved code $newCode for user with e-mail '$userEmail'")
+								}
+							}
+						}
+					}
+				}
 				else -> {
 					println("stop")
 					println("\tStop the server")
@@ -160,6 +203,8 @@ fun main(args: Array<String>) {
 					println("\tChange account type")
 					println("list-accounts")
 					println("\tList all accounts")
+					println("reserve-code <email> <code>")
+					println("\tReserve given code for account with given e-mail")
 				}
 			}
 		}

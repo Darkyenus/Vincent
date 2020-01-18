@@ -103,6 +103,12 @@ h6 + p.sub {
 	color: #666;
 }
 
+.unimportant {
+	font-size: smaller;
+	color: #666;
+	font-variant: small-caps;
+}
+
 /* Larger than phablet */
 @media (min-width: 550px) {
   h1 { font-size: 5.0rem; }
@@ -310,6 +316,7 @@ th:last-child,
 td:last-child {
   padding-right: 0; }
 td > form { display: table-cell; }
+td > p { display: table-cell; }
 
 
 /* Spacing */

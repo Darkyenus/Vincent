@@ -4,8 +4,10 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
+import it.unibz.vincent.AccountCodeReservations
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.Accounts.findUniqueAccountCode
 import it.unibz.vincent.createSession
 import it.unibz.vincent.destroySession
 import it.unibz.vincent.failedLoginAttemptLog
@@ -37,6 +39,8 @@ import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.textInput
 import org.jetbrains.exposed.exceptions.ExposedSQLException
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -312,13 +316,14 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 		var emailAlreadyUsed = false
 		val newAccountId = transaction {
-			try {
+			val newCode = findUniqueAccountCode(email)
+			val accountId = try {
 				Accounts.insertAndGetId {
 					it[Accounts.name] = name
 					it[Accounts.email] = email
 					it[Accounts.password] = hashPassword(password.toRawPassword())
 					it[accountType] = AccountType.NORMAL
-					it[code] = 0 // TODO Make unique
+					it[code] = newCode
 					val now = Instant.now()
 					it[timeRegistered] = now
 					it[timeLastLogin] = now
@@ -331,6 +336,15 @@ fun RoutingHandler.setupWelcomeRoutes() {
 					throw e
 				}
 			}
+
+			try {
+				// Drop reservation, if this code came from reservation
+				AccountCodeReservations.deleteWhere(1) { AccountCodeReservations.code eq newCode }
+			} catch (e:ExposedSQLException) {
+				LOG.error("Failed to drop account reservation", e)
+			}
+
+			accountId
 		}
 
 		if (emailAlreadyUsed) {

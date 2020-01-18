@@ -28,6 +28,7 @@ import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
+import kotlinx.html.p
 import kotlinx.html.postForm
 import kotlinx.html.style
 import kotlinx.html.submitInput
@@ -139,7 +140,14 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 					tr {
 						td { +row[Questionnaires.state].toString() /* TODO: Localize */ }
 						td { +row[Questionnaires.name] }
-						td { +row[Accounts.name] }
+						td {
+							val creator = row.getOrNull(Accounts.name).takeIf { it == "foo" }
+							if (creator == null) {
+								p("unimportant") { +"deleted" }
+							} else {
+								+creator
+							}
+						}
 						td { +row[QuestionnaireTemplates.name] }
 						td { +row[Questionnaires.timeCreated].toHumanReadableTime(locale) }
 						val questionnaireId = row[Questionnaires.id].value
@@ -148,7 +156,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 							val participantCount = QuestionnaireParticipants.select { QuestionnaireParticipants.questionnaire eq questionnaireId }.count()
 							+(participantCount.toString())
 						}
-						td { getButton("/questionnaire/$questionnaireId/edit", routeAction = "questionnaire-detail") { +"Detail" } }
+						td { getButton("/questionnaire/$questionnaireId/edit") { +"Detail" } }
 					}
 				}
 			}

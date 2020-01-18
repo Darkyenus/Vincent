@@ -10,6 +10,7 @@ import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.QuestionnaireResponses
 import it.unibz.vincent.QuestionnaireState
 import it.unibz.vincent.QuestionnaireTemplates
+import it.unibz.vincent.QuestionnaireWines
 import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.Session
 import it.unibz.vincent.session
@@ -25,6 +26,9 @@ import kotlinx.html.FlowContent
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
+import kotlinx.html.hiddenInput
+import kotlinx.html.label
+import kotlinx.html.numberInput
 import kotlinx.html.p
 import kotlinx.html.postForm
 import kotlinx.html.submitInput
@@ -36,6 +40,7 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.exceptions.ExposedSQLException
+import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
@@ -43,6 +48,7 @@ import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
@@ -119,9 +125,85 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
  * Standalone actions:
  * - Add new wine (only if not started yet)
  */
-private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack, questionnaireId: Questionnaire) {
+private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack, questionnaire: Questionnaire) {
+	h2 { +"Wines" }
 
-//TODO
+	table {
+		thead {
+			tr {
+				th { +"Name" }
+				th { +"Code 1" }
+				th { +"Code 2" }
+				// if editable: Remove
+			}
+		}
+
+		tbody {
+			transaction {
+				for (row in QuestionnaireWines
+						.select { QuestionnaireWines.questionnaire eq questionnaire.id }
+						.orderBy(QuestionnaireWines.name)) {
+					val wineId = row[QuestionnaireWines.id].value
+					val wineName = row[QuestionnaireWines.name]
+					val wineCode1 = row[QuestionnaireWines.code1]
+					val wineCode2 = row[QuestionnaireWines.code2]
+
+					tr {
+						td {
+							+wineName
+							postForm("/questionnaire/${questionnaire.id}/edit") {
+								session(session)
+								routeAction(ACTION_RENAME_WINE)
+								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
+								textInput(name=PARAM_WINE_NAME) { required=true; value=wineName }
+							}
+						}
+						td {
+							postForm("/questionnaire/${questionnaire.id}/edit") {
+								session(session)
+								routeAction(ACTION_WINE_UPDATE_CODE_1)
+								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
+								numberInput(name=PARAM_WINE_CODE) { value=wineCode1.toString() }
+							}
+						}
+						td {
+							postForm("/questionnaire/${questionnaire.id}/edit") {
+								session(session)
+								routeAction(ACTION_WINE_UPDATE_CODE_2)
+								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
+								numberInput(name=PARAM_WINE_CODE) { value=wineCode2.toString() }
+							}
+						}
+						if (questionnaire.state != QuestionnaireState.RUNNING) {
+							td {
+								postButton(session, "/questionnaire/${questionnaire.id}/edit", PARAM_WINE_ID to wineId.toString(), routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
+									icon(Icons.TRASH)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	postForm("/questionnaire/${questionnaire.id}/edit") {
+		session(session)
+		routeAction(ACTION_ADD_WINE)
+		label {
+			+"Wine name"
+			textInput(name = PARAM_WINE_NAME) { required = true; placeholder = "Chardonnay" }
+		}
+		label {
+			+"Code 1"
+			numberInput(name = PARAM_WINE_CODE_1) { required=false; placeholder = "Random" }
+		}
+		label {
+			+"Code 2"
+			numberInput(name = PARAM_WINE_CODE_2) { required=false; placeholder = "Random" }
+		}
+		submitInput { value = "Add Wine" }
+	}
 }
 
 /**
@@ -222,9 +304,19 @@ private fun HttpServerExchange.editQuestionnairePage() {
 
 private const val ACTION_INVITE = "invite"
 private const val ACTION_UNINVITE = "uninvite"
+private const val ACTION_WINE_UPDATE_CODE_1 = "update-code-1"
+private const val ACTION_WINE_UPDATE_CODE_2 = "update-code-2"
+private const val ACTION_REMOVE_WINE = "remove-wine"
+private const val ACTION_ADD_WINE = "remove-wine"
+private const val ACTION_RENAME_WINE = "rename-wine"
 
 private const val PARAM_USER_ID = "user"
 private const val PARAM_USERS = "users"
+private const val PARAM_WINE_ID = "wine"
+private const val PARAM_WINE_CODE = "wine-code"
+private const val PARAM_WINE_NAME = "wine-name"
+private const val PARAM_WINE_CODE_1 = "wine-code-1"
+private const val PARAM_WINE_CODE_2 = "wine-code-2"
 
 fun RoutingHandler.setupQuestionnaireEditRoutes() {
 	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF) { exchange ->
@@ -353,6 +445,125 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		} else {
 			exchange.messageInfo("Successfully uninvited and $deletedResponses responses deleted")
 		}
+		exchange.editQuestionnairePage()
+	}
+
+	fun updateWineCode(exchange:HttpServerExchange, column: Column<Int>) {
+		val questionnaire = exchange.questionnaire() ?: return
+		if (questionnaire.state == QuestionnaireState.RUNNING) {
+			exchange.messageWarning("Can't change wine code while the questionnaire is open")
+			exchange.editQuestionnairePage()
+			return
+		}
+
+		val wineId = exchange.formString(PARAM_WINE_ID)?.toLongOrNull()
+		val newCode = exchange.formString(PARAM_WINE_CODE)?.toIntOrNull()
+
+		if (wineId == null || newCode == null) {
+			exchange.messageWarning("Invalid change")
+			exchange.editQuestionnairePage()
+			return
+		}
+
+		val updated = transaction {
+			QuestionnaireWines.update(where = { QuestionnaireWines.id eq wineId }, limit=1) { it[column] = newCode }
+		}
+
+		if (updated == 0) {
+			exchange.messageWarning("That wine no longer exists")
+		} else {
+			exchange.messageInfo("Wine code changed")
+		}
+		exchange.editQuestionnairePage()
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE_1) { exchange ->
+		updateWineCode(exchange, QuestionnaireWines.code1)
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE_2) { exchange ->
+		updateWineCode(exchange, QuestionnaireWines.code2)
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_REMOVE_WINE) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
+		if (questionnaire.state == QuestionnaireState.RUNNING) {
+			exchange.messageWarning("Can't delete wine while the questionnaire is open")
+			exchange.editQuestionnairePage()
+			return@POST
+		}
+
+		val wineId = exchange.formString(PARAM_WINE_ID)?.toLongOrNull()
+
+		val removed = if (wineId != null) {
+			transaction {
+				QuestionnaireWines.deleteWhere(limit=1) { QuestionnaireWines.id eq wineId }
+			}
+		} else 0
+
+		if (removed == 0) {
+			exchange.messageWarning("That wine no longer exists")
+		} else {
+			exchange.messageInfo("Wine removed")
+		}
+		exchange.editQuestionnairePage()
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_RENAME_WINE) { exchange ->
+		exchange.questionnaire() ?: return@POST
+		// Wine renaming is allowed always
+
+		val wineName = exchange.formString(PARAM_WINE_NAME) ?: ""
+		if (wineName.isBlank()) {
+			exchange.messageWarning("Wine name can't be blank")
+			exchange.editQuestionnairePage()
+			return@POST
+		}
+
+		val wineId = exchange.formString(PARAM_WINE_ID)?.toLongOrNull()
+
+		val updated = if (wineId != null) {
+			transaction {
+				QuestionnaireWines.update(where = { QuestionnaireWines.id eq wineId }, limit = 1) { it[name] = wineName }
+			}
+		} else 0
+
+		if (updated == 0) {
+			exchange.messageWarning("That wine no longer exists")
+		} else {
+			exchange.messageInfo("Wine name changed")
+		}
+		exchange.editQuestionnairePage()
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_ADD_WINE) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
+		if (questionnaire.state == QuestionnaireState.RUNNING) {
+			exchange.messageWarning("Can't add new wines while the questionnaire is open")
+			exchange.editQuestionnairePage()
+			return@POST
+		}
+
+		val wineName = exchange.formString(PARAM_WINE_NAME) ?: ""
+		if (wineName.isBlank()) {
+			exchange.messageWarning("Specify wine name first")
+			exchange.editQuestionnairePage()
+			return@POST
+		}
+
+		transaction {
+			val code1 = exchange.formString(PARAM_WINE_CODE_1)?.toIntOrNull() ?: QuestionnaireWines.findUniqueCode(questionnaire.id)
+			val code2 = exchange.formString(PARAM_WINE_CODE_2)?.toIntOrNull() ?: QuestionnaireWines.findUniqueCode(questionnaire.id, code1)
+
+			QuestionnaireWines.insert {
+				it[name] = wineName
+				it[QuestionnaireWines.questionnaire] = questionnaire.id
+				it[QuestionnaireWines.code1] = code1
+				it[QuestionnaireWines.code2] = code2
+			}
+		}
+
+		exchange.messageInfo("Wine added")
 		exchange.editQuestionnairePage()
 	}
 }
