@@ -385,6 +385,15 @@ hr {
     border:1px solid #a6eaf5;
 }
 
+/* Assignment table */
+.at-code {
+
+}
+
+.at-title {
+	font-size: smaller;
+}
+
 /* Media Queries
 Larger than mobile
 	@media (min-width: 400px) {}

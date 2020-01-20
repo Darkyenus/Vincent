@@ -46,6 +46,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
+import java.sql.SQLException
 import java.time.Instant
 
 private val LOG = LoggerFactory.getLogger("WelcomePage")
@@ -328,7 +329,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 					it[timeRegistered] = now
 					it[timeLastLogin] = now
 				}.value
-			} catch (e: ExposedSQLException) {
+			} catch (e: SQLException) {
 				if (e.type() == SQLErrorType.DUPLICATE_KEY) {
 					emailAlreadyUsed = true
 					-1L
@@ -340,7 +341,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			try {
 				// Drop reservation, if this code came from reservation
 				AccountCodeReservations.deleteWhere(1) { AccountCodeReservations.code eq newCode }
-			} catch (e:ExposedSQLException) {
+			} catch (e: SQLException) {
 				LOG.error("Failed to drop account reservation", e)
 			}
 

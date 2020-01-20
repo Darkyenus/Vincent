@@ -164,6 +164,9 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 	}
 }
 
+const val ACTION_QUESTIONNAIRE_DELETE = "questionnaire-delete"
+const val PARAM_QUESTIONNAIRE_ID = "questionnaire-id"
+
 private const val PARAM_TEMPLATE_ID = "template"
 private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
 
@@ -301,6 +304,20 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.responseHeaders.put(Headers.LOCATION, "/questionnaire/$newQuestionnaireId/edit")
 	}
 
+	POST("/", AccountType.STAFF, ACTION_QUESTIONNAIRE_DELETE) { exchange ->
+		val questionnaireId = exchange.formString(PARAM_QUESTIONNAIRE_ID)?.toLongOrNull()
+
+		val deleted = if (questionnaireId == null) 0 else transaction {
+			Questionnaires.deleteWhere(limit = 1) { (Questionnaires.id eq questionnaireId) and (Questionnaires.state neq QuestionnaireState.RUNNING) }
+		}
+
+		if (deleted == 1) {
+			exchange.messageInfo("Questionnaire deleted")
+		}
+
+		exchange.home(exchange.session()!!)
+	}
+
 	GET("/", AccountType.STAFF, "template-download") { exchange ->
 		val session = exchange.session()!!
 
@@ -397,15 +414,17 @@ fun RoutingHandler.setupHomeRoutes() {
 			title.mainTitle(listOf(ULocale.ENGLISH)) ?: "Without a name (${DateTimeFormatter.ISO_INSTANT.format(Instant.now())})"
 		}
 
-		transaction {
-			QuestionnaireTemplates.insert {
+		val templateId = transaction {
+			QuestionnaireTemplates.insertAndGetId {
 				it[createdBy] = session.userId
 				it[name] = databaseName
 				/* This is magic, but should work. Maybe. */
 				@Suppress("UNCHECKED_CAST")
 				it[template_xml as Column<InputStream>] = formFile.inputStream
-			}
+			}.value
 		}
+
+		QuestionnaireTemplates.CACHE.put(templateId, parsed.result)
 
 		exchange.statusCode = StatusCodes.CREATED
 		exchange.home(session)

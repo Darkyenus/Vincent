@@ -25,14 +25,34 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 	class Text(val text:String, val language:ULocale?)
 
 	sealed class QuestionType {
+
+		open fun collectQuestionIds(baseId:String, collect:(String)->Unit) {
+			collect(baseId)
+		}
+
 		/** Can be presented repeatedly by [TimeProgression]. */
 		sealed class TimeVariable : QuestionType() {
-			class OneOf(val categories:List<Category>) : TimeVariable()
+			class OneOf(val categories:List<Category>) : TimeVariable() {
+				override fun collectQuestionIds(baseId: String, collect: (String) -> Unit) {
+					super.collectQuestionIds(baseId, collect)
+					if (categories.any { category -> category.options.any { it.hasDetail } }) {
+						collect("$baseId-detail")
+					}
+				}
+			}
+
 			class Scale(val min:Int, val max:Int, val minLabel:List<Min>, val maxLabel:List<Max>) : TimeVariable()
 		}
 
 		class FreeText(val type:InputType, val placeholder:List<Placeholder>, val default:List<Default>) : QuestionType()
-		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType()
+
+		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType() {
+			override fun collectQuestionIds(baseId: String, collect: (String) -> Unit) {
+				for (i in 0 until repeats) {
+					base.collectQuestionIds("$i-$baseId", collect)
+				}
+			}
+		}
 	}
 
 	enum class InputType {
@@ -70,6 +90,18 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		val main = this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
 		val always = this.mapNotNull { if (it.always && it.text != main) it.text else null }
 		return main to always
+	}
+
+	fun collectQuestionIds():List<String> {
+		val result = ArrayList<String>()
+		for (section in sections) {
+			for (content in section.content) {
+				if (content is SectionContent.Question) {
+					content.type.collectQuestionIds(content.id) { result.add(it) }
+				}
+			}
+		}
+		return result
 	}
 
 	override fun toString(): String {

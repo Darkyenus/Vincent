@@ -1,5 +1,9 @@
 package it.unibz.vincent
 
+import com.google.common.cache.CacheBuilder
+import com.google.common.cache.CacheLoader
+import it.unibz.vincent.template.QuestionnaireTemplate
+import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.HASHED_PASSWORD_SIZE
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.Column
@@ -12,11 +16,15 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.LoggerFactory
+import java.io.ByteArrayInputStream
+import java.time.Duration
+import java.util.concurrent.ExecutionException
 import kotlin.math.floor
 import kotlin.math.log10
+import kotlin.random.Random
 
-/** Random only for [randomCode]. Not secure, because nobody will do randomness attack on wine. */
-private val randomCodeRandom = java.util.Random()
+private val LOG = LoggerFactory.getLogger("DatabaseSchema")
 
 /** Generates a random code to use.
  * May be duplicate, in that case call again with [attempt]`+1` until a unique code is found. */
@@ -30,8 +38,7 @@ private fun randomCode(attempt:Int):Int {
 		upperBound *= 10
 	}
 
-	val randomCodeRandom = randomCodeRandom
-	return lowerBound + synchronized(randomCodeRandom) { randomCodeRandom.nextInt(upperBound - lowerBound) }
+	return lowerBound + Random.Default.nextInt(upperBound - lowerBound)
 }
 
 /** Dictates what the account can do.
@@ -92,6 +99,37 @@ object QuestionnaireTemplates : LongIdTable() {
 	val timeCreated = timestamp("time_created").defaultExpression(CurrentTimestamp())
 
 	val template_xml = blob("template_xml")
+
+	val CACHE = CacheBuilder.newBuilder()
+			.expireAfterAccess(Duration.ofHours(24L))
+			.maximumSize(16L)
+			.build(object : CacheLoader<Long, QuestionnaireTemplate>() {
+				override fun load(key: Long): QuestionnaireTemplate {
+					val bytes = transaction {
+						QuestionnaireTemplates
+								.slice(template_xml)
+								.select { QuestionnaireTemplates.id eq key }
+								.firstOrNull()?.let { row -> row[template_xml].bytes }
+					} ?: throw NoSuchElementException("No such template")
+
+					return ByteArrayInputStream(bytes).use {
+						parseTemplate(it).result
+					}
+				}
+
+			})
+
+	fun parsed(templateId:Long):QuestionnaireTemplate? {
+		try {
+			return CACHE.get(templateId)
+		} catch (e: ExecutionException) {
+			if (e.cause is NoSuchElementException) {
+				return null
+			}
+			LOG.warn("Failed to load template from cache", e)
+			return null
+		}
+	}
 }
 
 enum class QuestionnaireState {

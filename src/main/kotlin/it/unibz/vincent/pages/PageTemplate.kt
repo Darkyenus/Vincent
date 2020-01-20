@@ -14,7 +14,6 @@ import kotlinx.html.ButtonType
 import kotlinx.html.FORM
 import kotlinx.html.FlowContent
 import kotlinx.html.FlowOrPhrasingContent
-import kotlinx.html.FormEncType
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
 import kotlinx.html.body
@@ -23,7 +22,6 @@ import kotlinx.html.div
 import kotlinx.html.form
 import kotlinx.html.head
 import kotlinx.html.hiddenInput
-import kotlinx.html.i
 import kotlinx.html.lang
 import kotlinx.html.li
 import kotlinx.html.link
@@ -170,6 +168,7 @@ fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 			}
 		}
 	}
+	messages.warningMessages?.clear()
 
 	messages.infoMessages?.let {
 		if (it.isNotEmpty()) {
@@ -186,6 +185,7 @@ fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 			}
 		}
 	}
+	messages.infoMessages?.clear()
 }
 
 enum class Icons(val cssClass:String) {

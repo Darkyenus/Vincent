@@ -162,8 +162,8 @@ Attributes:
 - interval - number of seconds (possibly decimal) between questions
 - repeats - how many times should the question be shown (whole number, greater than 1)
 
-In resulting CSV, the values will be in columns labelled `ID-N`, where ID is the question ID and N is the repeat.
-For example for <question id="taste"> <time-progression repeats="3">, those columns will be created: "taste-0", "taste-1", "taste-2".
+In resulting CSV, the values will be in columns labelled `N-ID`, where ID is the question ID and N is the repeat.
+For example for <question id="taste"> <time-progression repeats="3">, those columns will be created: "0-taste", "1-taste", "2-taste".
 -->
 <!ELEMENT time-progression (one-of | scale)>
 <!ATTLIST time-progression
