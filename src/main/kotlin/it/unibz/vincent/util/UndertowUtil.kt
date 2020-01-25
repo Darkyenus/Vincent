@@ -16,11 +16,13 @@ import io.undertow.server.handlers.form.FormParserFactory
 import io.undertow.server.handlers.form.MultiPartParserDefinition
 import io.undertow.util.AttachmentKey
 import io.undertow.util.Headers
+import io.undertow.util.Methods
 import io.undertow.util.PathTemplateMatch
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
+import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.pages.base
 import it.unibz.vincent.pages.loginRegister
 import it.unibz.vincent.pages.messageWarning
@@ -245,7 +247,7 @@ class HttpResponseException(val code: Int,
 
 const val ROUTE_ACTION_PARAM_NAME = "action"
 
-private fun KHttpHandler.handleAuthenticated(accessLevel: AccountType?, checkCsrf:Boolean):HttpHandler {
+private fun KHttpHandler.handleAuthenticated(accessLevel: AccountType?, checkCsrf: Boolean):HttpHandler {
 	if (accessLevel == null) {
 		return HttpHandler { this(it) }
 	} else {
@@ -294,7 +296,17 @@ fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeA
 
 @Suppress("FunctionName")
 fun RoutingHandler.POST(template:String, accessLevel: AccountType? = null, routeAction:String? = null, handler:KHttpHandler) {
-	val authHandler = handler.handleAuthenticated(accessLevel, true)
+	val idempotentHandler:KHttpHandler = if (accessLevel == null) handler else { exchange ->
+		val session = exchange.session()!!
+		if (session.useIdempotencyToken(exchange.formString(IDEMPOTENCY_FORM_TOKEN_NAME))) {
+			handler(exchange)
+		} else {
+			// Failed idempotency check, demote to GET
+			exchange.requestMethod = Methods.GET
+			this@POST.handleRequest(exchange)
+		}
+	}
+	val authHandler = idempotentHandler.handleAuthenticated(accessLevel, true)
 	if (routeAction == null) {
 		post(template, authHandler)
 	} else {

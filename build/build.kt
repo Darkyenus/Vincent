@@ -30,8 +30,8 @@ val Vincent by project {
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib"),
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib-common")
 	)) }
-	// Coroutines
-	libraryDependencies add { dependency("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.3.3") }
+	// Primitive collections
+	libraryDependencies add { dependency("com.carrotsearch", "hppc", "0.8.1") }
 
 	// Logging
 	libraryDependencies add { dependency("org.slf4j", "slf4j-api", "1.7.25") }

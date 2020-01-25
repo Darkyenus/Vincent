@@ -1,5 +1,6 @@
 package it.unibz.vincent
 
+import com.carrotsearch.hppc.IntScatterSet
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
 import com.google.common.cache.LoadingCache
@@ -17,6 +18,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 private val LOG: Logger = LoggerFactory.getLogger("LoginRegister")
 
@@ -29,7 +31,8 @@ private val activeSessions = CacheBuilder.newBuilder()
 
 private val csrfRandom = SecureRandom.getInstanceStrong()
 
-const val CSRF_FORM_TOKEN_NAME = "csrf_token"
+const val CSRF_FORM_TOKEN_NAME = "csrf"
+const val IDEMPOTENCY_FORM_TOKEN_NAME = "idmp"
 
 /**
  * @param sessionId The ID of the session, stored in session cookie
@@ -46,6 +49,24 @@ class Session(val sessionId:String, val userId:Long) {
 			csrfRandom.nextBytes(bytes)
 		}
 		Base64.getUrlEncoder().encodeToString(bytes)
+	}
+
+	/** Each form contains an idempotency token, which is used to prevent doing something twice. */
+	val nextIdempotencyToken = AtomicInteger(0)
+
+	private val usedIdempotencyTokens = IntScatterSet()
+
+	/** Attempt to use idempotency token.
+	 * Each token can be only used once.
+	 * @return true if used, false if invalid or already used */
+	fun useIdempotencyToken(token:String?):Boolean {
+		val id = token?.toIntOrNull() ?: return false
+		if (id < 0 || id >= nextIdempotencyToken.get()) {
+			// We didn't create this token, this makes it invalid
+			return false
+		}
+		val usedIdempotencyTokens = usedIdempotencyTokens
+		return synchronized(usedIdempotencyTokens) { usedIdempotencyTokens.add(id) }
 	}
 
 	fun <T> get(column: Column<T>):T {

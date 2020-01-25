@@ -3,6 +3,7 @@ package it.unibz.vincent.pages
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
+import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
 import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.ROUTE_ACTION_PARAM_NAME
@@ -71,6 +72,7 @@ fun HTML.base(lang:String = "en", title:String = "Vincent", description:String =
 /** Include necessary extra data into the form (anti-CSRF token). */
 fun FORM.session(session: Session) {
 	hiddenInput(name = CSRF_FORM_TOKEN_NAME) { value = session.csrfToken }
+	hiddenInput(name = IDEMPOTENCY_FORM_TOKEN_NAME) { value = session.nextIdempotencyToken.getAndIncrement().toString() }
 }
 
 fun FORM.routeAction(routeAction:String?) {
