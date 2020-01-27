@@ -1,0 +1,30 @@
+- pause section widget
+
+- different amount of wine repeats
+
+- color per wine in  questionnaire (palette of 10)
+
+- section
+	- when: always | only first | only last | not last
+	- wines: current | all | none
+
+- participant code - sequential
+
+- ONLY FOR REGISTERED PANELISTS
+- Name
+- Gender M/F/O
+- Year of birth
+- Country of origin/nationality (text field /w suggestions)
+- mobile phone (optional)
+- ----- up to sulfite intolerance
+
+- gender, intolerances in participant list
+
+- allow to run without any wines
+- invite all from X questionnaire after they complete it
+- #G341234
+- user order
+
+- guest accounts?
+- what to collect during reg?
+	- how to inspect it?

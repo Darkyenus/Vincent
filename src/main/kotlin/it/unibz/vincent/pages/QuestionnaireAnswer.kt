@@ -14,13 +14,16 @@ import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.WineParticipantAssignment
 import it.unibz.vincent.session
 import it.unibz.vincent.template.QuestionnaireTemplate
+import it.unibz.vincent.template.TemplateLang
+import it.unibz.vincent.template.fullTitle
+import it.unibz.vincent.template.mainText
 import it.unibz.vincent.util.GET
-import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.formStrings
 import it.unibz.vincent.util.merge
 import it.unibz.vincent.util.pathString
+import kotlinx.html.HTMLTag
 import kotlinx.html.HtmlBlockTag
 import kotlinx.html.TEXTAREA
 import kotlinx.html.attributesMapOf
@@ -46,6 +49,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import kotlin.math.max
+import kotlin.reflect.KFunction2
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireAnswer")
 
@@ -233,89 +237,91 @@ private fun QuestionnaireParticipation.advanceSection(): QuestionnaireParticipat
 	return QuestionnaireParticipation(questionnaireId, questionnaireName, participantId, newSection, newWineIndex, wineCount, wineId, wineParticipantAssignmentId, wineCode, state, template)
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType, template:QuestionnaireTemplate, locale:LocaleStack) {
-	when (type) {
-		is QuestionnaireTemplate.QuestionType.TimeVariable.OneOf -> renderQuestion(id, required, type, template, locale)
-		is QuestionnaireTemplate.QuestionType.TimeVariable.Scale -> renderQuestion(id, required, type, template, locale)
-		is QuestionnaireTemplate.QuestionType.FreeText -> renderQuestion(id, required, type, template, locale)
-		is QuestionnaireTemplate.QuestionType.TimeProgression -> renderQuestion(id, required, type, template, locale)
+private fun renderTitle(title:List<QuestionnaireTemplate.Title>, lang:TemplateLang, tag: KFunction2<String?, (HTMLTag.() -> Unit), Unit>) {
+	val (main, alt) = title.fullTitle(lang) ?: return
+
+	tag(null) { unsafe { +main } }
+	for (s in alt) {
+		tag("alternate-lang") { unsafe { +s } }
 	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.FreeText, template:QuestionnaireTemplate, locale:LocaleStack) {
-	with(template) {
-		when (type.type) {
-			QuestionnaireTemplate.InputType.SENTENCE -> {
-				numberInput(name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id") {
-					this.required = required
-					type.placeholder.mainText(locale)?.let { this.placeholder = it }
-					type.default.mainText(locale)?.let { this.value = it }
-				}
+private fun renderText(text:List<QuestionnaireTemplate.Text>, lang:TemplateLang, tag: KFunction2<String?, (HTMLTag.() -> Unit), Unit>) {
+	val html = text.mainText(lang) ?: return
+	tag(null) {
+		unsafe {
+			+html
+		}
+	}
+}
+
+private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType, lang:TemplateLang) {
+	when (type) {
+		is QuestionnaireTemplate.QuestionType.TimeVariable.OneOf -> renderQuestion(id, required, type, lang)
+		is QuestionnaireTemplate.QuestionType.TimeVariable.Scale -> renderQuestion(id, required, type, lang)
+		is QuestionnaireTemplate.QuestionType.FreeText -> renderQuestion(id, required, type, lang)
+		is QuestionnaireTemplate.QuestionType.TimeProgression -> renderQuestion(id, required, type, lang)
+	}
+}
+
+private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.FreeText, lang:TemplateLang) {
+	when (type.type) {
+		QuestionnaireTemplate.InputType.SENTENCE -> {
+			numberInput(name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id") {
+				this.required = required
+				type.placeholder.mainText(lang)?.let { this.placeholder = it }
+				type.default.mainText(lang)?.let { this.value = it }
 			}
-			QuestionnaireTemplate.InputType.PARAGRAPH -> {
-				TEXTAREA(attributesMapOf(
-						"name", "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id",
-						"required", required.toString(),
-						"placeholder", type.placeholder.mainText(locale)), consumer).visit {
-					type.default.mainText(locale)?.let { +it }
-				}
+		}
+		QuestionnaireTemplate.InputType.PARAGRAPH -> {
+			TEXTAREA(attributesMapOf(
+					"name", "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id",
+					"required", required.toString(),
+					"placeholder", type.placeholder.mainText(lang)), consumer).visit {
+				type.default.mainText(lang)?.let { +it }
 			}
-			QuestionnaireTemplate.InputType.NUMBER -> {
-				textInput(name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id") {
-					this.required = required
-					type.placeholder.mainText(locale)?.let { this.placeholder = it }
-					type.default.mainText(locale)?.let { this.value = it }
-				}
+		}
+		QuestionnaireTemplate.InputType.NUMBER -> {
+			textInput(name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id") {
+				this.required = required
+				type.placeholder.mainText(lang)?.let { this.placeholder = it }
+				type.default.mainText(lang)?.let { this.value = it }
 			}
 		}
 	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeProgression, template:QuestionnaireTemplate, locale:LocaleStack) {
+private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeProgression, lang:TemplateLang) {
 	p { +"TimeVariable type not implemented yet" }
 	//TODO
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf, template:QuestionnaireTemplate, locale:LocaleStack) {
+private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf, lang:TemplateLang) {
 	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
 	val detailName = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id-detail"
-	with(template) {
-		for (category in type.categories) {
-			category.title.fullTitle(locale)?.let { (main, alt) ->
-				h3 { +main }
-				for (s in alt) {
-					h3("alternate-lang") { +s }
-				}
-			}
+	for (category in type.categories) {
+		renderTitle(category.title, lang, ::h3)
 
-			div("container") {
-				for (option in category.options) {
-					div("row") {
-						label {
-							option.title.fullTitle(locale)?.let { (main, alt) ->
-								p { +main }
-								for (s in alt) {
-									p("alternate-lang") { +s }
-								}
-							}
-							radioInput(name=name) { this.required = required; value=option.value }
+		div("container") {
+			for (option in category.options) {
+				div("row") {
+					label {
+						renderTitle(option.title, lang, ::p)
+						radioInput(name=name) { this.required = required; value=option.value }
 
-							if (option.hasDetail) {
-								div("one-of-detail") {
-									option.detail.mainText(locale)?.let {
-										p { +it }
+						if (option.hasDetail) {
+							div("one-of-detail") {
+								renderText(option.detail, lang, ::p)
+
+								when (option.detailType) {
+									QuestionnaireTemplate.InputType.SENTENCE -> {
+										numberInput(name = detailName) {}
 									}
-
-									when (option.detailType) {
-										QuestionnaireTemplate.InputType.SENTENCE -> {
-											numberInput(name = detailName) {}
-										}
-										QuestionnaireTemplate.InputType.PARAGRAPH -> {
-											TEXTAREA(attributesMapOf("name", detailName), consumer).visit {}
-										}
-										QuestionnaireTemplate.InputType.NUMBER -> {
-											textInput(name = detailName) {}
-										}
+									QuestionnaireTemplate.InputType.PARAGRAPH -> {
+										TEXTAREA(attributesMapOf("name", detailName), consumer).visit {}
+									}
+									QuestionnaireTemplate.InputType.NUMBER -> {
+										textInput(name = detailName) {}
 									}
 								}
 							}
@@ -327,52 +333,38 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.Scale, template:QuestionnaireTemplate, locale:LocaleStack) {
+private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.Scale, lang:TemplateLang) {
 	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
 	val optionCount = max(0, type.max - type.min + 1)
 	val hasMinLabel = type.minLabel.isNotEmpty()
 	val hasMaxLabel = type.maxLabel.isNotEmpty()
 
-	with(template) {
-		div("question-scale") {
-			style="display:grid; grid-template-columns: ${if(hasMinLabel) "auto" else ""} repeat($optionCount, 1fr) ${if(hasMaxLabel) "auto" else ""};"
+	div("question-scale") {
+		style="display:grid; grid-template-columns: ${if(hasMinLabel) "auto" else ""} repeat($optionCount, 1fr) ${if(hasMaxLabel) "auto" else ""};"
 
-			if (hasMinLabel) {
-				div {
-					style = "grid-row-start: 1; grid-row-end: 3;"
-
-					type.minLabel.fullTitle(locale)?.let { (main, alt) ->
-						p { +main }
-						for (s in alt) {
-							p("alternate-lang") { +s }
-						}
-					}
-				}
+		if (hasMinLabel) {
+			div {
+				style = "grid-row-start: 1; grid-row-end: 3;"
+				renderTitle(type.minLabel, lang, ::p)
 			}
+		}
 
-			for (i in type.min .. type.max) {
-				div {
-					+i.toString()
-				}
+		for (i in type.min .. type.max) {
+			div {
+				+i.toString()
 			}
+		}
 
-			if (hasMaxLabel) {
-				div {
-					style = "grid-row-start: 1; grid-row-end: 3;"
-
-					type.maxLabel.fullTitle(locale)?.let { (main, alt) ->
-						p { +main }
-						for (s in alt) {
-							p("alternate-lang") { +s }
-						}
-					}
-				}
+		if (hasMaxLabel) {
+			div {
+				style = "grid-row-start: 1; grid-row-end: 3;"
+				renderTitle(type.maxLabel, lang, ::p)
 			}
+		}
 
-			for (i in type.min .. type.max) {
-				div {
-					radioInput(name = name) { this.required=required; value = i.toString() }
-				}
+		for (i in type.min .. type.max) {
+			div {
+				radioInput(name = name) { this.required=required; value = i.toString() }
 			}
 		}
 	}
@@ -386,56 +378,36 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 
 	exchange.sendBase(participation.questionnaireName) { _, locale ->
 		val section = participation.template.sections[participation.currentSection]
+		val lang = TemplateLang(participation.template.defaultLanguage, locale)
 
-		with (participation.template) {
-			// Render title
-			val fullTitle = section.title.fullTitle(locale)
-			if (fullTitle != null) {
-				h1 { +fullTitle.first }
-				for (s in fullTitle.second) {
-					h1("alternate-lang") { +s }
-				}
-			} else {
-				h1 { +"Part ${participation.currentSection + 1}" }
-			}
+		// Render title
+		renderTitle(section.title, lang, ::h1)
 
-			p("sub") { +"Wine: ${participation.wineCode}" }
+		p("sub") { +"Wine: ${participation.wineCode}" }
 
 
-			// Render questions
-			postForm(action = "/questionnaire/${participation.questionnaireId}") {
-				session(exchange.session()!!)
-				hiddenInput(name = FORM_PARAM_WINE_ASSIGNMENT_ID) { value = participation.wineParticipantAssignmentId.toString(16) }
+		// Render questions
+		postForm(action = "/questionnaire/${participation.questionnaireId}") {
+			session(exchange.session()!!)
+			routeAction(ACTION_SUBMIT_SECTION)
+			hiddenInput(name = FORM_PARAM_WINE_ASSIGNMENT_ID) { value = participation.wineParticipantAssignmentId.toString(16) }
 
-				for (sectionPart in section.content) {
-					div("container section-part") {
-						sectionPart.title.fullTitle(locale)?.let { (main, alternate) ->
-							h2 { +main }
-							for (s in alternate) {
-								h2("alternate-lang") { +s }
-							}
+			for (sectionPart in section.content) {
+				div("container section-part") {
+					renderTitle(sectionPart.title, lang, ::h2)
+					renderText(sectionPart.text, lang, ::p)
+
+					when (sectionPart) {
+						is QuestionnaireTemplate.SectionContent.Info -> {
 						}
-
-						sectionPart.text.mainText(locale)?.let { html ->
-							p {
-								unsafe {
-									+html
-								}
-							}
-						}
-
-						when (sectionPart) {
-							is QuestionnaireTemplate.SectionContent.Info -> {
-							}
-							is QuestionnaireTemplate.SectionContent.Question -> {
-								renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, participation.template, locale)
-							}
+						is QuestionnaireTemplate.SectionContent.Question -> {
+							renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang)
 						}
 					}
 				}
-
-				submitInput { value="Next" }
 			}
+
+			submitInput { value="Next" }
 		}
 	}
 }
@@ -448,7 +420,7 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 	}
 
 	// Sent on next section button press
-	POST("/questionnaire/${PATH_QUESTIONNAIRE_ID}", AccountType.NORMAL, ACTION_SUBMIT_SECTION) { exchange ->
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}", AccountType.NORMAL, ACTION_SUBMIT_SECTION) { exchange ->
 		val participation = exchange.questionnaireParticipation() ?: return@POST
 
 		// Check that the answer belongs to a correct assignment

@@ -2,6 +2,7 @@ package it.unibz.vincent.template
 
 import com.ibm.icu.util.LocaleMatcher
 import com.ibm.icu.util.ULocale
+import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.XmlBuilder
 import java.time.Duration
 
@@ -13,7 +14,7 @@ private typealias Max = QuestionnaireTemplate.Title
 
 class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>, val sections:List<Section>) {
 
-	class Title(val text:String, val language:ULocale?, val always:Boolean)
+	class Title constructor(val text:String, val language:ULocale?, val always:Boolean)
 
 	class Section(val title:List<Title>, val content:List<SectionContent>) {
 
@@ -84,47 +85,6 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	class Category(val title:List<Title>, val options:List<Option>)
 	class Option(val value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>)
-
-	fun List<Title>.mainTitle(languages:List<ULocale>):String? {
-		if (this.isEmpty()) {
-			return null
-		}
-		val builder = LocaleMatcher.builder()
-		for (title in this) {
-			builder.addSupportedULocale(title.language ?: defaultLanguage)
-		}
-		builder.setDefaultULocale(defaultLanguage)
-		val bestMatch = builder.build().getBestMatch(languages)
-		return this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
-	}
-
-	fun List<Text>.mainText(languages:List<ULocale>):String? {
-		if (this.isEmpty()) {
-			return null
-		}
-		val builder = LocaleMatcher.builder()
-		for (title in this) {
-			builder.addSupportedULocale(title.language ?: defaultLanguage)
-		}
-		builder.setDefaultULocale(defaultLanguage)
-		val bestMatch = builder.build().getBestMatch(languages)
-		return this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
-	}
-
-	fun List<Title>.fullTitle(languages:List<ULocale>):Pair<String, List<String>>? {
-		if (this.isEmpty()) {
-			return null
-		}
-		val builder = LocaleMatcher.builder()
-		for (title in this) {
-			builder.addSupportedULocale(title.language ?: defaultLanguage)
-		}
-		builder.setDefaultULocale(defaultLanguage)
-		val bestMatch = builder.build().getBestMatch(languages)
-		val main = this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
-		val always = this.mapNotNull { if (it.always && it.text != main) it.text else null }
-		return main to always
-	}
 
 	fun collectQuestionIds():List<String> {
 		val result = ArrayList<String>()
@@ -274,4 +234,47 @@ private fun XmlBuilder.build(e:QuestionnaireTemplate) {
 			build(section)
 		}
 	}
+}
+
+class TemplateLang(val default:ULocale, val preferred:LocaleStack)
+
+fun List<QuestionnaireTemplate.Title>.mainTitle(languages:TemplateLang):String? {
+	if (this.isEmpty()) {
+		return null
+	}
+	val builder = LocaleMatcher.builder()
+	for (title in this) {
+		builder.addSupportedULocale(title.language ?: languages.default)
+	}
+	builder.setDefaultULocale(languages.default)
+	val bestMatch = builder.build().getBestMatch(languages.preferred)
+	return this.find { (it.language ?: languages.default) == bestMatch }?.text ?: this.first().text
+}
+
+fun List<QuestionnaireTemplate.Text>.mainText(languages:TemplateLang):String? {
+	if (this.isEmpty()) {
+		return null
+	}
+	val builder = LocaleMatcher.builder()
+	for (title in this) {
+		builder.addSupportedULocale(title.language ?: languages.default)
+	}
+	builder.setDefaultULocale(languages.default)
+	val bestMatch = builder.build().getBestMatch(languages.preferred)
+	return this.find { (it.language ?: languages.default) == bestMatch }?.text ?: this.first().text
+}
+
+fun List<QuestionnaireTemplate.Title>.fullTitle(languages:TemplateLang):Pair<String, List<String>>? {
+	if (this.isEmpty()) {
+		return null
+	}
+	val builder = LocaleMatcher.builder()
+	for (title in this) {
+		builder.addSupportedULocale(title.language ?: languages.default)
+	}
+	builder.setDefaultULocale(languages.default)
+	val bestMatch = builder.build().getBestMatch(languages.preferred)
+	val main = this.find { (it.language ?: languages.default) == bestMatch }?.text ?: this.first().text
+	val always = this.mapNotNull { if (it.always && it.text != main) it.text else null }
+	return main to always
 }

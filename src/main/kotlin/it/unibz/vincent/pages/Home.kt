@@ -14,6 +14,8 @@ import it.unibz.vincent.QuestionnaireTemplates
 import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.Session
 import it.unibz.vincent.session
+import it.unibz.vincent.template.TemplateLang
+import it.unibz.vincent.template.mainTitle
 import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.LocaleStack
@@ -410,7 +412,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.messageInfo("Questionnaire template added")
 
 		val databaseName = parsed.result.run {
-			title.mainTitle(listOf(ULocale.ENGLISH)) ?: "Without a name (${DateTimeFormatter.ISO_INSTANT.format(Instant.now())})"
+			title.mainTitle(TemplateLang(this.defaultLanguage, listOf(ULocale.ENGLISH))) ?: "Without a name (${DateTimeFormatter.ISO_INSTANT.format(Instant.now())})"
 		}
 
 		val templateId = transaction {
