@@ -47,7 +47,6 @@ import kotlinx.html.textInput
 import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
-import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.deleteWhere
@@ -62,10 +61,8 @@ import java.io.CharArrayWriter
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.sql.SQLException
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.LinkedHashMap
-import kotlin.random.Random
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
 
@@ -162,8 +159,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 		thead {
 			tr {
 				th { +"Name" }
-				th { +"Code 1" }
-				th { +"Code 2" }
+				th { +"Code" }
 				// if editable: Remove
 			}
 		}
@@ -176,8 +172,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 					empty = false
 					val wineId = row[QuestionnaireWines.id].value
 					val wineName = row[QuestionnaireWines.name]
-					val wineCode1 = row[QuestionnaireWines.code1]
-					val wineCode2 = row[QuestionnaireWines.code2]
+					val wineCode = row[QuestionnaireWines.code]
 
 					tr {
 						td {
@@ -191,17 +186,9 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 						td {
 							postForm("/questionnaire/${questionnaire.id}/edit") {
 								session(session)
-								routeAction(ACTION_WINE_UPDATE_CODE_1)
+								routeAction(ACTION_WINE_UPDATE_CODE)
 								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
-								numberInput(name=PARAM_WINE_CODE) { value=wineCode1.toString() }
-							}
-						}
-						td {
-							postForm("/questionnaire/${questionnaire.id}/edit") {
-								session(session)
-								routeAction(ACTION_WINE_UPDATE_CODE_2)
-								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
-								numberInput(name=PARAM_WINE_CODE) { value=wineCode2.toString() }
+								numberInput(name= PARAM_WINE_CODE) { value=wineCode.toString() }
 							}
 						}
 						if (questionnaire.state != QuestionnaireState.RUNNING) {
@@ -233,12 +220,8 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 				textInput(name = PARAM_WINE_NAME) { required = true; placeholder = "Chardonnay" }
 			}
 			label {
-				+"Code 1"
-				numberInput(name = PARAM_WINE_CODE_1) { required = false; placeholder = "Random" }
-			}
-			label {
-				+"Code 2"
-				numberInput(name = PARAM_WINE_CODE_2) { required = false; placeholder = "Random" }
+				+"Code"
+				numberInput(name = PARAM_WINE_CODE) { required = false; placeholder = "Random" }
 			}
 			submitInput { value = "Add Wine" }
 		}
@@ -263,7 +246,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		for (row in WineParticipantAssignment
 				.leftJoin(QuestionnaireWines, { wine }, { id })
 				.leftJoin(Accounts, { WineParticipantAssignment.participant }, { id })
-				.slice(Accounts.id, Accounts.name, Accounts.code, QuestionnaireWines.name, QuestionnaireWines.code1, QuestionnaireWines.code2, WineParticipantAssignment.useAlternateWineCode)
+				.slice(Accounts.id, Accounts.name, Accounts.code, QuestionnaireWines.name, QuestionnaireWines.code)
 				.select { WineParticipantAssignment.questionnaire eq questionnaire.id }
 				.orderBy(Accounts.name)
 				.orderBy(WineParticipantAssignment.order)) {
@@ -278,10 +261,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 			}
 			lastParticipantId = participantId
 
-			val code1 = row[QuestionnaireWines.code1]
-			val code2 = row[QuestionnaireWines.code2]
-			val code = if (row[WineParticipantAssignment.useAlternateWineCode]) code2 else code1
-			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[QuestionnaireWines.name], code))
+			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
 		}
 	}
 
@@ -443,8 +423,7 @@ private fun HttpServerExchange.editQuestionnairePage() {
 
 private const val ACTION_INVITE = "invite"
 private const val ACTION_UNINVITE = "uninvite"
-private const val ACTION_WINE_UPDATE_CODE_1 = "update-code-1"
-private const val ACTION_WINE_UPDATE_CODE_2 = "update-code-2"
+private const val ACTION_WINE_UPDATE_CODE = "update-code"
 private const val ACTION_REMOVE_WINE = "remove-wine"
 private const val ACTION_ADD_WINE = "add-wine"
 private const val ACTION_RENAME_WINE = "rename-wine"
@@ -456,8 +435,6 @@ private const val PARAM_USERS = "users"
 private const val PARAM_WINE_ID = "wine"
 private const val PARAM_WINE_CODE = "wine-code"
 private const val PARAM_WINE_NAME = "wine-name"
-private const val PARAM_WINE_CODE_1 = "wine-code-1"
-private const val PARAM_WINE_CODE_2 = "wine-code-2"
 
 fun RoutingHandler.setupQuestionnaireEditRoutes() {
 	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF) { exchange ->
@@ -694,12 +671,12 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		exchange.editQuestionnairePage()
 	}
 
-	fun updateWineCode(exchange:HttpServerExchange, column: Column<Int>) {
-		val questionnaire = exchange.questionnaire() ?: return
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state == QuestionnaireState.RUNNING) {
 			exchange.messageWarning("Can't change wine code while the questionnaire is open")
 			exchange.editQuestionnairePage()
-			return
+			return@POST
 		}
 
 		val wineId = exchange.formString(PARAM_WINE_ID)?.toLongOrNull()
@@ -708,11 +685,11 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		if (wineId == null || newCode == null) {
 			exchange.messageWarning("Invalid change")
 			exchange.editQuestionnairePage()
-			return
+			return@POST
 		}
 
 		val updated = transaction {
-			QuestionnaireWines.update(where = { QuestionnaireWines.id eq wineId }, limit=1) { it[column] = newCode }
+			QuestionnaireWines.update(where = { QuestionnaireWines.id eq wineId }, limit=1) { it[QuestionnaireWines.code] = newCode }
 		}
 
 		if (updated == 0) {
@@ -721,14 +698,6 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			exchange.messageInfo("Wine code changed")
 		}
 		exchange.editQuestionnairePage()
-	}
-
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE_1) { exchange ->
-		updateWineCode(exchange, QuestionnaireWines.code1)
-	}
-
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE_2) { exchange ->
-		updateWineCode(exchange, QuestionnaireWines.code2)
 	}
 
 	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_REMOVE_WINE) { exchange ->
@@ -801,14 +770,12 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		transaction {
-			val code1 = exchange.formString(PARAM_WINE_CODE_1)?.toIntOrNull() ?: QuestionnaireWines.findUniqueCode(questionnaire.id)
-			val code2 = exchange.formString(PARAM_WINE_CODE_2)?.toIntOrNull() ?: QuestionnaireWines.findUniqueCode(questionnaire.id, code1)
+			val code = exchange.formString(PARAM_WINE_CODE)?.toIntOrNull() ?: QuestionnaireWines.findUniqueCode(questionnaire.id)
 
 			QuestionnaireWines.insert {
 				it[name] = wineName
 				it[QuestionnaireWines.questionnaire] = questionnaire.id
-				it[QuestionnaireWines.code1] = code1
-				it[QuestionnaireWines.code2] = code2
+				it[QuestionnaireWines.code] = code
 			}
 
 			regenerateWineAssignments(questionnaire.id)
@@ -913,35 +880,13 @@ private fun regenerateParticipantWineAssignment(questionnaireId:Long, participan
 	}
 
 	// Shuffle wines
-	val shuffledWines = wineIds.toMutableList()
-	shuffledWines.shuffle()
-
-	// Pick wine that should get duplicated
-	val repeat = wineIds.random()
-	// Pick where it should be placed
-	val repeatPosition = Random.nextInt(wineIds.size + 1)
-	shuffledWines.add(repeatPosition, repeat)
-
-	// Randomly assign codes to all wines
-	val useAlternateCode = BitSet(shuffledWines.size)
-	for (i in shuffledWines.indices) {
-		useAlternateCode.set(i, Random.nextBoolean())
-	}
-
-	// Ensure that the alternate has a different code
-	val firstRepeatIndex = shuffledWines.indexOf(repeat)
-	assert(firstRepeatIndex != -1)
-	val secondRepeatIndex = shuffledWines.lastIndexOf(repeat)
-	assert(secondRepeatIndex != -1)
-	assert(firstRepeatIndex != secondRepeatIndex)
-	useAlternateCode[firstRepeatIndex] = !useAlternateCode[secondRepeatIndex]
+	val shuffledWines = wineIds.shuffled()
 
 	try {
 		WineParticipantAssignment.batchInsert(shuffledWines.withIndex()) { (index, wineId) ->
 			this[WineParticipantAssignment.questionnaire] = questionnaireId
 			this[WineParticipantAssignment.participant] = participantAccountId
 			this[WineParticipantAssignment.wine] = wineId
-			this[WineParticipantAssignment.useAlternateWineCode] = useAlternateCode[index]
 			this[WineParticipantAssignment.order] = index
 		}
 	} catch (e: SQLException) {

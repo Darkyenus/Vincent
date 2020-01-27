@@ -160,11 +160,11 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 
 		WineParticipantAssignment
 				.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
-				.slice(WineParticipantAssignment.id, WineParticipantAssignment.wine, WineParticipantAssignment.useAlternateWineCode, QuestionnaireWines.code1, QuestionnaireWines.code2)
+				.slice(WineParticipantAssignment.id, WineParticipantAssignment.wine, QuestionnaireWines.code)
 				.select { (WineParticipantAssignment.questionnaire eq questionnaireId) and (WineParticipantAssignment.participant eq session.userId) }
 				.limit(1).firstOrNull()?.let { row ->
 					wineId = row[WineParticipantAssignment.wine]
-					wineCode =  (if (row[WineParticipantAssignment.useAlternateWineCode]) row[QuestionnaireWines.code2] else row[QuestionnaireWines.code1])
+					wineCode =  row[QuestionnaireWines.code]
 					wineParticipantAssignmentId = row[WineParticipantAssignment.id].value
 				}
 	}
@@ -221,10 +221,10 @@ private fun QuestionnaireParticipation.advanceSection(): QuestionnaireParticipat
 		transaction {
 			WineParticipantAssignment
 					.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
-					.slice(WineParticipantAssignment.id, WineParticipantAssignment.useAlternateWineCode, QuestionnaireWines.code1, QuestionnaireWines.code2)
+					.slice(WineParticipantAssignment.id, QuestionnaireWines.code)
 					.select { (WineParticipantAssignment.questionnaire eq questionnaireId) and (WineParticipantAssignment.participant eq participantId) }
 					.limit(1).firstOrNull()?.let { row ->
-						wineCode =  (if (row[WineParticipantAssignment.useAlternateWineCode]) row[QuestionnaireWines.code2] else row[QuestionnaireWines.code1])
+						wineCode =  row[QuestionnaireWines.code]
 						wineParticipantAssignmentId = row[WineParticipantAssignment.id].value
 					}
 		}

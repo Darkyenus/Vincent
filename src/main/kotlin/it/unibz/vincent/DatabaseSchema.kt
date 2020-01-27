@@ -13,7 +13,6 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.`java-time`.CurrentTimestamp
 import org.jetbrains.exposed.sql.`java-time`.timestamp
 import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -168,9 +167,7 @@ object QuestionnaireWines : LongIdTable() {
 	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE).index()
 	val name = varchar("name", 128)
 	/** Primary code assigned to this wine for this questionnaire */
-	val code1 = integer("code1")
-	/** Secondary code assigned to this wine for this questionnaire (for re-testing) */
-	val code2 = integer("code2")
+	val code = integer("code")
 
 
 	/** Call in transaction. */
@@ -179,7 +176,7 @@ object QuestionnaireWines : LongIdTable() {
 		while (true) {
 			val code = randomCode(attempt++)
 			if (code != primary && QuestionnaireWines
-							.select { (questionnaire eq questionnaireId) and ((code1 eq code) or (code2 eq code)) }
+							.select { (questionnaire eq questionnaireId) and (this@QuestionnaireWines.code eq code) }
 							.empty()) {
 				return code
 			}
@@ -192,10 +189,9 @@ object WineParticipantAssignment : LongIdTable() {
 	val participant = long("participant").references(Accounts.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val wine = long("wine").references(QuestionnaireWines.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val order = integer("order")
-	val useAlternateWineCode = bool("alternateWineCode")
 
 	init {
-		uniqueIndex(questionnaire, participant, wine, useAlternateWineCode)
+		uniqueIndex(questionnaire, participant, wine)
 	}
 }
 
