@@ -4,11 +4,13 @@ window.addEventListener('DOMContentLoaded', (event) => {
     for (var i=0, len=confirmForms.length|0; i<len; i=i+1|0) {
         var confirmMessage = confirmForms[i].getAttribute("confirmation-message")
         if (confirmMessage) {
+            (function (confirmMessage, i) { // Stupidity guard
             confirmForms[i].onsubmit = function(event) {
         	           if (!confirm(confirmMessage)) {
         	               event.preventDefault();
         	           }
         	       };
+        	}) (confirmMessage, i); // Stupidity guard
         }
     }
 });

@@ -41,7 +41,6 @@ import kotlinx.html.tr
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
@@ -141,7 +140,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 						td { +row[Questionnaires.state].toString() /* TODO: Localize */ }
 						td { +row[Questionnaires.name] }
 						td {
-							val creator = row.getOrNull(Accounts.name).takeIf { it == "foo" }
+							val creator = row.getOrNull(Accounts.name)
 							if (creator == null) {
 								p("unimportant") { +"deleted" }
 							} else {
@@ -212,7 +211,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						val templateId = row[QuestionnaireTemplates.id].toString()
 						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "questionnaire-new") { +"Use" } }
 						td { getButton("/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-download") { +"Download" } }
-						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous") { +"Delete" } }
+						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
 					}
 				}
 			}

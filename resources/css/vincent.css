@@ -69,7 +69,9 @@ body {
   line-height: 1.6;
   font-weight: 400;
   font-family: Merriweather, Georgia, serif;
-  color: #222; }
+  color: #222;
+  background: #F5F5F5;
+}
 
 
 /* Typography */
@@ -101,6 +103,14 @@ h6 + p.sub {
 	margin-left: 2rem;
 	font-size: 1.3rem;
 	color: #666;
+}
+
+.alternate-lang {
+	margin-top: -1.7rem;
+    margin-bottom: 2rem;
+    margin-left: 2rem;
+    font-size: smaller;
+    color: #666;
 }
 
 .unimportant {
@@ -387,11 +397,26 @@ hr {
 
 /* Assignment table */
 .at-code {
-
+	display: block;
+	text-align: center;
 }
 
 .at-title {
 	font-size: smaller;
+	display: block;
+	text-align: center;
+}
+
+/* Questionnaire section part */
+.section-part {
+	background: #FFF;
+}
+
+.one-of-detail {
+	display: none;
+}
+input[type="radio"]::checked ~ .one-of-detail {
+	display: unset;
 }
 
 /* Media Queries

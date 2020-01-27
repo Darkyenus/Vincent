@@ -75,6 +75,38 @@ fun HttpServerExchange.formString(name: String): String? {
 	}?.value
 }
 
+/** Retrieve [formString]s which start with given prefix.
+ * Keys may appear multiple times.
+ * @return list of those strings, <name without the prefix, content> */
+fun HttpServerExchange.formStrings(prefix: String): List<Pair<String, String>> {
+	val result = ArrayList<Pair<String, String>>()
+
+	for ((k, v) in queryParameters) {
+		if (k.startsWith(prefix, ignoreCase = true)) {
+			val canonicalKey = k.substring(prefix.length)
+			for (value in v) {
+				result.add(canonicalKey to value)
+			}
+		}
+	}
+
+	val formDataAttachment = getAttachment(FormDataParser.FORM_DATA)
+	if (formDataAttachment != null) {
+		for (k in formDataAttachment) {
+			if (k.startsWith(prefix, ignoreCase = true)) {
+				val canonicalKey = k.substring(prefix.length)
+				for (value in formDataAttachment.get(k)) {
+					if (!value.isFileItem) {
+						result.add(canonicalKey to value.value)
+					}
+				}
+			}
+		}
+	}
+
+	return result
+}
+
 /** Retrieve uploaded file with [name]. */
 fun HttpServerExchange.formFile(name:String): FormData.FileItem? {
 	return getAttachment(FormDataParser.FORM_DATA)?.get(name)?.find {

@@ -62,6 +62,9 @@ import java.io.CharArrayWriter
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.sql.SQLException
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.LinkedHashMap
 import kotlin.random.Random
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
@@ -178,7 +181,6 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 
 					tr {
 						td {
-							+wineName
 							postForm("/questionnaire/${questionnaire.id}/edit") {
 								session(session)
 								routeAction(ACTION_RENAME_WINE)
@@ -261,7 +263,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		for (row in WineParticipantAssignment
 				.leftJoin(QuestionnaireWines, { wine }, { id })
 				.leftJoin(Accounts, { WineParticipantAssignment.participant }, { id })
-				.slice(Accounts.id, Accounts.name, Accounts.code, QuestionnaireWines.name, QuestionnaireWines.code1, QuestionnaireWines.code2)
+				.slice(Accounts.id, Accounts.name, Accounts.code, QuestionnaireWines.name, QuestionnaireWines.code1, QuestionnaireWines.code2, WineParticipantAssignment.useAlternateWineCode)
 				.select { WineParticipantAssignment.questionnaire eq questionnaire.id }
 				.orderBy(Accounts.name)
 				.orderBy(WineParticipantAssignment.order)) {
@@ -278,12 +280,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 
 			val code1 = row[QuestionnaireWines.code1]
 			val code2 = row[QuestionnaireWines.code2]
-			val code = if (participantEntry.any { it.wineCode == code1 }) {
-				if (participantEntry.any { it.wineCode == code2 }) {
-					LOG.warn("Duplicate code2 in wine assignment matrix")
-				}
-				code2
-			} else code1
+			val code = if (row[WineParticipantAssignment.useAlternateWineCode]) code2 else code1
 			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[QuestionnaireWines.name], code))
 		}
 	}
@@ -349,17 +346,17 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStack, questionnaire: Questionnaire) {
 	// Button to open
 	if (questionnaire.state == QuestionnaireState.CREATED && transaction { questionnaireHasEnoughWineToOpen(questionnaire.id) }) {
-		postButton(session, "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN) { +"Open the questionnaire" }
+		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN) { +"Open the questionnaire" }
 	}
 
 	// Button to close
 	if (questionnaire.state == QuestionnaireState.RUNNING) {
-		postButton(session, "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", routeAction = ACTION_QUESTIONNAIRE_CLOSE) { +"Close the questionnaire" }
+		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_CLOSE) { +"Close the questionnaire" }
 	}
 
 	// Button to download results
 	if (questionnaire.state == QuestionnaireState.CLOSED) {
-		getButton("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/results") { +"Download results" }
+		getButton("/questionnaire/${questionnaire.id}/results") { +"Download results" }
 	}
 
 	// Button to delete
@@ -449,7 +446,7 @@ private const val ACTION_UNINVITE = "uninvite"
 private const val ACTION_WINE_UPDATE_CODE_1 = "update-code-1"
 private const val ACTION_WINE_UPDATE_CODE_2 = "update-code-2"
 private const val ACTION_REMOVE_WINE = "remove-wine"
-private const val ACTION_ADD_WINE = "remove-wine"
+private const val ACTION_ADD_WINE = "add-wine"
 private const val ACTION_RENAME_WINE = "rename-wine"
 private const val ACTION_QUESTIONNAIRE_OPEN = "questionnaire-open"
 private const val ACTION_QUESTIONNAIRE_CLOSE = "questionnaire-close"
@@ -915,19 +912,37 @@ private fun regenerateParticipantWineAssignment(questionnaireId:Long, participan
 		return
 	}
 
-	val random = Random.Default
-	val shuffledWineIds = ArrayList(wineIds)
-	shuffledWineIds.shuffle(random)
-	val repeatId = wineIds.random(random)
-	val repeatPosition = random.nextInt(wineIds.size + 1)
-	shuffledWineIds.add(repeatPosition, repeatId)
+	// Shuffle wines
+	val shuffledWines = wineIds.toMutableList()
+	shuffledWines.shuffle()
+
+	// Pick wine that should get duplicated
+	val repeat = wineIds.random()
+	// Pick where it should be placed
+	val repeatPosition = Random.nextInt(wineIds.size + 1)
+	shuffledWines.add(repeatPosition, repeat)
+
+	// Randomly assign codes to all wines
+	val useAlternateCode = BitSet(shuffledWines.size)
+	for (i in shuffledWines.indices) {
+		useAlternateCode.set(i, Random.nextBoolean())
+	}
+
+	// Ensure that the alternate has a different code
+	val firstRepeatIndex = shuffledWines.indexOf(repeat)
+	assert(firstRepeatIndex != -1)
+	val secondRepeatIndex = shuffledWines.lastIndexOf(repeat)
+	assert(secondRepeatIndex != -1)
+	assert(firstRepeatIndex != secondRepeatIndex)
+	useAlternateCode[firstRepeatIndex] = !useAlternateCode[secondRepeatIndex]
 
 	try {
-		WineParticipantAssignment.batchInsert(shuffledWineIds.withIndex()) { wine ->
+		WineParticipantAssignment.batchInsert(shuffledWines.withIndex()) { (index, wineId) ->
 			this[WineParticipantAssignment.questionnaire] = questionnaireId
 			this[WineParticipantAssignment.participant] = participantAccountId
-			this[WineParticipantAssignment.wine] = wine.value
-			this[WineParticipantAssignment.order] = wine.index
+			this[WineParticipantAssignment.wine] = wineId
+			this[WineParticipantAssignment.useAlternateWineCode] = useAlternateCode[index]
+			this[WineParticipantAssignment.order] = index
 		}
 	} catch (e: SQLException) {
 		LOG.error("regenerateParticipantWineAssignment inserting assignments failed", e)

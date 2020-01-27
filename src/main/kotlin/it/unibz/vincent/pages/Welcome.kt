@@ -38,8 +38,6 @@ import kotlinx.html.passwordInput
 import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.textInput
-import org.jetbrains.exposed.exceptions.ExposedSQLException
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
@@ -127,7 +125,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
                                      loginEmail:String? = null,
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
-	sendBase("Welcome") { _, _ ->
+	sendBase("Welcome") { exchange, _ ->
 		div("container") {
 			style = "margin-top: 5%"
 
@@ -137,14 +135,14 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 				p("sub") { +"Patron of wine tasting" }
 			}
 
-			renderMessages(this@loginRegister)
+			renderMessages(exchange)
 
 			div("row") {
 				div("w6 column container") {
 					h4 { +"Login" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("login")
-						postLoginRedirect(this@loginRegister)
+						postLoginRedirect(exchange)
 						div("row") { emailField(FORM_EMAIL, "on", loginEmail) }
 						div("row") { passwordField(FORM_PASSWORD, "current-password") }
 						div("row") {
@@ -157,7 +155,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 					h4 { +"Register" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("register")
-						postLoginRedirect(this@loginRegister)
+						postLoginRedirect(exchange)
 						div("row") { emailField(FORM_EMAIL, "off", registerEmail) }
 						div("row") { passwordField(FORM_PASSWORD, "new-password") }
 						div("row") { fullNameField(FORM_FULL_NAME, "name", registerName) }

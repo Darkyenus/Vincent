@@ -93,7 +93,7 @@ object AccountCodeReservations : Table() {
 }
 
 object QuestionnaireTemplates : LongIdTable() {
-	val createdBy = long("created_by").references(Accounts.id)
+	val createdBy = long("created_by").references(Accounts.id, onDelete=ReferenceOption.SET_NULL, onUpdate=ReferenceOption.CASCADE).nullable()
 	/** Name of the template. Derived from the XML. */
 	val name = varchar("name", 128)
 	val timeCreated = timestamp("time_created").defaultExpression(CurrentTimestamp())
@@ -141,9 +141,9 @@ enum class QuestionnaireState {
 object Questionnaires : LongIdTable() {
 	/** User facing name. */
 	val name = varchar("name", 128)
-	val createdBy = long("created_by").references(Accounts.id, onDelete=ReferenceOption.SET_NULL).nullable()
+	val createdBy = long("created_by").references(Accounts.id, onDelete=ReferenceOption.SET_NULL, onUpdate=ReferenceOption.CASCADE).nullable()
 	val timeCreated = timestamp("time_created").defaultExpression(CurrentTimestamp())
-	val template = long("template").references(QuestionnaireTemplates.id)
+	val template = long("template").references(QuestionnaireTemplates.id, onDelete=ReferenceOption.CASCADE, onUpdate=ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireState::class).default(QuestionnaireState.CREATED)
 }
 
@@ -154,15 +154,18 @@ enum class QuestionnaireParticipationState {
 }
 
 object QuestionnaireParticipants : Table() {
-	val participant = long("participant").references(Accounts.id, onDelete=ReferenceOption.CASCADE)
-	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE)
+	val participant = long("participant").references(Accounts.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
+	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireParticipationState::class).default(QuestionnaireParticipationState.INVITED)
+
+	val currentWineOrder = integer("wineOrder").default(0)
+	val currentSection = integer("segment").default(0)
 
 	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire)
 }
 
 object QuestionnaireWines : LongIdTable() {
-	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE).index()
+	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE).index()
 	val name = varchar("name", 128)
 	/** Primary code assigned to this wine for this questionnaire */
 	val code1 = integer("code1")
@@ -184,22 +187,25 @@ object QuestionnaireWines : LongIdTable() {
 	}
 }
 
-object WineParticipantAssignment : Table() {
-	val questionnaire = long("questionnaire").references(Questionnaires.id)
-	val participant = long("participant").references(Accounts.id)
-	val wine = long("wine").references(QuestionnaireWines.id)
+object WineParticipantAssignment : LongIdTable() {
+	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
+	val participant = long("participant").references(Accounts.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
+	val wine = long("wine").references(QuestionnaireWines.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val order = integer("order")
+	val useAlternateWineCode = bool("alternateWineCode")
 
-	override val primaryKey = PrimaryKey(questionnaire, participant, wine)
+	init {
+		uniqueIndex(questionnaire, participant, wine, useAlternateWineCode)
+	}
 }
 
 object QuestionnaireResponses : Table() {
 	/** Who created this response */
-	val participant = long("participant").references(Accounts.id)
+	val participant = long("participant").references(Accounts.id, onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.CASCADE)
 	/** Into which questionnaire */
-	val questionnaire = long("questionnaire").references(Questionnaires.id)
+	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	/** Which wine this relates to */
-	val wine = long("wine").references(QuestionnaireWines.id)
+	val wine = long("wine").references(QuestionnaireWines.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	/** On which question */
 	val questionId = varchar("question_id", 64)
 	/** What the response was */
@@ -210,7 +216,7 @@ object QuestionnaireResponses : Table() {
 	 */
 	val response = varchar("response", 1 shl 20 /* 1MB */)
 
-	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire, questionId)
+	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire, wine, questionId)
 }
 
 fun createSchemaTables() {

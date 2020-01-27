@@ -15,11 +15,32 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	class Title(val text:String, val language:ULocale?, val always:Boolean)
 
-	class Section(val title:List<Title>, val content:List<SectionContent>)
+	class Section(val title:List<Title>, val content:List<SectionContent>) {
 
-	sealed class SectionContent {
-		class Info(val title:List<Title>, val text:List<Text>) : SectionContent()
-		class Question(val id:String, val required:Boolean, val title:List<Title>, val text:List<Text>, val type:QuestionType) : SectionContent()
+		val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+			val result = ArrayList<String>()
+			for (content in content) {
+				if (content is SectionContent.Question) {
+					content.type.collectQuestionIds(content.id) { result.add(it) }
+				}
+			}
+			result
+		}
+
+		val requiredQuestionIds:Set<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+			val result = HashSet<String>()
+			for (content in content) {
+				if (content is SectionContent.Question && content.required) {
+					content.type.collectQuestionIds(content.id) { result.add(it) }
+				}
+			}
+			result
+		}
+	}
+
+	sealed class SectionContent(val title:List<Title>, val text:List<Text>) {
+		class Info(title:List<Title>, text:List<Text>) : SectionContent(title, text)
+		class Question(val id:String, val required:Boolean, title:List<Title>, text:List<Text>, val type:QuestionType) : SectionContent(title, text)
 	}
 
 	class Text(val text:String, val language:ULocale?)
@@ -65,6 +86,19 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 	class Option(val value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>)
 
 	fun List<Title>.mainTitle(languages:List<ULocale>):String? {
+		if (this.isEmpty()) {
+			return null
+		}
+		val builder = LocaleMatcher.builder()
+		for (title in this) {
+			builder.addSupportedULocale(title.language ?: defaultLanguage)
+		}
+		builder.setDefaultULocale(defaultLanguage)
+		val bestMatch = builder.build().getBestMatch(languages)
+		return this.find { (it.language ?: defaultLanguage) == bestMatch }?.text ?: this.first().text
+	}
+
+	fun List<Text>.mainText(languages:List<ULocale>):String? {
 		if (this.isEmpty()) {
 			return null
 		}
