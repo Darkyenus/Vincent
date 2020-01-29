@@ -46,6 +46,8 @@ enum class AccountType : Comparable<AccountType> {
 	// NOTE: This is stored in DB by ordinal!
 	// Do not change the order or meaning of enum values without considering backward compatibility!
 
+	/** Inactive account, just a reserved ID. */
+	RESERVED,
 	GUEST,
 	NORMAL,
 	STAFF,

@@ -39,8 +39,35 @@ always: Add `always="true"` to ensure that the title will be visible even if a m
 <section> is a set of questions on one page.
 After all required questions are answered, user can move to the next section.
 It is not possible to move back to previous sections.
+
+Minimum time limit can be specified through a `min-time` tag.
+Time duration is in seconds.
+Participant will not be allowed to continue to the next section
+unless a given amount of seconds has elapsed since opening this section.
+Other requirements to continue still apply.
+
+`stage` tag can specify the stage in which this section will be shown in relation to the amount of tested wines.
+"only-first" section will be shown only for the first wine of the questionnaire and will be omitted for subsequent
+runs through the template stages. Any questions in the omitted sections will be presented as if they were optional
+and were left unanswered, i.e. the column value will be blank.
+Similarly to "only-first", "except-first" will be shown on each questionnaire run,
+except fo the one with the first assigned wine.
+The intended purpose for this feature are "welcome sections" (only-first), "goodbye sections" (only-last),
+and "wait and cleanse palate sections" (except-last).
+
+`shown-wine` governs which wine code will be shown to the participant.
+This can be used to show a full overview of tested wines in welcome or wait sections (all),
+and to suppress redundant wine code display in goodbye sections (none).
+The "current" shows only the code of the wine tested in this run.
+If the questionnaire does not pertain to any wine (was started without any wines assigned),
+no wine codes will be shown even if this attribute demands it.
  -->
 <!ELEMENT section (title+, (info | question)*)>
+<!ATTLIST section
+        min-time CDATA "0"
+        stage (always|only-first|except-first|only-last|except-last) "always"
+        shown-wine (none|all|current) "current"
+        >
 
 <!--
 <info> is visually similar to a <question>, but only presents some textual information.

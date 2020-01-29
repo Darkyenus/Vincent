@@ -23,6 +23,7 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.formStrings
 import it.unibz.vincent.util.merge
 import it.unibz.vincent.util.pathString
+import it.unibz.vincent.util.plus
 import kotlinx.html.HTMLTag
 import kotlinx.html.HtmlBlockTag
 import kotlinx.html.TEXTAREA
@@ -340,7 +341,8 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 	val hasMaxLabel = type.maxLabel.isNotEmpty()
 
 	div("question-scale") {
-		style="display:grid; grid-template-columns: ${if(hasMinLabel) "auto" else ""} repeat($optionCount, 1fr) ${if(hasMaxLabel) "auto" else ""};"
+		val columnCount = optionCount + hasMinLabel + hasMaxLabel
+		style="display:grid; grid-template-columns: repeat($columnCount, 1fr);"
 
 		if (hasMinLabel) {
 			div {
@@ -357,7 +359,7 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 
 		if (hasMaxLabel) {
 			div {
-				style = "grid-row-start: 1; grid-row-end: 3;"
+				style = "grid-row-start: 1; grid-row-end: 3; grid-column-start: $columnCount;"
 				renderTitle(type.maxLabel, lang, ::p)
 			}
 		}

@@ -43,3 +43,7 @@ fun <T> StringBuilder.appendList(list:List<T>, itemPrefix:String = "", itemSuffi
 	}
 	return this
 }
+
+operator fun Int.plus(b:Boolean):Int {
+	return this + if (b) 1 else 0
+}

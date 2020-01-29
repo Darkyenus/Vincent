@@ -407,6 +407,17 @@ hr {
 	text-align: center;
 }
 
+/* Scale */
+.question-scale div {
+	text-align: center;
+}
+.question-scale-min {
+	text-align: right;
+}
+.question-scale-max {
+	text-align: left;
+}
+
 /* Questionnaire section part */
 .section-part {
 	background: #FFF;

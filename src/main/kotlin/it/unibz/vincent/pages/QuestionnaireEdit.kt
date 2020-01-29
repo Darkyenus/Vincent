@@ -87,16 +87,18 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 	table {
 		thead {
 			tr {
-				th { +"Name" }
-				th { +"E-mail" }
-				th { +"Code" }
-				th { +"State" }
+				colTh {+"#"}
+				colTh { +"Name" }
+				colTh { +"E-mail" }
+				colTh { +"Code" }
+				colTh { +"State" }
 				// if editable: Kick
 			}
 		}
 
 		tbody {
 			transaction {
+				var index = 1
 				for (row in QuestionnaireParticipants
 						.leftJoin(Accounts, { participant }, { id })
 						.slice(Accounts.id, Accounts.name, Accounts.email, Accounts.code, QuestionnaireParticipants.state)
@@ -104,6 +106,7 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 						.orderBy(Accounts.name)) {
 					empty = false
 					tr {
+						td { +(index++).toString() }
 						td { +row[Accounts.name] }
 						td { +row[Accounts.email] }
 						td { +"%04d".format(row[Accounts.code]) }
@@ -158,13 +161,15 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 	table {
 		thead {
 			tr {
-				th { +"Name" }
-				th { +"Code" }
+				colTh {+"#"}
+				colTh { +"Name" }
+				colTh { +"Code" }
 				// if editable: Remove
 			}
 		}
 
 		tbody {
+			var index = 1
 			transaction {
 				for (row in QuestionnaireWines
 						.select { QuestionnaireWines.questionnaire eq questionnaire.id }
@@ -175,6 +180,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 					val wineCode = row[QuestionnaireWines.code]
 
 					tr {
+						td { +(index++).toString() }
 						td {
 							postForm("/questionnaire/${questionnaire.id}/edit") {
 								session(session)
