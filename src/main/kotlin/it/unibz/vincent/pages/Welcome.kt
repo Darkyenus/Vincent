@@ -4,10 +4,8 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
-import it.unibz.vincent.AccountCodeReservations
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
-import it.unibz.vincent.Accounts.findUniqueAccountCode
 import it.unibz.vincent.createSession
 import it.unibz.vincent.destroySession
 import it.unibz.vincent.failedLoginAttemptLog
@@ -38,7 +36,7 @@ import kotlinx.html.passwordInput
 import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.textInput
-import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -125,7 +123,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
                                      loginEmail:String? = null,
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
-	sendBase("Welcome") { exchange, _ ->
+	sendBase("Vincent - Welcome") { exchange, _ ->
 		div("container") {
 			style = "margin-top: 5%"
 
@@ -315,35 +313,50 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 		var emailAlreadyUsed = false
 		val newAccountId = transaction {
-			val newCode = findUniqueAccountCode(email)
-			val accountId = try {
-				Accounts.insertAndGetId {
+			emailAlreadyUsed = false
+
+			val reservedAccountId = try {
+				Accounts.slice(Accounts.id).select { (Accounts.email eq email) and (Accounts.accountType eq AccountType.RESERVED) }.firstOrNull()?.let { it[Accounts.id].value }
+			} catch (e:SQLException) {
+				LOG.error("Failed to check for reservations", e)
+				null
+			}
+
+			if (reservedAccountId != null) {
+				// Update reservations
+				val rows = Accounts.update(where={ (Accounts.id eq reservedAccountId) and (Accounts.accountType eq AccountType.RESERVED) }, limit=1) {
 					it[Accounts.name] = name
-					it[Accounts.email] = email
 					it[Accounts.password] = hashPassword(password.toRawPassword())
 					it[accountType] = AccountType.NORMAL
-					it[code] = newCode
 					val now = Instant.now()
 					it[timeRegistered] = now
 					it[timeLastLogin] = now
-				}.value
-			} catch (e: SQLException) {
-				if (e.type() == SQLErrorType.DUPLICATE_KEY) {
-					emailAlreadyUsed = true
-					-1L
-				} else {
-					throw e
+				}
+				if (rows != 1) {
+					throw SQLException("Account id is no longer reserved")
+				}
+				reservedAccountId
+			} else {
+				// Create new
+				try {
+					Accounts.insertAndGetId {
+						it[Accounts.name] = name
+						it[Accounts.email] = email
+						it[Accounts.password] = hashPassword(password.toRawPassword())
+						it[accountType] = AccountType.NORMAL
+						val now = Instant.now()
+						it[timeRegistered] = now
+						it[timeLastLogin] = now
+					}.value
+				} catch (e: SQLException) {
+					if (e.type() == SQLErrorType.DUPLICATE_KEY) {
+						emailAlreadyUsed = true
+						-1L
+					} else {
+						throw e
+					}
 				}
 			}
-
-			try {
-				// Drop reservation, if this code came from reservation
-				AccountCodeReservations.deleteWhere(1) { AccountCodeReservations.code eq newCode }
-			} catch (e: SQLException) {
-				LOG.error("Failed to drop account reservation", e)
-			}
-
-			accountId
 		}
 
 		if (emailAlreadyUsed) {

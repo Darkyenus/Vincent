@@ -27,6 +27,7 @@ import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Instant
 import java.util.*
 import kotlin.system.exitProcess
 
@@ -144,12 +145,12 @@ fun main(args: Array<String>) {
 				}
 				"list-accounts" -> {
 					transaction {
-						val rowFormat = "%8s | %20s | %20s | %6s | %24s | %24s"
-						println(rowFormat.format("ID", "E-Mail", "Name", "Type", "Registered", "Last Login"))
-						println(rowFormat.format("--------", "--------------------", "--------------------", "------", "------------------------", "------------------------"))
+						val rowFormat = "%8s | %20s | %20s | %6s | %8s | %24s | %24s"
+						println(rowFormat.format("ID", "E-Mail", "Name", "Type", "Code", "Registered", "Last Login"))
+						println(rowFormat.format("--------", "--------------------", "--------------------", "------", "--------", "------------------------", "------------------------"))
 						var total = 0
 						for (row in Accounts.selectAll()) {
-							println(rowFormat.format(row[Accounts.id], row[Accounts.email], row[Accounts.name], row[Accounts.accountType], row[Accounts.timeRegistered], row[Accounts.timeLastLogin]))
+							println(rowFormat.format(row[Accounts.id], row[Accounts.email], row[Accounts.name], row[Accounts.accountType], row[Accounts.code] ?: "none", row[Accounts.timeRegistered], row[Accounts.timeLastLogin]))
 							total++
 						}
 						println("\tTotal: $total")
@@ -169,7 +170,7 @@ fun main(args: Array<String>) {
 								println("Code already assigned to a user '$alreadyGivenTo'")
 							} else {
 								var idWithThatEmail = 0L
-								var codeWithThatEmail = 0
+								var codeWithThatEmail:Int? = null
 								var emailExists = false
 
 								Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq userEmail }.firstOrNull()?.let {
@@ -186,8 +187,14 @@ fun main(args: Array<String>) {
 										println("Failed to change code of user '$userEmail' from $codeWithThatEmail to $newCode")
 									}
 								} else {
-									AccountCodeReservations.insert {
-										it[email] = userEmail
+									Accounts.insert {
+										it[Accounts.name] = "RESERVED"
+										it[Accounts.email] = userEmail
+										it[Accounts.password] = ByteArray(0)
+										it[accountType] = AccountType.RESERVED
+										val now = Instant.now()
+										it[timeRegistered] = now
+										it[timeLastLogin] = now
 										it[code] = newCode
 									}
 									LOG.info("CLI: Reserved code $newCode for user with e-mail '$userEmail'")

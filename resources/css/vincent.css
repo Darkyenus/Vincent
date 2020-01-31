@@ -312,43 +312,37 @@ pre > code {
   padding: 1rem 1.5rem;
   white-space: pre; }
 
+/* Spacing */
+button:not(table button),
+.button:not(table .button) {
+  margin-bottom: 1rem; }
+input:not(table input),
+textarea:not(table textarea),
+select:not(table select),
+fieldset:not(table fieldset) {
+  margin-bottom: 1.5rem; }
+pre:not(table pre),
+blockquote:not(table blockquote),
+dl:not(table dl),
+figure:not(table figure),
+p:not(table p),
+ul:not(table ul),
+ol:not(table ol),
+form:not(table form) {
+  margin-bottom: 2.5rem; }
 
 /* Tables */
-th,
-td {
+table {
+	margin-bottom: 2.5rem;
+	width: 100%; }
+th, td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #E1E1E1; }
-th:first-child,
-td:first-child {
-  padding-left: 0; }
-th:last-child,
-td:last-child {
-  padding-right: 0; }
-td > form { display: table-cell; }
-td > p { display: table-cell; }
-
-
-/* Spacing */
-button:not(td > form > button),
-.button:not(td > form > .button) {
-  margin-bottom: 1rem; }
-input,
-textarea,
-select,
-fieldset {
-  margin-bottom: 1.5rem; }
-pre,
-blockquote,
-dl,
-figure,
-table,
-p,
-ul,
-ol,
-form {
-  margin-bottom: 2.5rem; }
-
+th:first-child, td:first-child { padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+table input { width: 100%; min-width: 10rem; }
+.grow { width: 99% }
 
 /* Utilities */
 .u-full-width { width: 100%; box-sizing: border-box; }

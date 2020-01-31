@@ -346,8 +346,6 @@ fun RoutingHandler.POST(template:String, accessLevel: AccountType? = null, route
 	}
 }
 
-private val HEX_DIGIT = "0123456789ABCDEF".toCharArray()
-
 fun contentDispositionAttachment(fileName:String):String {
 	val sb = StringBuilder()
 	sb.append("attachment; filename=\"")
@@ -407,10 +405,8 @@ fun contentDispositionAttachment(fileName:String):String {
 			codePointBuf.clear()
 
 			while (utf8Bytes.hasRemaining()) {
-				val byte = utf8Bytes.get().toInt()
-				sb.append('%')
-				sb.append(HEX_DIGIT[(byte ushr 4) and 0xF])
-				sb.append(HEX_DIGIT[byte and 0xF])
+				val byte = utf8Bytes.get()
+				sb.append('%').appendHex(byte)
 			}
 		}
 	}

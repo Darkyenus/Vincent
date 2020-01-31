@@ -5,8 +5,11 @@ import com.google.common.cache.CacheLoader
 import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.HASHED_PASSWORD_SIZE
+import it.unibz.vincent.util.appendHex
+import it.unibz.vincent.util.getLong
+import it.unibz.vincent.util.parseHex
+import it.unibz.vincent.util.putLong
 import org.jetbrains.exposed.dao.id.LongIdTable
-import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
@@ -19,6 +22,8 @@ import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
 import java.time.Duration
 import java.util.concurrent.ExecutionException
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.random.Random
@@ -54,6 +59,40 @@ enum class AccountType : Comparable<AccountType> {
 	ADMIN
 }
 
+/** Guest accounts have IDs which are actually [Accounts.id], obfuscated and prefixed with this. */
+const val GUEST_CODE_PREFIX = "G#"
+private const val GUEST_CODE_CIPHER_SIZE_BYTES = 8
+private const val GUEST_CODE_OBFUSCATION_CIPHER_NAME = "DES/ECB/NoPadding"
+
+/** **This provides no security** and is only for minor obfuscation. TODO: Generate key and save it into the DB for some security */
+private val obfuscationKey = SecretKeySpec("Vincent".toByteArray(Charsets.UTF_8).copyOf(GUEST_CODE_CIPHER_SIZE_BYTES), "DES")
+
+fun accountIdToGuestCode(accountId:Long):String {
+	val cipher = Cipher.getInstance(GUEST_CODE_OBFUSCATION_CIPHER_NAME)
+	cipher.init(Cipher.ENCRYPT_MODE, obfuscationKey)
+
+	val accountIdBytes = ByteArray(GUEST_CODE_CIPHER_SIZE_BYTES)
+	accountIdBytes.putLong(0, accountId)
+	val result = cipher.doFinal(accountIdBytes)
+	assert(result.size == GUEST_CODE_CIPHER_SIZE_BYTES)
+	return StringBuilder().append(GUEST_CODE_PREFIX).appendHex(result).toString()
+}
+
+fun guestCodeToAccountId(guestCode:String):Long? {
+	if (!guestCode.startsWith(GUEST_CODE_PREFIX, ignoreCase = true)) {
+		return null
+	}
+
+	val aesBytes = guestCode.parseHex(GUEST_CODE_PREFIX.length, guestCode.length) ?: return null
+
+	val cipher = Cipher.getInstance(GUEST_CODE_OBFUSCATION_CIPHER_NAME)
+	cipher.init(Cipher.DECRYPT_MODE, obfuscationKey)
+	val result = cipher.doFinal(aesBytes)
+	assert(result.size == GUEST_CODE_CIPHER_SIZE_BYTES)
+	return result.getLong(0)
+}
+
+
 /** Table of registered users. */
 object Accounts : LongIdTable() {
 	const val MAX_NAME_LENGTH = 128
@@ -62,35 +101,10 @@ object Accounts : LongIdTable() {
 	val email = varchar("email", MAX_EMAIL_LENGTH).uniqueIndex()
 	val password = binary("password", HASHED_PASSWORD_SIZE)
 	val accountType = enumeration("account_type", AccountType::class)
-	val code: Column<Int> = integer("code").uniqueIndex()
+	val code = integer("code").autoIncrement().uniqueIndex().nullable()
 
 	val timeRegistered = timestamp("time_registered")
 	val timeLastLogin = timestamp("time_last_login")
-
-	/** Call in a transaction. Gets reserved code or generates a new one. */
-	fun findUniqueAccountCode(email:String):Int {
-		AccountCodeReservations.slice(AccountCodeReservations.code)
-				.select { AccountCodeReservations.email eq email }
-				.limit(1)
-				.firstOrNull()
-				?.let { return it[AccountCodeReservations.code] }
-
-		var attempt = 0
-		while (true) {
-			val code = randomCode(attempt++)
-			if (Accounts.select { Accounts.code eq code }.empty() && AccountCodeReservations.select { AccountCodeReservations.code eq code }.empty()) {
-				return code
-			}
-		}
-	}
-}
-
-/** Account codes reserved for someone. */
-object AccountCodeReservations : Table() {
-	val code = integer("code")
-	val email = varchar("email", Accounts.MAX_EMAIL_LENGTH).uniqueIndex()
-
-	override val primaryKey: PrimaryKey = PrimaryKey(code)
 }
 
 object QuestionnaireTemplates : LongIdTable() {
@@ -221,7 +235,6 @@ fun createSchemaTables() {
 	transaction {
 		SchemaUtils.create(
 				Accounts,
-				AccountCodeReservations,
 				QuestionnaireTemplates,
 				Questionnaires,
 				QuestionnaireParticipants,

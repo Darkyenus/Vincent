@@ -7,6 +7,7 @@ import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.GUEST_CODE_PREFIX
 import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.QuestionnaireResponses
 import it.unibz.vincent.QuestionnaireState
@@ -15,6 +16,8 @@ import it.unibz.vincent.QuestionnaireWines
 import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.Session
 import it.unibz.vincent.WineParticipantAssignment
+import it.unibz.vincent.accountIdToGuestCode
+import it.unibz.vincent.guestCodeToAccountId
 import it.unibz.vincent.session
 import it.unibz.vincent.util.CSVWriter
 import it.unibz.vincent.util.GET
@@ -27,7 +30,6 @@ import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
-import kotlinx.html.colTh
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
@@ -36,7 +38,6 @@ import kotlinx.html.label
 import kotlinx.html.numberInput
 import kotlinx.html.p
 import kotlinx.html.postForm
-import kotlinx.html.rowTh
 import kotlinx.html.span
 import kotlinx.html.style
 import kotlinx.html.submitInput
@@ -87,11 +88,11 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 	table {
 		thead {
 			tr {
-				colTh {+"#"}
-				colTh { +"Name" }
-				colTh { +"E-mail" }
-				colTh { +"Code" }
-				colTh { +"State" }
+				th {+"#"}
+				th { +"Name" }
+				th { +"E-mail" }
+				th { +"Code" }
+				th { +"State" }
 				// if editable: Kick
 			}
 		}
@@ -103,20 +104,24 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 						.leftJoin(Accounts, { participant }, { id })
 						.slice(Accounts.id, Accounts.name, Accounts.email, Accounts.code, QuestionnaireParticipants.state)
 						.select { QuestionnaireParticipants.questionnaire eq questionnaire.id }
-						.orderBy(Accounts.name)) {
+						.orderBy(Accounts.name)
+						.orderBy(Accounts.id)) {
 					empty = false
 					tr {
+						val accountId = row[Accounts.id].value
 						td { +(index++).toString() }
 						td { +row[Accounts.name] }
 						td { +row[Accounts.email] }
-						td { +"%04d".format(row[Accounts.code]) }
+						td { +(row[Accounts.code]?.toString() ?: accountIdToGuestCode(accountId)) }
 						td { +row[QuestionnaireParticipants.state].toString() /* TODO Localize */ }
 
-						td {
-							postButton(session, "/questionnaire/${questionnaire.id}/edit",
-									PARAM_USER_ID to row[Accounts.id].toString(),
-									routeAction= ACTION_UNINVITE, confirmation="Are you sure? This will delete all responses from this participant as well!") {
-								+"Uninvite"
+						if (questionnaire.state != QuestionnaireState.CLOSED) {
+							td {
+								postButton(session, "/questionnaire/${questionnaire.id}/edit",
+										PARAM_USER_ID to accountId.toString(),
+										routeAction = ACTION_UNINVITE, confirmation = "Are you sure? This will delete all responses from this participant as well!") {
+									+"Uninvite"
+								}
 							}
 						}
 					}
@@ -161,9 +166,9 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 	table {
 		thead {
 			tr {
-				colTh {+"#"}
-				colTh { +"Name" }
-				colTh { +"Code" }
+				th {+"#"}
+				th(classes = "grow") { +"Name" }
+				th { +"Code" }
 				// if editable: Remove
 			}
 		}
@@ -173,7 +178,8 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 			transaction {
 				for (row in QuestionnaireWines
 						.select { QuestionnaireWines.questionnaire eq questionnaire.id }
-						.orderBy(QuestionnaireWines.name)) {
+						.orderBy(QuestionnaireWines.name)
+						.orderBy(QuestionnaireWines.id)) {
 					empty = false
 					val wineId = row[QuestionnaireWines.id].value
 					val wineName = row[QuestionnaireWines.name]
@@ -197,7 +203,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 								numberInput(name= PARAM_WINE_CODE) { value=wineCode.toString() }
 							}
 						}
-						if (questionnaire.state != QuestionnaireState.RUNNING) {
+						if (questionnaire.state == QuestionnaireState.CREATED) {
 							td {
 								postButton(session, "/questionnaire/${questionnaire.id}/edit", PARAM_WINE_ID to wineId.toString(), routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
 									icon(Icons.TRASH)
@@ -241,7 +247,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
  * - Content: Code of the wine + Name of the wine
  */
 private fun FlowContent.questionnaireWineParticipantAssociations(session: Session, locale: LocaleStack, questionnaire: Questionnaire) {
-	data class Entry(val participantName:String, val participantCode:Int, val wineName:String, val wineCode:Int)
+	data class Entry(val participantName:String, val panelistCode:Int?, val accountId:Long, val wineName:String, val wineCode:Int)
 
 	val entries = ArrayList<ArrayList<Entry>>()
 
@@ -255,6 +261,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 				.slice(Accounts.id, Accounts.name, Accounts.code, QuestionnaireWines.name, QuestionnaireWines.code)
 				.select { WineParticipantAssignment.questionnaire eq questionnaire.id }
 				.orderBy(Accounts.name)
+				.orderBy(Accounts.id)
 				.orderBy(WineParticipantAssignment.order)) {
 
 			val participantId = row[Accounts.id].value
@@ -267,7 +274,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 			}
 			lastParticipantId = participantId
 
-			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
+			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[Accounts.id].value, row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
 		}
 	}
 
@@ -298,10 +305,17 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 	table {
 		thead {
 			tr {
-				colTh {+"#"}
+				th {+"#"}
 				for (entry in entries) {
-					colTh {
-						span("at-code") { +entry[0].participantCode.toString() }
+					th {
+						span("at-code") {
+							val panelistCode = entry[0].panelistCode
+							if (panelistCode != null) {
+								+panelistCode.toString()
+							} else {
+								+accountIdToGuestCode(entry[0].accountId)
+							}
+						}
 						span("at-title") { +entry[0].participantName }
 					}
 				}
@@ -310,7 +324,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		tbody {
 			for (round in 0 until rounds) {
 				tr {
-					rowTh { +((round+1).toString()) }
+					th { +((round+1).toString()) }
 					for (entry in entries) {
 						td {
 							span("at-code") { +entry[round].wineCode.toString() }
@@ -356,6 +370,9 @@ private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStac
 private class Questionnaire(val id:Long, val name:String, val state:QuestionnaireState, val templateId:Long, val templateName:String)
 private val QUESTIONNAIRE_KEY = AttachmentKey.create(Questionnaire::class.java)
 
+private fun HttpServerExchange.dropQuestionnaire() {
+	removeAttachment(QUESTIONNAIRE_KEY)
+}
 private fun HttpServerExchange.questionnaire():Questionnaire? {
 	getAttachment(QUESTIONNAIRE_KEY)?.let { return it }
 
@@ -561,6 +578,17 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 								exchange.messageWarning("No user with code $userSpecification found")
 							}
 							id
+						} else if (userSpecification.startsWith(GUEST_CODE_PREFIX)) {
+							val accountId = guestCodeToAccountId(userSpecification)
+							if (accountId == null) {
+								exchange.messageWarning("$userSpecification is not a valid guest code")
+								return@mapNotNull null
+							}
+							if (Accounts.select { (Accounts.id eq accountId) and (Accounts.accountType eq AccountType.GUEST) }.empty()) {
+								exchange.messageWarning("Guest $userSpecification does not exist")
+								return@mapNotNull null
+							}
+							accountId
 						} else {
 							var id = 0L
 							var count = 0
@@ -813,6 +841,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		if (updated == 1) {
 			exchange.messageInfo("Questionnaire opened")
 		}
+		exchange.dropQuestionnaire()
 		exchange.editQuestionnairePage()
 	}
 
@@ -824,8 +853,9 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 					limit=1) { it[state] = QuestionnaireState.CLOSED }
 		}
 		if (updated == 1) {
-			exchange.messageInfo("Questionnaire opened")
+			exchange.messageInfo("Questionnaire closed")
 		}
+		exchange.dropQuestionnaire()
 		exchange.editQuestionnairePage()
 	}
 }
