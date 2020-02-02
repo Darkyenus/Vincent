@@ -229,13 +229,13 @@ private class TextParserState : SequenceParserState<QuestionnaireTemplate.Text>(
 
 private abstract class AttributeParserState<R> : ParserState<R> {
 
-	private interface Property<R, V> : ReadOnlyProperty<AttributeParserState<R>, V> {
+	interface Property<R, V> : ReadOnlyProperty<AttributeParserState<R>, V> {
 		fun update(ctx:ParserContext, attributes:Attributes)
 	}
 
 	private val properties = ArrayList<Property<R, *>>()
 
-	protected fun <T:Any> property(retriever:(ctx:ParserContext, Attributes) -> T): ReadOnlyProperty<AttributeParserState<R>, T> {
+	protected fun <T:Any> property(retriever:Property<R,T>.(ctx:ParserContext, Attributes) -> T): Property<R, T> {
 		val p = object : Property<R, T> {
 			var result:T? = null
 
@@ -251,7 +251,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		return p
 	}
 
-	protected fun langProperty(name:String, default:ULocale) : ReadOnlyProperty<AttributeParserState<R>, ULocale> {
+	protected fun langProperty(name:String, default:ULocale) : Property<R, ULocale> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: return@property default
 			if (text.isBlank()) {
@@ -268,7 +268,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		}
 	}
 
-	protected fun boolProperty(name:String, default:Boolean) : ReadOnlyProperty<AttributeParserState<R>, Boolean> {
+	protected fun boolProperty(name:String, default:Boolean) : Property<R, Boolean> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: return@property default
 			if (text.equals("true", ignoreCase = true) || text.equals("yes", ignoreCase = true)) {
@@ -284,7 +284,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		}
 	}
 
-	protected fun intProperty(name:String, default:Int, min:Int = Int.MIN_VALUE, max:Int = Int.MAX_VALUE, required:Boolean = false) : ReadOnlyProperty<AttributeParserState<R>, Int> {
+	protected fun intProperty(name:String, default:Int, min:Int = Int.MIN_VALUE, max:Int = Int.MAX_VALUE, required:Boolean = false) : Property<R, Int> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: return@property run {
 				if (required) {
@@ -311,7 +311,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		}
 	}
 
-	protected fun <E:Enum<E>> enumProperty(name:String, default:E) : ReadOnlyProperty<AttributeParserState<R>, E> {
+	protected fun <E:Enum<E>> enumProperty(name:String, default:E) : Property<R, E> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: return@property default
 			try {
@@ -328,7 +328,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		}
 	}
 
-	protected fun durationProperty(name:String, min:Duration, default: Duration, required:Boolean = false) : ReadOnlyProperty<AttributeParserState<R>, Duration> {
+	protected fun durationProperty(name:String, min:Duration, default: Duration, required:Boolean = false) : Property<R, Duration> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: run {
 				if (required) {
@@ -356,7 +356,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 			val foundDuration = Duration.ofSeconds(number.toLong(), ((number % 1f) * 1000000000f).toLong())
 
 			if (foundDuration < min) {
-				ctx.warning("Duration specified in attribute '$name' is too short ($foundDuration), minimum is $min")
+				ctx.warning("Duration specified in the attribute '$name' is too short ($foundDuration), minimum is $min")
 				return@property min
 			}
 
@@ -365,7 +365,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 	}
 
 
-	protected fun stringProperty(name:String, default:String, required:Boolean = false) : ReadOnlyProperty<AttributeParserState<R>, String> {
+	protected fun stringProperty(name:String, default:String, required:Boolean = false) : Property<R, String> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: run {
 				if (required) {
@@ -649,7 +649,8 @@ private class QuestionParserState : SequenceParserState<QuestionnaireTemplate.Se
 private class OptionParserState : SequenceParserState<QuestionnaireTemplate.Option>() {
 	private val value by stringProperty("value", "")
 	private val detailEnabled by boolProperty("detail", false)
-	private val detailType by enumProperty("detail-type", QuestionnaireTemplate.InputType.SENTENCE)
+	private val detailTypeProperty = enumProperty("detail-type", QuestionnaireTemplate.InputType.SENTENCE)
+	private val detailType by detailTypeProperty
 
 	private val title by tag("title", min=1) { TitleParserState() }
 	private val detailPrompt by tag("detail") { TextParserState() }
@@ -666,7 +667,8 @@ private class OptionParserState : SequenceParserState<QuestionnaireTemplate.Opti
 				?: title.firstOrNull()?.text
 				?: "invalid-value"
 
-		return QuestionnaireTemplate.Option(value, detailEnabled, detailType, title, detailPrompt)
+		val hasDetail = detailEnabled || detailPrompt.isNotEmpty()
+		return QuestionnaireTemplate.Option(value, hasDetail, detailType, title, detailPrompt)
 	}
 }
 

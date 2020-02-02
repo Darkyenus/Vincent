@@ -173,7 +173,7 @@ object QuestionnaireParticipants : Table() {
 	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireParticipationState::class).default(QuestionnaireParticipationState.INVITED)
 
-	val currentWineOrder = integer("wineOrder").default(0)
+	val currentWineIndex = integer("wineOrder").default(0)
 	val currentSection = integer("segment").default(0)
 
 	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire)
@@ -200,11 +200,13 @@ object QuestionnaireWines : LongIdTable() {
 	}
 }
 
-object WineParticipantAssignment : LongIdTable() {
+object WineParticipantAssignment : Table() {
 	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val participant = long("participant").references(Accounts.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
-	val wine = long("wine").references(QuestionnaireWines.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val order = integer("order")
+	val wine = long("wine").references(QuestionnaireWines.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
+
+	override val primaryKey = PrimaryKey(questionnaire, participant, order)
 
 	init {
 		uniqueIndex(questionnaire, participant, wine)

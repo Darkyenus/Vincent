@@ -62,8 +62,6 @@ import java.io.CharArrayWriter
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.sql.SQLException
-import kotlin.collections.ArrayList
-import kotlin.collections.LinkedHashMap
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
 
@@ -131,8 +129,7 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 	}
 
 	if (empty) {
-		div("u-full-width unimportant") {
-			style="min-height: 200px; background: #DDD"
+		div("table-no-elements") {
 			+"Add participants"
 		}
 	}
@@ -217,8 +214,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 	}
 
 	if (empty) {
-		div("u-full-width unimportant") {
-			style="min-height: 200px; background: #DDD"
+		div("table-no-elements") {
 			+"Add wines"
 		}
 	}
@@ -278,13 +274,9 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		}
 	}
 
-	h2 { +"Participant Wine Assignment" }
+
 
 	if (entries.isEmpty()) {
-		div("u-full-width unimportant") {
-			style="min-height: 200px; background: #DDD"
-			+"Add participants"
-		}
 		return
 	}
 
@@ -294,13 +286,10 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 	}
 
 	if (rounds <= 0) {
-		div("u-full-width unimportant") {
-			style="min-height: 200px; background: #DDD"
-			+"Add wines"
-		}
 		return
 	}
 
+	h2 { +"Participant Wine Assignment" }
 
 	table {
 		thead {
@@ -345,8 +334,11 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
  */
 private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStack, questionnaire: Questionnaire) {
 	// Button to open
-	if (questionnaire.state == QuestionnaireState.CREATED && transaction { questionnaireHasEnoughWineToOpen(questionnaire.id) }) {
-		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN) { +"Open the questionnaire" }
+	if (questionnaire.state == QuestionnaireState.CREATED) {
+		val warning = if (transaction { QuestionnaireWines.select { QuestionnaireWines.questionnaire eq questionnaire.id }.empty() }) {
+			"Do you really want to create a questionnaire without any wines?"
+		} else null
+		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN, confirmation = warning) { +"Open the questionnaire" }
 	}
 
 	// Button to close
@@ -416,7 +408,21 @@ private fun HttpServerExchange.editQuestionnairePage() {
 	sendBase { _, _ ->
 		div("container") {
 
-			h1 { +questionnaire.name }
+			h1 {
+				if (questionnaire.state == QuestionnaireState.CREATED) {
+					postForm("/questionnaire/${questionnaire.id}/edit") {
+						session(session)
+						routeAction(ACTION_QUESTIONNAIRE_RENAME)
+						textInput(name=PARAM_QUESTIONNAIRE_NAME) {
+							required=true
+							style="height: unset; width: 100%;"
+							value=questionnaire.name
+						}
+					}
+				} else {
+					+questionnaire.name
+				}
+			}
 			p("sub") { +questionnaire.templateName }
 
 			renderMessages(this@editQuestionnairePage)
@@ -450,6 +456,7 @@ private const val ACTION_WINE_UPDATE_CODE = "update-code"
 private const val ACTION_REMOVE_WINE = "remove-wine"
 private const val ACTION_ADD_WINE = "add-wine"
 private const val ACTION_RENAME_WINE = "rename-wine"
+private const val ACTION_QUESTIONNAIRE_RENAME = "questionnaire-rename"
 private const val ACTION_QUESTIONNAIRE_OPEN = "questionnaire-open"
 private const val ACTION_QUESTIONNAIRE_CLOSE = "questionnaire-close"
 
@@ -458,6 +465,7 @@ private const val PARAM_USERS = "users"
 private const val PARAM_WINE_ID = "wine"
 private const val PARAM_WINE_CODE = "wine-code"
 private const val PARAM_WINE_NAME = "wine-name"
+private const val PARAM_QUESTIONNAIRE_NAME = "questionnaire-name"
 
 fun RoutingHandler.setupQuestionnaireEditRoutes() {
 	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF) { exchange ->
@@ -528,8 +536,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			csv.item("wine")
 			for (questionId in questionIds) {
 				csv.item(questionId)
-				csv.row()
 			}
+			csv.row()
 
 			// Body
 			for ((key, value) in responses) {
@@ -819,16 +827,34 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		exchange.editQuestionnairePage()
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_OPEN) { exchange ->
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_RENAME) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
-			exchange.messageWarning("Can't open this questionnaire")
+			exchange.messageWarning("Can't edit name of this questionnaire - it has already been opened")
 			exchange.editQuestionnairePage()
 			return@POST
 		}
 
-		if (!transaction { questionnaireHasEnoughWineToOpen(questionnaire.id) }) {
-			exchange.messageWarning("Can't open - add more wines")
+		val newName = exchange.formString(PARAM_QUESTIONNAIRE_NAME)?.trim()?.takeUnless { it.isBlank() }
+
+		if (newName != null) {
+			transaction {
+				Questionnaires.update(
+						where = { (Questionnaires.id eq questionnaire.id) and (Questionnaires.state eq QuestionnaireState.CREATED) },
+						limit = 1) { it[Questionnaires.name] = newName }
+			}
+			exchange.dropQuestionnaire()
+		} else {
+			exchange.messageWarning("Name of a questionnaire can't be blank")
+		}
+
+		exchange.editQuestionnairePage()
+	}
+
+	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_OPEN) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
+		if (questionnaire.state != QuestionnaireState.CREATED) {
+			exchange.messageWarning("Can't open this questionnaire")
 			exchange.editQuestionnairePage()
 			return@POST
 		}
@@ -928,9 +954,4 @@ private fun regenerateParticipantWineAssignment(questionnaireId:Long, participan
 	} catch (e: SQLException) {
 		LOG.error("regenerateParticipantWineAssignment inserting assignments failed", e)
 	}
-}
-
-/** Call in a transaction. */
-private fun questionnaireHasEnoughWineToOpen(questionnaireId:Long):Boolean {
-	return !QuestionnaireWines.select { QuestionnaireWines.questionnaire eq questionnaireId }.empty()
 }

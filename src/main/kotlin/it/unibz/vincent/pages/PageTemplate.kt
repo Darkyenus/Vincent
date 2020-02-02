@@ -17,6 +17,11 @@ import kotlinx.html.FlowContent
 import kotlinx.html.FlowOrPhrasingContent
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
+import kotlinx.html.HTMLTag
+import kotlinx.html.HtmlBlockTag
+import kotlinx.html.HtmlTagMarker
+import kotlinx.html.TagConsumer
+import kotlinx.html.attributesMapOf
 import kotlinx.html.body
 import kotlinx.html.button
 import kotlinx.html.div
@@ -31,6 +36,7 @@ import kotlinx.html.script
 import kotlinx.html.span
 import kotlinx.html.title
 import kotlinx.html.ul
+import kotlinx.html.visit
 
 /** Build head and body. */
 fun HTML.base(lang:String = "en", title:String = "Vincent", description:String = "", createBody: BODY.() -> Unit) {
@@ -194,6 +200,12 @@ enum class Icons(val cssClass:String) {
 	TRASH("gg-trash")
 }
 
+@HtmlTagMarker
 fun FlowOrPhrasingContent.icon(icon:Icons) {
 	span("icon ${icon.cssClass}") {}
 }
+
+@HtmlTagMarker
+fun FlowContent.noscript(classes : String? = null, block : NOSCRIPT.() -> Unit = {}) : Unit = NOSCRIPT(attributesMapOf("class", classes), consumer).visit(block)
+
+open class NOSCRIPT(initialAttributes : Map<String, String>, override val consumer : TagConsumer<*>) : HTMLTag("noscript", consumer, initialAttributes, null, false, false), HtmlBlockTag
