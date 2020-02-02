@@ -32,7 +32,6 @@ import kotlinx.html.fileInput
 import kotlinx.html.h1
 import kotlinx.html.p
 import kotlinx.html.postForm
-import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.table
 import kotlinx.html.tbody
@@ -237,43 +236,42 @@ fun HttpServerExchange.home(session: Session) {
 	val locale = languages()
 
 	sendBase { _, _ ->
-		div("container") {
+		div("page-container") {
 			h1 { +"Welcome $userName" }
 
 			renderMessages(this@home)
 
 			// Show available questionnaires to fill
-			div("row") {
+			div("page-section") {
 				questionnairesToAnswer(session)
 			}
 
 			// Show running questionnaires
 			if (userLevel >= AccountType.STAFF) {
-				div("row") {
+				div("page-section") {
 					questionnairesToManage(locale)
 				}
 			}
 
 			// Show questionnaire templates
 			if (userLevel >= AccountType.STAFF) {
-				div("row") {
+				div("page-section") {
 					questionnaireTemplates(locale, session)
 				}
 			}
-		}
 
-		div("container") {
-			style = "margin-top: 5rem"
-			val showLogoutFully = userLevel >= AccountType.STAFF
+			div("page-section container") {
+				val showLogoutFully = userLevel >= AccountType.STAFF
 
-			div("${if (showLogoutFully) "o3" else "o5"} w3 column") {
-				postButton(session, "/", routeAction = "logout", classes="dangerous u-centered") { style = "min-width: 50%"; +"Logout" }
-			}
+				div("column") {
+					postButton(session, "/", routeAction = "logout", classes = "dangerous u-centered") { +"Logout" }
+				}
 
-			if (showLogoutFully) {
-				// Let's not confuse ordinary users with this
-				div("w3 column") {
-					postButton(session, "/", routeAction = "logout-fully", classes = "dangerous u-centered") { style = "min-width: 50%"; +"Logout from all browsers" }
+				if (showLogoutFully) {
+					// Let's not confuse ordinary users with this
+					div("column") {
+						postButton(session, "/", routeAction = "logout-fully", classes = "dangerous u-centered") { +"Logout from all browsers" }
+					}
 				}
 			}
 		}

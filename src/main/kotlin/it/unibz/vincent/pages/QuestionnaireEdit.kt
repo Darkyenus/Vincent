@@ -1,5 +1,6 @@
 package it.unibz.vincent.pages
 
+import com.carrotsearch.hppc.IntIntHashMap
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.util.AttachmentKey
@@ -289,6 +290,9 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		return
 	}
 
+	val doingColors = entries.size > 1
+	val colorMap = IntIntHashMap(rounds)
+
 	h2 { +"Participant Wine Assignment" }
 
 	table {
@@ -315,8 +319,20 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 				tr {
 					th { +((round+1).toString()) }
 					for (entry in entries) {
-						td {
-							span("at-code") { +entry[round].wineCode.toString() }
+						val wineCode = entry[round].wineCode
+
+						var bgClass:String? = null
+						if (doingColors) {
+							var bg = colorMap.getOrDefault(wineCode, -1)
+							if (bg < 0) {
+								bg = colorMap.size()
+								colorMap.put(wineCode, bg)
+							}
+							bgClass = "bg bg-p$bg"
+						}
+
+						td(bgClass) {
+							span("at-code") { +wineCode.toString() }
 							span("at-title") { +entry[round].wineName }
 						}
 					}
@@ -406,44 +422,45 @@ private fun HttpServerExchange.editQuestionnairePage() {
 	val locale = languages()
 
 	sendBase { _, _ ->
-		div("container") {
-
-			h1 {
-				if (questionnaire.state == QuestionnaireState.CREATED) {
-					postForm("/questionnaire/${questionnaire.id}/edit") {
-						session(session)
-						routeAction(ACTION_QUESTIONNAIRE_RENAME)
-						textInput(name=PARAM_QUESTIONNAIRE_NAME) {
-							required=true
-							style="height: unset; width: 100%;"
-							value=questionnaire.name
+		div("page-container") {
+			div("page-section") {
+				h1 {
+					if (questionnaire.state == QuestionnaireState.CREATED) {
+						postForm("/questionnaire/${questionnaire.id}/edit") {
+							session(session)
+							routeAction(ACTION_QUESTIONNAIRE_RENAME)
+							textInput(name = PARAM_QUESTIONNAIRE_NAME) {
+								required = true
+								style = "height: unset; width: 100%;"
+								value = questionnaire.name
+							}
 						}
+					} else {
+						+questionnaire.name
 					}
-				} else {
-					+questionnaire.name
 				}
+				p("sub") { +questionnaire.templateName }
 			}
-			p("sub") { +questionnaire.templateName }
 
 			renderMessages(this@editQuestionnairePage)
 
 			// Participants
-			div("row") {
+			div("page-section") {
 				questionnaireParticipants(session, locale, questionnaire)
 			}
 
 			// Wines
-			div("row") {
+			div("page-section") {
 				questionnaireWines(session, locale, questionnaire)
 			}
 
 			// Wine-participant association
-			div("row") {
+			div("page-section") {
 				questionnaireWineParticipantAssociations(session, locale, questionnaire)
 			}
 
 			// Actions
-			div("row") {
+			div("page-section") {
 				questionnaireActions(session, locale, questionnaire)
 			}
 		}

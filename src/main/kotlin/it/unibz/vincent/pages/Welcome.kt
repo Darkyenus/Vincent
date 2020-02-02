@@ -124,40 +124,37 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
 	sendBase("Vincent - Welcome") { exchange, _ ->
-		div("container") {
-			style = "margin-top: 5%"
-
-			div("row") {
-				style = "margin-bottom: 3rem"
+		div("page-container") {
+			div("page-section") {
 				h1 { +"Vincent" }
 				p("sub") { +"Patron of wine tasting" }
 			}
 
 			renderMessages(exchange)
 
-			div("row") {
-				div("w6 column container") {
+			div("page-section container") {
+				div("column") {
 					h4 { +"Login" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("login")
 						postLoginRedirect(exchange)
-						div("row") { emailField(FORM_EMAIL, "on", loginEmail) }
-						div("row") { passwordField(FORM_PASSWORD, "current-password") }
-						div("row") {
+						div("form-section") { emailField(FORM_EMAIL, "on", loginEmail) }
+						div("form-section") { passwordField(FORM_PASSWORD, "current-password") }
+						div("form-section-last") {
 							submitInput(classes = "u-full-width") { value = "Log in" }
 						}
 					}
 				}
 
-				div("w6 column container") {
+				div("column") {
 					h4 { +"Register" }
 					form(action = "/", method = FormMethod.post) {
 						routeAction("register")
 						postLoginRedirect(exchange)
-						div("row") { emailField(FORM_EMAIL, "off", registerEmail) }
-						div("row") { passwordField(FORM_PASSWORD, "new-password") }
-						div("row") { fullNameField(FORM_FULL_NAME, "name", registerName) }
-						div("row") {
+						div("form-section") { emailField(FORM_EMAIL, "off", registerEmail) }
+						div("form-section") { passwordField(FORM_PASSWORD, "new-password") }
+						div("form-section") { fullNameField(FORM_FULL_NAME, "name", registerName) }
+						div("form-section-last") {
 							submitInput(classes = "u-full-width") { value = "Register" }
 						}
 					}

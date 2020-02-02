@@ -4,7 +4,6 @@
 - `<section stage`
 - `<section shown-wine`
 - Starting the questionnaire without any wines
-- Color per questionnaire wine code (palette of at least 10 colors)
 - Collect demographic information for registered panelists
     - Name
     - Email (already collected)
@@ -26,7 +25,6 @@
     - Do you have any food intolerance? (If so, which?)
     - Do you have [sulfite intolerance](https://en.wikipedia.org/wiki/Sulfite#Health_effects)?
 - Display gender and intolerances in the questionnaire's participant list 
-- Allow questionnaire to start without any wines
 - Allow to invite everyone from some other questionnaire, creating a dependency
 - Implement guest accounts, with separate codes (hmm)
     - Something like #G341234

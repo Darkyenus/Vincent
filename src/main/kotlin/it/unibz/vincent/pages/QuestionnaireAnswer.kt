@@ -215,41 +215,44 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 		val section = participation.template.sections[participation.currentSection]
 		val lang = TemplateLang(participation.template.defaultLanguage, locale)
 
-		// Render title
-		div {
-			style="text-align: center; margin-top: 3rem;"
-			renderTitle(section.title, lang, ::h1)
-			p("sub") { +"Wine: ${participation.wineCode}" }
-		}
+		div("page-container") {
 
-		// Render questions
-		postForm(action = "/questionnaire/${participation.questionnaireId}") {
-			session(exchange.session()!!)
-			routeAction(ACTION_SUBMIT_SECTION)
-			hiddenInput(name = FORM_PARAM_WINE_SECTION_CHECKSUM) { value = participation.sectionChecksum.toString() }
-
-			var idGeneratorNumber = 0
-			val idGenerator:()->String = {
-				"q-${idGeneratorNumber++}"
+			// Render title
+			div {
+				style = "text-align: center; margin-top: 3rem;"
+				renderTitle(section.title, lang, ::h1)
+				p("sub") { +"Wine: ${participation.wineCode}" }
 			}
 
-			for (sectionPart in section.content) {
-				div("container section-part") {
-					renderTitle(sectionPart.title, lang, ::h2)
-					renderText(sectionPart.text, lang, ::p)
+			// Render questions
+			postForm(action = "/questionnaire/${participation.questionnaireId}") {
+				session(exchange.session()!!)
+				routeAction(ACTION_SUBMIT_SECTION)
+				hiddenInput(name = FORM_PARAM_WINE_SECTION_CHECKSUM) { value = participation.sectionChecksum.toString() }
 
-					if (sectionPart is QuestionnaireTemplate.SectionContent.Question) {
-						renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, idGenerator)
+				var idGeneratorNumber = 0
+				val idGenerator: () -> String = {
+					"q-${idGeneratorNumber++}"
+				}
+
+				for (sectionPart in section.content) {
+					div("section-part") {
+						renderTitle(sectionPart.title, lang, ::h2)
+						renderText(sectionPart.text, lang, ::p)
+
+						if (sectionPart is QuestionnaireTemplate.SectionContent.Question) {
+							renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, idGenerator)
+						}
 					}
 				}
-			}
 
-			div {
-				style="text-align: center; margin-bottom: 6rem;"
-				if (participation.isLastSection) {
-					submitInput { value = "Finish" }
-				} else {
-					submitInput { value = "Next" }
+				div("section-part") {
+					style = "text-align: center;"
+					if (participation.isLastSection) {
+						submitInput { value = "Finish" }
+					} else {
+						submitInput { value = "Next" }
+					}
 				}
 			}
 		}

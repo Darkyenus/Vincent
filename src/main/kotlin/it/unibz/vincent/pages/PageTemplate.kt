@@ -163,7 +163,7 @@ fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 
 	messages.warningMessages?.let {
 		if (it.isNotEmpty()) {
-			div("row warning box") {
+			div("warning box") {
 				if (it.size == 1) {
 					+it[0]
 				} else {
@@ -180,7 +180,7 @@ fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 
 	messages.infoMessages?.let {
 		if (it.isNotEmpty()) {
-			div("row info box") {
+			div("info box") {
 				if (it.size == 1) {
 					+it[0]
 				} else {
