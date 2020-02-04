@@ -1,7 +1,7 @@
 # Implement
 - `<section min-time` - implement
-- `<section stage` - implement
 - `<section shown-wine` - check css
+- Add (dynamically shown) save button to single field forms
 - Starting the questionnaire without any wines
 - Collect demographic information for registered panelists
     - Name

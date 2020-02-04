@@ -2,6 +2,7 @@ package it.unibz.vincent
 
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
+import com.google.common.cache.LoadingCache
 import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.HASHED_PASSWORD_SIZE
@@ -21,6 +22,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
 import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.ExecutionException
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
@@ -115,7 +117,7 @@ object QuestionnaireTemplates : LongIdTable() {
 
 	val template_xml = blob("template_xml")
 
-	val CACHE = CacheBuilder.newBuilder()
+	val CACHE: LoadingCache<Long, QuestionnaireTemplate> = CacheBuilder.newBuilder()
 			.expireAfterAccess(Duration.ofHours(24L))
 			.maximumSize(16L)
 			.build(object : CacheLoader<Long, QuestionnaireTemplate>() {
@@ -131,7 +133,6 @@ object QuestionnaireTemplates : LongIdTable() {
 						parseTemplate(it).result
 					}
 				}
-
 			})
 
 	fun parsed(templateId:Long):QuestionnaireTemplate? {
@@ -173,8 +174,9 @@ object QuestionnaireParticipants : Table() {
 	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireParticipationState::class).default(QuestionnaireParticipationState.INVITED)
 
-	val currentWineIndex = integer("wineOrder").default(0)
-	val currentSection = integer("segment").default(0)
+	val currentWineIndex = integer("wineIndex").default(0)
+	val currentSection = integer("section").default(0)
+	val currentSectionStartedAt = timestamp("section_started_at").default(Instant.EPOCH)
 
 	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire)
 }

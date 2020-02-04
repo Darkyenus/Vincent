@@ -62,7 +62,7 @@ The "current" shows only the code of the wine tested in this run.
 If the questionnaire does not pertain to any wine (was started without any wines assigned),
 no wine codes will be shown even if this attribute demands it.
  -->
-<!ELEMENT section (title+, (info | question)*)>
+<!ELEMENT section (title*, (info | question)*)>
 <!ATTLIST section
         min-time CDATA "0"
         stage (always|only-first|except-first|only-last|except-last) "always"

@@ -216,7 +216,11 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 
 	if (empty) {
 		div("table-no-elements") {
-			+"Add wines"
+			if (questionnaire.state == QuestionnaireState.CREATED) {
+				+"Add wines"
+			} else {
+				+"No wines"
+			}
 		}
 	}
 

@@ -29,6 +29,7 @@ import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
+import kotlinx.html.getButton
 import kotlinx.html.h1
 import kotlinx.html.p
 import kotlinx.html.postForm
@@ -63,6 +64,8 @@ import java.time.format.DateTimeFormatter
 private fun FlowContent.questionnairesToAnswer(session:Session) {
 	h1 { +"Questionnaire invitations" }
 
+	var noInvitations = true
+
 	table {
 		thead {
 			tr {
@@ -81,6 +84,7 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 								(QuestionnaireParticipants.state neq QuestionnaireParticipationState.DONE) and
 								(Questionnaires.state eq QuestionnaireState.RUNNING)}
 						.orderBy(QuestionnaireParticipants.state)) {
+					noInvitations = false
 					tr {
 						td { +row[Questionnaires.name] }
 						val state = row[QuestionnaireParticipants.state]
@@ -100,6 +104,12 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 			}
 		}
 	}
+
+	if (noInvitations) {
+		div("table-no-elements") {
+			+"You were not invited to any questionnaires yet"
+		}
+	}
 }
 
 /**
@@ -115,6 +125,8 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
  */
 private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 	h1 { +"Questionnaires" }
+
+	var noQuestionnaires = true
 
 	table {
 		thead {
@@ -137,6 +149,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 						.slice(Questionnaires.id, Questionnaires.state, Questionnaires.name, Accounts.name, QuestionnaireTemplates.name, Questionnaires.timeCreated)
 						.selectAll()
 						.orderBy(Questionnaires.timeCreated)) {
+					noQuestionnaires = false
 					tr {
 						td { +row[Questionnaires.state].toString() /* TODO: Localize */ }
 						td { +row[Questionnaires.name] }
@@ -160,6 +173,12 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 					}
 				}
 			}
+		}
+	}
+
+	if (noQuestionnaires) {
+		div("table-no-elements") {
+			+"There are no questionnaires yet"
 		}
 	}
 }
@@ -186,6 +205,8 @@ private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
 private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Session) {
 	h1 { +"Questionnaire templates" }
 
+	var noTemplates = true
+
 	table {
 		thead {
 			tr {
@@ -205,6 +226,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						.slice(QuestionnaireTemplates.id, QuestionnaireTemplates.name, Accounts.name, QuestionnaireTemplates.timeCreated)
 						.selectAll()
 						.orderBy(QuestionnaireTemplates.timeCreated)) {
+					noTemplates = false
 					tr {
 						td { +row[QuestionnaireTemplates.name] }
 						td { +row[Accounts.name] }
@@ -216,6 +238,12 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 					}
 				}
 			}
+		}
+	}
+
+	if (noTemplates) {
+		div("table-no-elements") {
+			+"There are no templates yet"
 		}
 	}
 
@@ -260,14 +288,23 @@ fun HttpServerExchange.home(session: Session) {
 				}
 			}
 
-			div("page-section container") {
-				val showLogoutFully = userLevel >= AccountType.STAFF
+			// Show registered user lists
+			if (userLevel >= AccountType.STAFF) {
+				div("page-section container") {
+					// TODO(jp): Implement
+					getButton("/account-list", classes="column") { +"All accounts" }
+					getButton("/account-list", "filter" to "regular", classes="column") { +"Regular accounts" }
+					getButton("/account-list", "filter" to "guest", classes="column") { +"Guest accounts" }
+					getButton("/account-list", "filter" to "reserved", classes="column") { +"Reserved accounts" }
+				}
+			}
 
+			div("page-section container") {
 				div("column") {
 					postButton(session, "/", routeAction = "logout", classes = "dangerous u-centered") { +"Logout" }
 				}
 
-				if (showLogoutFully) {
+				if (userLevel >= AccountType.STAFF) {
 					// Let's not confuse ordinary users with this
 					div("column") {
 						postButton(session, "/", routeAction = "logout-fully", classes = "dangerous u-centered") { +"Logout from all browsers" }

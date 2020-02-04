@@ -779,7 +779,7 @@ private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Sec
 	private val sectionStage by enumProperty("stage", QuestionnaireTemplate.Section.SectionStage.ALWAYS)
 	private val shownWine by enumProperty("shown-wine", QuestionnaireTemplate.Section.ShownWine.CURRENT)
 
-	private val titles by tag("title", min=1) { TitleParserState() }
+	private val titles by tag("title") { TitleParserState() }
 	private val body by group<QuestionnaireTemplate.SectionContent>(min=1) {
 		"info" { InfoParserState() }
 		"question" { QuestionParserState() }

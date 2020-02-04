@@ -15,6 +15,7 @@ import it.unibz.vincent.Questionnaires
 import it.unibz.vincent.WineParticipantAssignment
 import it.unibz.vincent.session
 import it.unibz.vincent.template.QuestionnaireTemplate
+import it.unibz.vincent.template.QuestionnaireTemplate.Section
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
@@ -38,6 +39,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
+import java.time.Instant
 import kotlin.math.max
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireAnswer")
@@ -45,6 +47,34 @@ private val LOG = LoggerFactory.getLogger("QuestionnaireAnswer")
 private const val PATH_QUESTIONNAIRE_ID = "qId"
 private const val ACTION_SUBMIT_SECTION = "submit-section"
 private const val FORM_PARAM_WINE_SECTION_CHECKSUM = "section"
+
+class WineSection(val sectionIndex:Int, val wineIndex:Int)
+
+fun nextSection(currentSection:Int, currentWineIndex:Int, wineCount:Int, template:QuestionnaireTemplate):WineSection? {
+	// Each wine defines one stage. If there are no wines, there is only one generic (wine-less) stage.
+	val stageCount = max(1, wineCount)
+	var firstSection = currentSection + 1
+
+	// Wine index (stage) search
+	for (wineIndex in currentWineIndex until stageCount) {
+		val firstStage = wineIndex == 0
+		val lastStage = wineIndex + 1 >= stageCount
+
+		for (section in firstSection until template.sections.size) {
+			val stage = template.sections[section].stage
+
+			if (stage == Section.SectionStage.ALWAYS ||
+					stage == Section.SectionStage.ONLY_FIRST && firstStage ||
+					stage == Section.SectionStage.EXCEPT_FIRST && !firstStage ||
+					stage == Section.SectionStage.ONLY_LAST && lastStage ||
+					stage == Section.SectionStage.EXCEPT_LAST && !lastStage) {
+				return WineSection(section, wineIndex)
+			}
+		}
+		firstSection = 0
+	}
+	return null
+}
 
 private class QuestionnaireParticipation(val questionnaireId:Long,
                                          val questionnaireName:String,
@@ -56,6 +86,10 @@ private class QuestionnaireParticipation(val questionnaireId:Long,
                                          val template:QuestionnaireTemplate) {
 	val sectionChecksum:Int
 		get() = currentSection * max(wineCount, 1) + currentWineIndex
+
+	fun nextSection():WineSection? {
+		return nextSection(currentSection, currentWineIndex, wineCount, template)
+	}
 }
 
 private fun HttpServerExchange.questionnaireParticipation():QuestionnaireParticipation? {
@@ -72,11 +106,18 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 
 	var currentSection = 0
 	var currentWineIndex = 0
+
+	var wineCount = 0
 	var templateId:Long? = null
 	var questionnaireName = ""
 	var questionnaireState: QuestionnaireState = QuestionnaireState.CLOSED
 
 	val state: QuestionnaireParticipationState? = transaction {
+		wineCount = WineParticipantAssignment.select {
+			(WineParticipantAssignment.questionnaire eq questionnaireId) and
+					(WineParticipantAssignment.participant eq session.userId) }
+				.count()
+
 		QuestionnaireParticipants
 				.leftJoin(Questionnaires, { questionnaire }, { Questionnaires.id })
 				.slice(QuestionnaireParticipants.currentSection, QuestionnaireParticipants.currentWineIndex, QuestionnaireParticipants.state, Questionnaires.template, Questionnaires.state, Questionnaires.name)
@@ -114,23 +155,6 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		return null
 	}
 
-	if (state == QuestionnaireParticipationState.INVITED) {
-		// Mark as started
-		try {
-			transaction {
-				QuestionnaireParticipants.update({
-					(QuestionnaireParticipants.participant eq session.userId) and
-							(QuestionnaireParticipants.questionnaire eq questionnaireId) and
-							(QuestionnaireParticipants.state eq QuestionnaireParticipationState.INVITED)
-				}) {
-					it[QuestionnaireParticipants.state] = QuestionnaireParticipationState.STARTED
-				}
-			}
-		} catch (e:Exception) {
-			LOG.error("Failed to update participant state", e)
-		}
-	}
-
 	val template = templateId?.let { QuestionnaireTemplates.parsed(it) }
 	if (template == null) {
 		// huh??
@@ -140,17 +164,40 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		return null
 	}
 
+	if (state == QuestionnaireParticipationState.INVITED) {
+		// Mark as started and set appropriate section
+		val wineSection = nextSection(-1, 0, wineCount, template)
+
+		transaction {
+			QuestionnaireParticipants.update({
+				(QuestionnaireParticipants.participant eq session.userId) and
+						(QuestionnaireParticipants.questionnaire eq questionnaireId) and
+						(QuestionnaireParticipants.state eq QuestionnaireParticipationState.INVITED)
+			}) {
+				it[QuestionnaireParticipants.state] = if (wineSection == null) QuestionnaireParticipationState.DONE else QuestionnaireParticipationState.STARTED
+				if (wineSection != null) {
+					it[QuestionnaireParticipants.currentSection] = wineSection.sectionIndex
+					it[QuestionnaireParticipants.currentWineIndex] = wineSection.wineIndex
+					it[QuestionnaireParticipants.currentSectionStartedAt] = Instant.now()
+				}
+			}
+		}
+
+		if (wineSection == null) {
+			messageWarning("The questionnaire has no questions")
+			home(session)
+			return null
+		}
+
+		currentSection = wineSection.sectionIndex
+		currentWineIndex = wineSection.wineIndex
+	}
+
 	var wineCode:Int = -1
 	var wineId:Long = -1L
-	var wineCount = 0
 
-	transaction {
-		wineCount = WineParticipantAssignment.select {
-			(WineParticipantAssignment.questionnaire eq questionnaireId) and
-					(WineParticipantAssignment.participant eq session.userId) }
-				.count()
-
-		if (wineCount > 0) {
+	if (wineCount > 0) {
+		transaction {
 			WineParticipantAssignment
 					.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
 					.slice(WineParticipantAssignment.wine, QuestionnaireWines.code)
@@ -168,30 +215,13 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 			template)
 }
 
-private val QuestionnaireParticipation.isLastSection:Boolean
-	get() {
-		var newWineIndex = currentWineIndex
-		if (currentSection + 1 !in template.sections.indices) {
-			newWineIndex += 1
-		}
-		return newWineIndex >= wineCount
-	}
-
 /** Advance section and return new, updated participation.
  * Updates database.
  * @return whether the whole questionnaire has been filled */
 private fun QuestionnaireParticipation.advanceSection(): Boolean {
-	var newSection = currentSection + 1
-	var newWineIndex = currentWineIndex
+	val nextSection = nextSection()
 
-	// Check if this segment is even valid
-	if (newSection !in template.sections.indices) {
-		// This wine is done (currentSection > max sections, currentSection < 0 is unlikely)
-		newWineIndex += 1
-		newSection = 0
-	}
-
-	if (newWineIndex >= wineCount) {
+	if (nextSection == null) {
 		// Done
 		transaction {
 			QuestionnaireParticipants.update({ (QuestionnaireParticipants.participant eq participantId) and (QuestionnaireParticipants.questionnaire eq questionnaireId) }, 1) {
@@ -203,8 +233,9 @@ private fun QuestionnaireParticipation.advanceSection(): Boolean {
 
 	transaction {
 		QuestionnaireParticipants.update({ (QuestionnaireParticipants.participant eq participantId) and (QuestionnaireParticipants.questionnaire eq questionnaireId) }, 1) {
-			it[currentSection] = newSection
-			it[currentWineIndex] = newWineIndex
+			it[currentSection] = nextSection.sectionIndex
+			it[currentWineIndex] = nextSection.wineIndex
+			it[currentSectionStartedAt] = Instant.now()
 		}
 	}
 
@@ -224,7 +255,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 				style = "text-align: center;"
 				renderTitle(section.title, lang, ::h1)
 
-				when (if (participation.wineCount > 0) QuestionnaireTemplate.Section.ShownWine.NONE else section.shownWine) {
+				when (if (participation.wineCount > 0) section.shownWine else QuestionnaireTemplate.Section.ShownWine.NONE) {
 					QuestionnaireTemplate.Section.ShownWine.CURRENT -> {
 						p("sub") { +"Wine: ${participation.wineCode}" }
 					}
@@ -280,7 +311,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 				}
 
 				div("section-buttons") {
-					if (participation.isLastSection) {
+					if (participation.nextSection() == null) {
 						submitInput { value = "Finish" }
 					} else {
 						submitInput { value = "Next" }
