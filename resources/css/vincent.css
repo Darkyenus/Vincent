@@ -360,6 +360,11 @@ hr {
 	    border-radius: 10px;
     }
 }
+.section-buttons {
+	padding: 1rem;
+	margin-bottom: 3rem;
+	text-align: center;
+}
 
 /* Info boxes */
 .box {
@@ -481,9 +486,17 @@ hr {
 	margin-right: 1rem;
 }
 
-.one-of-detail-noscript-when {
+.one-of-detail-noscript-index {
 	text-size: smaller;
 	color: #666;
+	margin-right: 1rem;
+}
+
+.one-of-item-noscript-index {
+    font-weight: 400;
+    font-size: smaller;
+    color: #666;
+    margin-left: 0.4rem;
 }
 
 /* Free text question */

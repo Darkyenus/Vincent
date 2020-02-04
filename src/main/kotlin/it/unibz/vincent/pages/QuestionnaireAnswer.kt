@@ -26,6 +26,8 @@ import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
 import kotlinx.html.hiddenInput
+import kotlinx.html.li
+import kotlinx.html.ol
 import kotlinx.html.p
 import kotlinx.html.postForm
 import kotlinx.html.style
@@ -218,10 +220,41 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 		div("page-container") {
 
 			// Render title
-			div {
-				style = "text-align: center; margin-top: 3rem;"
+			div("page-section") {
+				style = "text-align: center;"
 				renderTitle(section.title, lang, ::h1)
-				p("sub") { +"Wine: ${participation.wineCode}" }
+
+				when (if (participation.wineCount > 0) QuestionnaireTemplate.Section.ShownWine.NONE else section.shownWine) {
+					QuestionnaireTemplate.Section.ShownWine.CURRENT -> {
+						p("sub") { +"Wine: ${participation.wineCode}" }
+					}
+					QuestionnaireTemplate.Section.ShownWine.NONE -> {}
+					QuestionnaireTemplate.Section.ShownWine.ALL -> {
+						div("wine-list") {
+							+"Wines:"
+							ol {
+								transaction {
+									var alreadyDone = true
+									for (row in WineParticipantAssignment
+											.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
+											.slice(WineParticipantAssignment.wine, QuestionnaireWines.code)
+											.select { (WineParticipantAssignment.questionnaire eq participation.questionnaireId) and (WineParticipantAssignment.participant eq participation.participantId) }
+											.orderBy(WineParticipantAssignment.order)) {
+										val wineCode = row[QuestionnaireWines.code]
+										if (wineCode == participation.wineCode) {
+											alreadyDone = false
+											li("wine-list-current") { +"$wineCode" }
+										} else if (alreadyDone) {
+											li("wine-list-past") { +"$wineCode" }
+										} else {
+											li("wine-list-future") { +"$wineCode" }
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 
 			// Render questions
@@ -246,8 +279,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 					}
 				}
 
-				div("section-part") {
-					style = "text-align: center;"
+				div("section-buttons") {
 					if (participation.isLastSection) {
 						submitInput { value = "Finish" }
 					} else {
@@ -286,6 +318,7 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 		val requiredQuestionIds = participation.template.sections[participation.currentSection].requiredQuestionIds
 		val responses = exchange.formStrings(FORM_PARAM_QUESTION_RESPONSE_PREFIX).groupBy { it.first }
 		val alreadyPresentResponses = transaction {
+			// Insert required responses
 			for (questionId in sectionQuestionIds) {
 				val response = responses[questionId]?.joinToString("\n\n")?.takeUnless { it.isBlank() } ?: continue
 
@@ -298,6 +331,7 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 				}
 			}
 
+			// Check for those IDs that are sufficiently filled
 			QuestionnaireResponses.slice(QuestionnaireResponses.questionId).select {
 				(QuestionnaireResponses.participant eq participation.participantId) and
 						(QuestionnaireResponses.questionnaire eq participation.questionnaireId) and

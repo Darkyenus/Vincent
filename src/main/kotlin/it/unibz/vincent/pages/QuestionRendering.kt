@@ -4,7 +4,6 @@ import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.template.fullTitle
 import it.unibz.vincent.template.mainText
-import it.unibz.vincent.template.mainTitle
 import kotlinx.html.HTMLTag
 import kotlinx.html.HtmlBlockTag
 import kotlinx.html.TEXTAREA
@@ -15,8 +14,8 @@ import kotlinx.html.id
 import kotlinx.html.label
 import kotlinx.html.numberInput
 import kotlinx.html.p
-import kotlinx.html.span
 import kotlinx.html.radioInput
+import kotlinx.html.span
 import kotlinx.html.textInput
 import kotlinx.html.unsafe
 import kotlinx.html.visit
@@ -86,14 +85,27 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 
 private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf, lang: TemplateLang, idGenerator:()->String) {
 	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
-	val detailName = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id-detail"
+	val detailNamePrefix = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id-detail-"
 	for (category in type.categories) {
 		renderTitle(category.title, lang, ::h4, mainClass = "one-of-category-title")
 		val radioIds = ArrayList<String>()
 		div("one-of-category") {
 			for (option in category.options) {
 				label("one-of-item") {
-					renderTitle(option.title, lang, ::span, "one-of-item-title", "one-of-item-title-alt")
+					val (main, alt) = option.title.fullTitle(lang) ?: "Option" to emptyList()
+
+					span {
+						unsafe { +main }
+						if (option.hasDetail) {
+							noscript("one-of-item-noscript-index") {
+								+"#${radioIds.size}"
+							}
+						}
+					}
+					for (s in alt) {
+						span { unsafe { +s } }
+					}
+
 					radioInput(name=name, classes="one-of-detail-radio") {
 						this.required = required
 						if (option.hasDetail) {
@@ -108,21 +120,24 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 		}
 
 		// Details
+		if (radioIds.isEmpty()) {
+			continue
+		}
+
 		var detailRadioIdI = 0
-		for ((index, option) in category.options.withIndex()) {
+		for (option in category.options) {
 			if (!option.hasDetail) {
 				continue
 			}
 
 			div("one-of-detail") {
 				attributes["oneOfDetailFor"] = radioIds[detailRadioIdI++]
-				noscript("one-of-detail-noscript-when") {
-					val main = option.title.mainTitle(lang) ?: "Option #$index"
-					+"If you have picked "
-					unsafe { +main }
+				noscript("one-of-detail-noscript-index") {
+					+"#$detailRadioIdI"
 				}
 				renderText(option.detail, lang, ::span, "one-of-detail-title")
 
+				val detailName = "$detailNamePrefix${option.value}"
 				when (option.detailType) {
 					QuestionnaireTemplate.InputType.SENTENCE -> {
 						textInput(name = detailName, classes = "one-of-detail-input") {}

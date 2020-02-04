@@ -16,13 +16,13 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	class Title constructor(val text:String, val language:ULocale?, val always:Boolean)
 
-	class Section(val title:List<Title>, val content:List<SectionContent>) {
+	class Section(val minTime:Int, val stage:SectionStage, val shownWine:ShownWine, val title:List<Title>, val content:List<SectionContent>) {
 
 		val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
 			val result = ArrayList<String>()
 			for (content in content) {
 				if (content is SectionContent.Question) {
-					content.type.collectQuestionIds(content.id) { result.add(it) }
+					content.type.collectQuestionIds(content.id, false) { result.add(it) }
 				}
 			}
 			result
@@ -32,10 +32,24 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 			val result = HashSet<String>()
 			for (content in content) {
 				if (content is SectionContent.Question && content.required) {
-					content.type.collectQuestionIds(content.id) { result.add(it) }
+					content.type.collectQuestionIds(content.id, true) { result.add(it) }
 				}
 			}
 			result
+		}
+
+		enum class SectionStage {
+			ALWAYS,
+			ONLY_FIRST,
+			EXCEPT_FIRST,
+			ONLY_LAST,
+			EXCEPT_LAST
+		}
+
+		enum class ShownWine {
+			CURRENT,
+			NONE,
+			ALL
 		}
 	}
 
@@ -48,17 +62,28 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	sealed class QuestionType {
 
-		open fun collectQuestionIds(baseId:String, collect:(String)->Unit) {
+		/**
+		 * Collect through [collect] collector all question IDs (used as html input names and output column names).
+		 * @param baseId derived from [SectionContent.Question.id] and possibly other factors
+		 */
+		open fun collectQuestionIds(baseId:String, onlyRequired:Boolean, collect:(String)->Unit) {
 			collect(baseId)
 		}
 
 		/** Can be presented repeatedly by [TimeProgression]. */
 		sealed class TimeVariable : QuestionType() {
 			class OneOf(val categories:List<Category>) : TimeVariable() {
-				override fun collectQuestionIds(baseId: String, collect: (String) -> Unit) {
-					super.collectQuestionIds(baseId, collect)
-					if (categories.any { category -> category.options.any { it.hasDetail } }) {
-						collect("$baseId-detail")
+
+				override fun collectQuestionIds(baseId: String, onlyRequired:Boolean, collect: (String) -> Unit) {
+					super.collectQuestionIds(baseId, onlyRequired, collect)
+					if (!onlyRequired) {
+						for (category in categories) {
+							for (option in category.options) {
+								if (option.hasDetail) {
+									collect("$baseId-detail-${option.value}")
+								}
+							}
+						}
 					}
 				}
 			}
@@ -69,9 +94,9 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		class FreeText(val type:InputType, val placeholder:List<Placeholder>, val default:List<Default>) : QuestionType()
 
 		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType() {
-			override fun collectQuestionIds(baseId: String, collect: (String) -> Unit) {
+			override fun collectQuestionIds(baseId: String, onlyRequired:Boolean, collect: (String) -> Unit) {
 				for (i in 0 until repeats) {
-					base.collectQuestionIds("$i-$baseId", collect)
+					base.collectQuestionIds("$i-$baseId", onlyRequired, collect)
 				}
 			}
 		}
@@ -84,18 +109,20 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 	}
 
 	class Category(val title:List<Title>, val options:List<Option>)
-	class Option(val value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>)
+	class Option(value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>) {
+		val value:String = sanitizeOptionValue(value)
+	}
 
-	fun collectQuestionIds():List<String> {
+	val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
 		val result = ArrayList<String>()
 		for (section in sections) {
 			for (content in section.content) {
 				if (content is SectionContent.Question) {
-					content.type.collectQuestionIds(content.id) { result.add(it) }
+					content.type.collectQuestionIds(content.id, false) { result.add(it) }
 				}
 			}
 		}
-		return result
+		result
 	}
 
 	override fun toString(): String {
@@ -103,6 +130,12 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 			build(this@QuestionnaireTemplate)
 		}
 	}
+}
+
+private val SANITIZE_WHITESPACE = Regex("\\s")
+private val SANITIZE_FOREIGN = Regex("[\"\']")
+private fun sanitizeOptionValue(value:String):String {
+	return value.replace(SANITIZE_WHITESPACE, "-").replace(SANITIZE_FOREIGN, "")
 }
 
 private fun XmlBuilder.build(e: QuestionnaireTemplate.Title, tagName:String = "title") {

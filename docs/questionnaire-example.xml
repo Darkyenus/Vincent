@@ -6,7 +6,7 @@
     <title lang="it">Questionario sul vino</title>
     <title lang="cs">Dotazník o víně</title>
 
-    <section>
+    <section stage="only-first">
         <title>Welcome</title>
         <title lang="cs">Vítejte</title>
 
@@ -217,6 +217,30 @@
                 <option>Outstanding</option>
             </one-of>
         </question>
+
+
+    </section>
+
+    <section stage="except-last" min-time="60">
+        <info>
+            <text>Cleanse your palate before continuing to the next wine.</text>
+        </info>
+        <question id="favourite-color">
+            <one-of>
+                <option>Red</option>
+                <option>Green</option>
+                <option>Blue</option>
+                <option>Yellow</option>
+                <option>White</option>
+                <option>Black</option>
+                <option>Gray</option>
+                <option detail="yes">Other...</option>
+            </one-of>
+        </question>
+    </section>
+
+    <section stage="only-last">
+        <title>Good bye</title>
 
         <info>
             <text>Thank you for your participation.</text>

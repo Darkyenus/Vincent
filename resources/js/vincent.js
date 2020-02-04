@@ -3,6 +3,7 @@ function showDetailIfChecked(input, detail) {
 		detail.style = "";
 	} else {
 		detail.style = "display: none;"
+		detail
 	}
 }
 

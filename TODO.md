@@ -1,8 +1,7 @@
 # Implement
-- Make the participant code sequential
-- `<section min-time`
-- `<section stage`
-- `<section shown-wine`
+- `<section min-time` - implement
+- `<section stage` - implement
+- `<section shown-wine` - check css
 - Starting the questionnaire without any wines
 - Collect demographic information for registered panelists
     - Name

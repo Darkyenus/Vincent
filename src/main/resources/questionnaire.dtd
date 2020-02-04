@@ -118,8 +118,8 @@ If it is omitted, then the full text of the default title is used.
 It is an error to specify two options with the same value in one question.
 
 detail: If user can specify additional free-text detail when picking this option.
-The detail text will appear in a column with the same ID as the question, with "-detail" appended.
-For example: "condition", "condition-detail".
+The detail text will appear in a column with the same ID as the question, with "-detail-<value>" appended.
+For example: "condition", "condition-detail-faults".
 
 If <detail> tag is specified, the <detail> text will be displayed as a prompt for the detail input.
 -->

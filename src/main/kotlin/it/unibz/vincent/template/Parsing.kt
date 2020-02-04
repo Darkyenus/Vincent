@@ -315,7 +315,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 		return property { ctx, attrs ->
 			val text = attrs.get(name) ?: return@property default
 			try {
-				return@property java.lang.Enum.valueOf(default.declaringClass, text.toUpperCase().replace(' ', '_').replace('-', '_').replace(" ", "")) as E
+				return@property java.lang.Enum.valueOf(default.declaringClass, text.toUpperCase().replace(' ', '_').replace('-', '_')) as E
 			} catch (e:IllegalArgumentException) {}
 
 			ctx.error(StringBuilder()
@@ -775,6 +775,10 @@ private class TimeProgressionParserState : SequenceParserState<QuestionnaireTemp
 
 private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Section>() {
 
+	private val minTime by intProperty("min-time", 0, min=0)
+	private val sectionStage by enumProperty("stage", QuestionnaireTemplate.Section.SectionStage.ALWAYS)
+	private val shownWine by enumProperty("shown-wine", QuestionnaireTemplate.Section.ShownWine.CURRENT)
+
 	private val titles by tag("title", min=1) { TitleParserState() }
 	private val body by group<QuestionnaireTemplate.SectionContent>(min=1) {
 		"info" { InfoParserState() }
@@ -782,7 +786,7 @@ private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Sec
 	}
 
 	override fun result(): QuestionnaireTemplate.Section {
-		return QuestionnaireTemplate.Section(titles, body)
+		return QuestionnaireTemplate.Section(minTime, sectionStage, shownWine, titles, body)
 	}
 }
 

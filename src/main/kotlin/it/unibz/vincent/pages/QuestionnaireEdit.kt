@@ -502,7 +502,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			exchange.editQuestionnairePage()
 			return@GET
 		}
-		val questionIds = template.collectQuestionIds()
+		val questionIds = template.questionIds
 		val questionIdToIndex = questionIds.mapIndexed { index: Int, qId: String -> qId to index }.toMap()
 
 		class WineParticipant(val wineId:Long, val wineName:String, val participantId:Long, val participantCode:String)
