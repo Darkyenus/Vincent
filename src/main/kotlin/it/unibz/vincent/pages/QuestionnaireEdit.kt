@@ -189,16 +189,20 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 							postForm("/questionnaire/${questionnaire.id}/edit") {
 								session(session)
 								routeAction(ACTION_RENAME_WINE)
-								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
-								textInput(name=PARAM_WINE_NAME) { required=true; value=wineName }
+								hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
+								textInput(name = PARAM_WINE_NAME) { required = true; value = wineName }
 							}
 						}
 						td {
-							postForm("/questionnaire/${questionnaire.id}/edit") {
-								session(session)
-								routeAction(ACTION_WINE_UPDATE_CODE)
-								hiddenInput(name=PARAM_WINE_ID) { value=wineId.toString() }
-								numberInput(name= PARAM_WINE_CODE) { value=wineCode.toString() }
+							if (questionnaire.state == QuestionnaireState.CREATED) {
+								postForm("/questionnaire/${questionnaire.id}/edit") {
+									session(session)
+									routeAction(ACTION_WINE_UPDATE_CODE)
+									hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
+									numberInput(name = PARAM_WINE_CODE) { value = wineCode.toString() }
+								}
+							} else {
+								+wineCode.toString()
 							}
 						}
 						if (questionnaire.state == QuestionnaireState.CREATED) {
@@ -358,22 +362,22 @@ private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStac
 		val warning = if (transaction { QuestionnaireWines.select { QuestionnaireWines.questionnaire eq questionnaire.id }.empty() }) {
 			"Do you really want to create a questionnaire without any wines?"
 		} else null
-		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN, confirmation = warning) { +"Open the questionnaire" }
+		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN, confirmation = warning, classes="u-full-width", parentClasses="column") { +"Open the questionnaire" }
 	}
 
 	// Button to close
 	if (questionnaire.state == QuestionnaireState.RUNNING) {
-		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_CLOSE) { +"Close the questionnaire" }
+		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_CLOSE, classes="u-full-width", parentClasses="column") { +"Close the questionnaire" }
 	}
 
 	// Button to download results
 	if (questionnaire.state == QuestionnaireState.CLOSED) {
-		getButton("/questionnaire/${questionnaire.id}/results") { +"Download results" }
+		getButton("/questionnaire/${questionnaire.id}/results", classes="u-full-width", parentClasses="column") { +"Download results" }
 	}
 
 	// Button to delete
 	if (questionnaire.state != QuestionnaireState.RUNNING) {
-		postButton(session, "/", PARAM_QUESTIONNAIRE_ID to questionnaire.id.toString(), routeAction= ACTION_QUESTIONNAIRE_DELETE, classes="dangerous", confirmation="Do you really want to delete this questionnaire? Even results will be deleted!") {
+		postButton(session, "/", PARAM_QUESTIONNAIRE_ID to questionnaire.id.toString(), routeAction= ACTION_QUESTIONNAIRE_DELETE, classes="dangerous u-full-width", parentClasses="column", confirmation="Do you really want to delete this questionnaire? Even results will be deleted!") {
 			+"Delete questionnaire"
 		}
 	}
@@ -464,7 +468,7 @@ private fun HttpServerExchange.editQuestionnairePage() {
 			}
 
 			// Actions
-			div("page-section") {
+			div("page-section container") {
 				questionnaireActions(session, locale, questionnaire)
 			}
 		}
@@ -509,9 +513,10 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		val questionIds = template.questionIds
 		val questionIdToIndex = questionIds.mapIndexed { index: Int, qId: String -> qId to index }.toMap()
 
-		class WineParticipant(val wineId:Long, val wineName:String, val participantId:Long, val participantCode:String)
+		class WineParticipant(val wineId:Long?, val wineName:String, val participantId:Long, val participantCode:String)
 
 		val responses = LinkedHashMap<WineParticipant, Array<String?>>()
+		var hasWines = false
 
 		transaction {
 			var lastParticipant:WineParticipant? = null
@@ -524,13 +529,18 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 					.orderBy(QuestionnaireResponses.wine)
 					.orderBy(QuestionnaireResponses.participant)) {
 
-				val wineId = row[QuestionnaireResponses.wine]
+				val wineId = row.getOrNull(QuestionnaireResponses.wine)
+				if (wineId != null) {
+					hasWines = true
+				}
+				val wineName = if (wineId != null) row.getOrNull(QuestionnaireWines.name) ?: "" else ""
+
 				val participantId = row[QuestionnaireResponses.participant]
 				if (lastParticipant == null) {
-					lastParticipant = WineParticipant(wineId, row[QuestionnaireWines.name], participantId, row[Accounts.code].toString())
+					lastParticipant = WineParticipant(wineId, wineName, participantId, row[Accounts.code].toString())
 					responses[lastParticipant] = lastParticipantResponses
 				} else if (lastParticipant.wineId != wineId || lastParticipant.participantId != participantId) {
-					lastParticipant = WineParticipant(wineId, row[QuestionnaireWines.name], participantId, row[Accounts.code].toString())
+					lastParticipant = WineParticipant(wineId, wineName, participantId, row[Accounts.code].toString())
 					lastParticipantResponses = arrayOfNulls(questionIds.size)
 					responses[lastParticipant] = lastParticipantResponses
 				}
@@ -554,7 +564,9 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		CSVWriter(writer).use { csv ->
 			// Header
 			csv.item("participant")
-			csv.item("wine")
+			if (hasWines) {
+				csv.item("wine")
+			}
 			for (questionId in questionIds) {
 				csv.item(questionId)
 			}
@@ -563,7 +575,9 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			// Body
 			for ((key, value) in responses) {
 				csv.item(key.participantCode)
-				csv.item(key.wineName)
+				if (hasWines) {
+					csv.item(key.wineName)
+				}
 				for (s in value) {
 					csv.item(s)
 				}
@@ -736,8 +750,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
-		if (questionnaire.state == QuestionnaireState.RUNNING) {
-			exchange.messageWarning("Can't change wine code while the questionnaire is open")
+		if (questionnaire.state != QuestionnaireState.CREATED) {
+			exchange.messageWarning("Can't change wine code after the questionnaire has been opened")
 			exchange.editQuestionnairePage()
 			return@POST
 		}
@@ -765,8 +779,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_REMOVE_WINE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
-		if (questionnaire.state == QuestionnaireState.RUNNING) {
-			exchange.messageWarning("Can't delete wine while the questionnaire is open")
+		if (questionnaire.state != QuestionnaireState.CREATED) {
+			exchange.messageWarning("Can't delete wine after the questionnaire has been opened")
 			exchange.editQuestionnairePage()
 			return@POST
 		}
@@ -875,7 +889,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_OPEN) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
-			exchange.messageWarning("Can't open this questionnaire")
+			exchange.messageWarning("Can't open this questionnaire - already opened")
 			exchange.editQuestionnairePage()
 			return@POST
 		}

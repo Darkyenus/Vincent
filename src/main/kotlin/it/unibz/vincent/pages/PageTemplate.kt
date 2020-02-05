@@ -8,6 +8,7 @@ import it.unibz.vincent.Session
 import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.ROUTE_ACTION_PARAM_NAME
 import it.unibz.vincent.util.languages
+import it.unibz.vincent.util.plusClass
 import it.unibz.vincent.util.sendHtml
 import kotlinx.html.BODY
 import kotlinx.html.BUTTON
@@ -87,8 +88,8 @@ fun FORM.routeAction(routeAction:String?) {
 	}
 }
 
-fun FlowContent.getButton(url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, block : BUTTON.() -> Unit) {
-	form(url, method=FormMethod.get) {
+fun FlowContent.getButton(url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, parentClasses:String? = null, block : BUTTON.() -> Unit) {
+	form(url, method=FormMethod.get, classes = parentClasses) {
 		button(type= ButtonType.submit, classes=classes){ block() }
 		routeAction(routeAction)
 		for ((k, v) in extraParams) {
@@ -100,8 +101,8 @@ fun FlowContent.getButton(url:String, vararg extraParams:Pair<String, String>, r
 private const val CONFIRMATION_CLASS = "confirmed-submit"
 private const val CONFIRMATION_MESSAGE = "confirmation-message"
 
-fun FlowContent.postButton(session:Session, url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, confirmation:String? = null, block : BUTTON.() -> Unit) {
-	form(url, method=FormMethod.post, classes=confirmation?.let { CONFIRMATION_CLASS }) {
+fun FlowContent.postButton(session:Session, url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, parentClasses:String? = null, confirmation:String? = null, block : BUTTON.() -> Unit) {
+	form(url, method=FormMethod.post, classes=confirmation?.let { CONFIRMATION_CLASS } plusClass parentClasses) {
 		confirmation?.let { attributes[CONFIRMATION_MESSAGE] = it }
 		button(type= ButtonType.submit, classes=classes){ block() }
 		routeAction(routeAction)

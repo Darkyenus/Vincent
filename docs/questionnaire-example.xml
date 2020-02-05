@@ -24,6 +24,17 @@
         </info>
     </section>
 
+    <section stage="except-first" min-time="60" shown-wine="all">
+        <info>
+            <text>Cleanse your palate before continuing to the next wine.</text>
+        </info>
+        <question id="feedback" required="false">
+            <title>Feedback</title>
+            <text>While you are waiting, feel free to share any feedback you might have.</text>
+            <free-text type="paragraph"/>
+        </question>
+    </section>
+
     <section>
         <title>Appearance</title>
         <title lang="de">Aussehen</title>
@@ -217,31 +228,10 @@
                 <option>Outstanding</option>
             </one-of>
         </question>
-
-
-    </section>
-
-    <section stage="except-last" min-time="60">
-        <info>
-            <text>Cleanse your palate before continuing to the next wine.</text>
-        </info>
-        <question id="favourite-color">
-            <one-of>
-                <option>Red</option>
-                <option>Green</option>
-                <option>Blue</option>
-                <option>Yellow</option>
-                <option>White</option>
-                <option>Black</option>
-                <option>Gray</option>
-                <option detail="yes">Other...</option>
-            </one-of>
-        </question>
     </section>
 
     <section stage="only-last">
-        <title>Good bye</title>
-
+        <title>Goodbye</title>
         <info>
             <text>Thank you for your participation.</text>
         </info>

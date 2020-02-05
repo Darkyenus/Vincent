@@ -29,7 +29,6 @@ import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
-import kotlinx.html.getButton
 import kotlinx.html.h1
 import kotlinx.html.p
 import kotlinx.html.postForm
@@ -69,7 +68,7 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 	table {
 		thead {
 			tr {
-				th { +"Name" }
+				th(classes = "grow") { +"Name" }
 				th { +"State" }
 				// Open detail page
 			}
@@ -292,10 +291,10 @@ fun HttpServerExchange.home(session: Session) {
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section container") {
 					// TODO(jp): Implement
-					getButton("/account-list", classes="column") { +"All accounts" }
-					getButton("/account-list", "filter" to "regular", classes="column") { +"Regular accounts" }
-					getButton("/account-list", "filter" to "guest", classes="column") { +"Guest accounts" }
-					getButton("/account-list", "filter" to "reserved", classes="column") { +"Reserved accounts" }
+					getButton("/account-list", classes="u-full-width", parentClasses="column") { +"All accounts" }
+					getButton("/account-list", "filter" to "regular", classes="u-full-width", parentClasses="column") { +"Regular accounts" }
+					getButton("/account-list", "filter" to "guest", classes="u-full-width", parentClasses="column") { +"Guest accounts" }
+					getButton("/account-list", "filter" to "reserved", classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
 				}
 			}
 

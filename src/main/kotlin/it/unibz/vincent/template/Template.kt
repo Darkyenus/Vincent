@@ -8,7 +8,6 @@ import java.time.Duration
 
 private typealias Detail = QuestionnaireTemplate.Text
 private typealias Placeholder = QuestionnaireTemplate.Text
-private typealias Default = QuestionnaireTemplate.Text
 private typealias Min = QuestionnaireTemplate.Title
 private typealias Max = QuestionnaireTemplate.Title
 
@@ -16,7 +15,7 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	class Title constructor(val text:String, val language:ULocale?, val always:Boolean)
 
-	class Section(val minTime:Int, val stage:SectionStage, val shownWine:ShownWine, val title:List<Title>, val content:List<SectionContent>) {
+	class Section(val minTimeSeconds:Int, val stage:SectionStage, val shownWine:ShownWine, val title:List<Title>, val content:List<SectionContent>) {
 
 		val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
 			val result = ArrayList<String>()
@@ -91,7 +90,7 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 			class Scale(val min:Int, val max:Int, val minLabel:List<Min>, val maxLabel:List<Max>) : TimeVariable()
 		}
 
-		class FreeText(val type:InputType, val placeholder:List<Placeholder>, val default:List<Default>) : QuestionType()
+		class FreeText(val type:InputType, val placeholder:List<Placeholder>) : QuestionType()
 
 		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType() {
 			override fun collectQuestionIds(baseId: String, onlyRequired:Boolean, collect: (String) -> Unit) {
@@ -212,9 +211,6 @@ private fun XmlBuilder.build(e: QuestionnaireTemplate.QuestionType.FreeText) {
 	"free-text"("type" to e.type) {
 		for (text in e.placeholder) {
 			build(text, "placeholder")
-		}
-		for (text in e.default) {
-			build(text, "default")
 		}
 	}
 }

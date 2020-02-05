@@ -13,7 +13,7 @@ www.getskeleton.com - Free to use under the MIT license.
 }
 
 @media (min-width: 550px) {
-	.container { display: flex; flex-wrap: wrap; align-items: stretch; margin: -1.5rem; }
+	.container { display: flex; flex-wrap: wrap; align-items: stretch; } /* TODO margin: -1.5rem; does not really work */
 	.column { width: unset; margin: 1.5rem; flex-grow: 1; }
 }
 
@@ -503,6 +503,10 @@ hr {
 .free-text {
 	width: 100%;
 }
+
+/* Min-time ticker section */
+.ticker-section { text-align: center; }
+.section-buttons-count-down { font-weight: bold; font-size: large; }
 
 /* Media Queries
 Larger than mobile

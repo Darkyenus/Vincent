@@ -54,4 +54,47 @@ window.addEventListener('DOMContentLoaded', (event) => {
             input.oninput = updateOneOfDetails;
         }
     }
+
+    // Setup section count-down
+    var sectionCountDownTicker = document.getElementById("section-count-down-ticker");
+    var sectionButtons = document.getElementById("section-buttons");
+    var sectionCountDownContainer = document.getElementById("section-count-down-container")
+    if (sectionCountDownTicker && sectionButtons) {
+        var remainingSeconds = sectionCountDownTicker.attributes["seconds"].value | 0;
+
+		if (remainingSeconds > 0) {
+			sectionCountDownTicker.style = ""; // Show the ticker
+            sectionButtons.style = "display: none;"; // Hide the buttons
+			// Start ticking
+			var tickerIntervalId = 0;
+
+			function ticker() {
+				remainingSeconds -= 1;
+				if (remainingSeconds <= 0) {
+					// Done
+					window.clearInterval(tickerIntervalId);
+					sectionCountDownTicker.style = "display: none;"; // Hide the ticker
+                    sectionButtons.style = ""; // Show the buttons
+                    if (sectionCountDownContainer) { // Hide whole section, if present
+                        sectionCountDownContainer.style = "display: none;"
+                    }
+				} else {
+					// Update ticker
+					var minutes = (remainingSeconds / 60) | 0;
+					var seconds = (remainingSeconds % 60) | 0;
+					if (minutes < 10) {
+                        minutes = "0"+minutes;
+                    }
+					if (seconds < 10) {
+						seconds = "0"+seconds;
+					}
+					sectionCountDownTicker.textContent = minutes+":"+seconds;
+				}
+			}
+
+			tickerIntervalId = window.setInterval(ticker, 1000);
+		} else if (sectionCountDownContainer) {
+			sectionCountDownContainer.style = "display: none;"
+		}
+    }
 });

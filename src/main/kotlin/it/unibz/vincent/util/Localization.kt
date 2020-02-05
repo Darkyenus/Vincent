@@ -11,6 +11,7 @@ import java.time.ZoneId
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 typealias LocaleStack = List<ULocale>
 
@@ -21,18 +22,6 @@ fun LocaleStack.defaultLocale():ULocale = this.firstOrNull() ?: ULocale.ENGLISH
  */
 fun LocaleStack.l(template:String):String {
 	return template
-}
-
-private val SECONDS_IN_DAY = TimeUnit.DAYS.toSeconds(1)
-private val SECONDS_IN_HOUR = TimeUnit.HOURS.toSeconds(1)
-private val SECONDS_IN_MINUTE = TimeUnit.MINUTES.toSeconds(1)
-
-/** Adds a space (separator) if needed. */
-private fun StringBuilder.sep():StringBuilder {
-	if (length > 0) {
-		append(' ')
-	}
-	return this
 }
 
 fun Instant.toHumanReadableTime(locale:LocaleStack, relative:Boolean? = null):String {
@@ -68,7 +57,7 @@ fun Instant.toHumanReadableTime(locale:LocaleStack, relative:Boolean? = null):St
 		}
 
 		if (java.lang.Double.isFinite(time)) {
-			RelativeDateTimeFormatter.getInstance(uLocale).format(Math.round(time).toDouble(), timeUnit)
+			RelativeDateTimeFormatter.getInstance(uLocale).format(time.roundToInt().toDouble(), timeUnit)
 					?.takeUnless { it.isEmpty() }
 					?.let { return it }
 		}

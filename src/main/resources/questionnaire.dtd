@@ -145,9 +145,8 @@ Input type can be specified using the `type` attribute:
 - number - a number is expected ("real" numbers are allowed, including negatives and non-whole numbers)
 
 Placeholder value can be specified (text shown in dimmed styling when no input is entered).
-Default value can also be specified.
 -->
-<!ELEMENT free-text (placeholder*, default*)>
+<!ELEMENT free-text (placeholder*)>
 <!ATTLIST free-text
         type (sentence|paragraph|number) "sentence"
         >
@@ -155,12 +154,6 @@ Default value can also be specified.
 <!-- Works similarly to <text> -->
 <!ELEMENT placeholder ANY>
 <!ATTLIST placeholder
-        lang CDATA #IMPLIED
-        >
-
-<!-- Works similarly to <text> -->
-<!ELEMENT default ANY>
-<!ATTLIST default
         lang CDATA #IMPLIED
         >
 

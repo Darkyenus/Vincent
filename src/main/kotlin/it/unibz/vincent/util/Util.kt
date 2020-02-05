@@ -6,6 +6,16 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.function.BiFunction
 
+infix fun String?.plusClass(other:String?):String? {
+	if (this == null) {
+		return other
+	}
+	if (other == null) {
+		return this
+	}
+	return "$this $other"
+}
+
 /** Trim leading and trailing whitespace from given string.
  * If resulting string would be empty, return null instead.
  * If resulting string would be longer than maxLength, return only first maxLength characters.

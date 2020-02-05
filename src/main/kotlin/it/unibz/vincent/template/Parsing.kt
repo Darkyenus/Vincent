@@ -642,7 +642,7 @@ private class QuestionParserState : SequenceParserState<QuestionnaireTemplate.Se
 
 	override fun result():QuestionnaireTemplate.SectionContent.Question {
 		return QuestionnaireTemplate.SectionContent.Question(id, required, title, text, body.firstOrNull()
-				?: QuestionnaireTemplate.QuestionType.FreeText(QuestionnaireTemplate.InputType.SENTENCE, emptyList(), emptyList()))
+				?: QuestionnaireTemplate.QuestionType.FreeText(QuestionnaireTemplate.InputType.SENTENCE, emptyList()))
 	}
 }
 
@@ -718,10 +718,9 @@ private class FreeTextParserState : SequenceParserState<QuestionnaireTemplate.Qu
 	private val type by enumProperty("type", QuestionnaireTemplate.InputType.SENTENCE)
 
 	private val placeholder by tag("placeholder") { TextParserState() }
-	private val default by tag("default") { TextParserState() }
 
 	override fun result(): QuestionnaireTemplate.QuestionType.FreeText {
-		return QuestionnaireTemplate.QuestionType.FreeText(type, placeholder, default)
+		return QuestionnaireTemplate.QuestionType.FreeText(type, placeholder)
 	}
 }
 

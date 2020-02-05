@@ -23,14 +23,17 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.formStrings
 import it.unibz.vincent.util.merge
 import it.unibz.vincent.util.pathString
+import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
 import kotlinx.html.hiddenInput
+import kotlinx.html.id
 import kotlinx.html.li
 import kotlinx.html.ol
 import kotlinx.html.p
 import kotlinx.html.postForm
+import kotlinx.html.span
 import kotlinx.html.style
 import kotlinx.html.submitInput
 import org.jetbrains.exposed.sql.and
@@ -39,6 +42,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
+import java.time.Duration
 import java.time.Instant
 import kotlin.math.max
 
@@ -80,6 +84,7 @@ private class QuestionnaireParticipation(val questionnaireId:Long,
                                          val questionnaireName:String,
                                          val participantId:Long,
                                          val currentSection:Int, val currentWineIndex:Int,
+                                         val canAdvanceSectionAfter:Instant,
                                          val wineCount:Int,
                                          val wineId:Long,
                                          val wineCode:Int,
@@ -89,6 +94,10 @@ private class QuestionnaireParticipation(val questionnaireId:Long,
 
 	fun nextSection():WineSection? {
 		return nextSection(currentSection, currentWineIndex, wineCount, template)
+	}
+
+	override fun toString(): String {
+		return "QuestionnaireParticipation(questionnaireId=$questionnaireId, questionnaireName='$questionnaireName', participantId=$participantId, currentSection=$currentSection, currentWineIndex=$currentWineIndex, wineCount=$wineCount, wineId=$wineId, wineCode=$wineCode)"
 	}
 }
 
@@ -105,6 +114,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 	}
 
 	var currentSection = 0
+	var currentSectionStartedAt = Instant.EPOCH
 	var currentWineIndex = 0
 
 	var wineCount = 0
@@ -120,11 +130,12 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 
 		QuestionnaireParticipants
 				.leftJoin(Questionnaires, { questionnaire }, { Questionnaires.id })
-				.slice(QuestionnaireParticipants.currentSection, QuestionnaireParticipants.currentWineIndex, QuestionnaireParticipants.state, Questionnaires.template, Questionnaires.state, Questionnaires.name)
+				.slice(QuestionnaireParticipants.currentSection, QuestionnaireParticipants.currentSectionStartedAt, QuestionnaireParticipants.currentWineIndex, QuestionnaireParticipants.state, Questionnaires.template, Questionnaires.state, Questionnaires.name)
 				.select { (QuestionnaireParticipants.participant eq session.userId) and (QuestionnaireParticipants.questionnaire eq questionnaireId) }
 				.limit(1)
 				.firstOrNull()?.let {
 					currentSection = it[QuestionnaireParticipants.currentSection]
+					currentSectionStartedAt = it[QuestionnaireParticipants.currentSectionStartedAt]
 					currentWineIndex = it[QuestionnaireParticipants.currentWineIndex]
 					templateId = it[Questionnaires.template]
 					questionnaireName = it.getOrNull(Questionnaires.name) ?: "Questionnaire"
@@ -167,6 +178,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 	if (state == QuestionnaireParticipationState.INVITED) {
 		// Mark as started and set appropriate section
 		val wineSection = nextSection(-1, 0, wineCount, template)
+		val now = Instant.now()
 
 		transaction {
 			QuestionnaireParticipants.update({
@@ -178,7 +190,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 				if (wineSection != null) {
 					it[QuestionnaireParticipants.currentSection] = wineSection.sectionIndex
 					it[QuestionnaireParticipants.currentWineIndex] = wineSection.wineIndex
-					it[QuestionnaireParticipants.currentSectionStartedAt] = Instant.now()
+					it[QuestionnaireParticipants.currentSectionStartedAt] = now
 				}
 			}
 		}
@@ -190,6 +202,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		}
 
 		currentSection = wineSection.sectionIndex
+		currentSectionStartedAt = now
 		currentWineIndex = wineSection.wineIndex
 	}
 
@@ -209,9 +222,17 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		}
 	}
 
+	val minTimeSeconds = template.sections[currentSection].minTimeSeconds
+	val canAdvanceToNextSectionAfter = if (minTimeSeconds > 0) {
+		currentSectionStartedAt.plusSeconds(minTimeSeconds.toLong())
+	} else {
+		Instant.EPOCH
+	}
+
+
 	return QuestionnaireParticipation(questionnaireId, questionnaireName, session.userId,
-			currentSection,
-			currentWineIndex, wineCount, wineId, wineCode,
+			currentSection, currentWineIndex, canAdvanceToNextSectionAfter,
+			wineCount, wineId, wineCode,
 			template)
 }
 
@@ -242,8 +263,24 @@ private fun QuestionnaireParticipation.advanceSection(): Boolean {
 	return false
 }
 
-
 private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:QuestionnaireParticipation, highlightMissing:Boolean = false) {
+	val existingResponses = HashMap<String, String>()
+	try {
+		transaction {
+			for (row in QuestionnaireResponses
+					.slice(QuestionnaireResponses.questionId, QuestionnaireResponses.response)
+					.select {
+						(QuestionnaireResponses.questionnaire eq participation.questionnaireId) and
+								(QuestionnaireResponses.participant eq participation.participantId) and
+								(QuestionnaireResponses.wine eq participation.wineId)
+					}) {
+				existingResponses[row[QuestionnaireResponses.questionId]] = row[QuestionnaireResponses.response]
+			}
+		}
+	} catch (e:Exception) {
+		LOG.error("Failed to retrieve existing responses for {}", participation, e)
+	}
+
 	exchange.sendBase(participation.questionnaireName) { _, locale ->
 		val section = participation.template.sections[participation.currentSection]
 		val lang = TemplateLang(participation.template.defaultLanguage, locale)
@@ -254,6 +291,8 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 			div("page-section") {
 				style = "text-align: center;"
 				renderTitle(section.title, lang, ::h1)
+
+				renderMessages(exchange)
 
 				when (if (participation.wineCount > 0) section.shownWine else QuestionnaireTemplate.Section.ShownWine.NONE) {
 					QuestionnaireTemplate.Section.ShownWine.CURRENT -> {
@@ -305,12 +344,38 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 						renderText(sectionPart.text, lang, ::p)
 
 						if (sectionPart is QuestionnaireTemplate.SectionContent.Question) {
-							renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, idGenerator)
+							renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, existingResponses, idGenerator)
+						}
+					}
+				}
+
+				val now = Instant.now()
+				val canAdvanceSectionAfter = participation.canAdvanceSectionAfter
+				if (canAdvanceSectionAfter > now) {
+					div("section-part ticker-section") {
+						this.id="section-count-down-container"
+						span { +"Please wait before continuing" }
+
+						// Render waiting timer
+						noscript {
+							span { +"Next section available ${canAdvanceSectionAfter.toHumanReadableTime(locale, relative = true)}" }
+						}
+
+						val haveToWaitSeconds = Duration.between(now, canAdvanceSectionAfter).seconds
+						div("section-buttons-count-down") {
+							this.id="section-count-down-ticker"
+							this.style = "display: none;" // Shown through javascript
+							this.attributes["seconds"] = haveToWaitSeconds.toString()
+
+							+"%02d:%02d".format(haveToWaitSeconds / 60, haveToWaitSeconds % 60)
 						}
 					}
 				}
 
 				div("section-buttons") {
+					this.id="section-buttons"
+					// Hidden through javascript, if needed
+
 					if (participation.nextSection() == null) {
 						submitInput { value = "Finish" }
 					} else {
@@ -344,14 +409,17 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 			}
 		}
 
+		val minTimeSeconds = participation.template.sections[participation.currentSection].minTimeSeconds
+		var tooSoon = false
+
 		// Collect answers & check if all required questions are answered
 		val sectionQuestionIds = participation.template.sections[participation.currentSection].questionIds
 		val requiredQuestionIds = participation.template.sections[participation.currentSection].requiredQuestionIds
-		val responses = exchange.formStrings(FORM_PARAM_QUESTION_RESPONSE_PREFIX).groupBy { it.first }
-		val alreadyPresentResponses = transaction {
+		val responses = exchange.formStrings(FORM_PARAM_QUESTION_RESPONSE_PREFIX).groupBy { it.first }.mapValues { it.value.joinToString("\n\n") { p -> p.second } }
+		val alreadyPresentResponses:Set<String> = transaction {
 			// Insert required responses
 			for (questionId in sectionQuestionIds) {
-				val response = responses[questionId]?.joinToString("\n\n")?.takeUnless { it.isBlank() } ?: continue
+				val response = responses[questionId]?.takeUnless { it.isBlank() } ?: continue
 
 				QuestionnaireResponses.merge {
 					it[QuestionnaireResponses.participant] = participation.participantId
@@ -362,27 +430,47 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 				}
 			}
 
-			// Check for those IDs that are sufficiently filled
-			QuestionnaireResponses.slice(QuestionnaireResponses.questionId).select {
-				(QuestionnaireResponses.participant eq participation.participantId) and
-						(QuestionnaireResponses.questionnaire eq participation.questionnaireId) and
-						(QuestionnaireResponses.wine eq participation.wineId)
-			}.mapTo(HashSet()) { it[QuestionnaireResponses.questionId] }
+			// Check if it is too soon
+			if (minTimeSeconds > 0 && (QuestionnaireParticipants
+							.slice(QuestionnaireParticipants.currentSectionStartedAt)
+							.select { (QuestionnaireParticipants.questionnaire eq participation.questionnaireId) and
+									(QuestionnaireParticipants.participant eq participation.participantId) }
+							.limit(1)
+							.firstOrNull()
+							?.let { it[QuestionnaireParticipants.currentSectionStartedAt] } ?: Instant.EPOCH)
+							.plusSeconds(minTimeSeconds - 1L /* 1 sec tolerance */) > Instant.now()) {
+				tooSoon = true
+			}
+
+			if (tooSoon) {
+				emptySet()
+			} else {
+				// Check for those IDs that are sufficiently filled
+				QuestionnaireResponses.slice(QuestionnaireResponses.questionId).select {
+					(QuestionnaireResponses.participant eq participation.participantId) and
+							(QuestionnaireResponses.questionnaire eq participation.questionnaireId) and
+							(QuestionnaireResponses.wine eq participation.wineId)
+				}.mapTo(HashSet()) { it[QuestionnaireResponses.questionId] }
+			}
 		}
 
-		// Check if all required questions are answered
-		val missingResponses = requiredQuestionIds - alreadyPresentResponses
-
-		if (missingResponses.isEmpty()) {
-			if (participation.advanceSection()) {
-				// Done
-				exchange.statusCode = StatusCodes.SEE_OTHER
-				exchange.responseHeaders.put(Headers.LOCATION, "/")
-			} else {
-				handleQuestionnaireShow(exchange, exchange.questionnaireParticipation() ?: return@POST)
-			}
+		if (tooSoon) {
+			exchange.messageInfo("Please wait before advancing to next section")
+			handleQuestionnaireShow(exchange, participation)
 		} else {
-			handleQuestionnaireShow(exchange, participation, highlightMissing = true)
+			// Check if all required questions are answered
+			val missingResponses = requiredQuestionIds - alreadyPresentResponses
+			if (missingResponses.isEmpty()) {
+				if (participation.advanceSection()) {
+					// Done
+					exchange.statusCode = StatusCodes.SEE_OTHER
+					exchange.responseHeaders.put(Headers.LOCATION, "/")
+				} else {
+					handleQuestionnaireShow(exchange, exchange.questionnaireParticipation() ?: return@POST)
+				}
+			} else {
+				handleQuestionnaireShow(exchange, participation, highlightMissing = true)
+			}
 		}
 	}
 }
