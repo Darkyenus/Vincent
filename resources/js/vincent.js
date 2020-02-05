@@ -7,6 +7,13 @@ function showDetailIfChecked(input, detail) {
 	}
 }
 
+function parentWithClass(element, className) {
+	while (element && !element.classList.contains(className)) {
+		element = element.parentElement;
+	}
+	return element;
+}
+
 window.addEventListener('DOMContentLoaded', (event) => {
 	// Setup confirm buttons
     var confirmForms = document.getElementsByClassName("confirmed-submit");
@@ -49,10 +56,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
 	};
     var inputElements = document.getElementsByClassName("one-of-detail-radio");
     for (var i=0, len=inputElements.length|0; i<len; i=i+1|0) {
-        var input = inputElements[i];
-        if (input) {
-            input.oninput = updateOneOfDetails;
-        }
+        inputElements[i].oninput = updateOneOfDetails;
     }
 
     // Setup section count-down
@@ -60,7 +64,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
     var sectionButtons = document.getElementById("section-buttons");
     var sectionCountDownContainer = document.getElementById("section-count-down-container")
     if (sectionCountDownTicker && sectionButtons) {
-        var remainingSeconds = sectionCountDownTicker.attributes["seconds"].value | 0;
+        var remainingSeconds = sectionCountDownTicker.getAttribute("seconds") | 0;
 
 		if (remainingSeconds > 0) {
 			sectionCountDownTicker.style = ""; // Show the ticker
@@ -96,5 +100,52 @@ window.addEventListener('DOMContentLoaded', (event) => {
 		} else if (sectionCountDownContainer) {
 			sectionCountDownContainer.style = "display: none;"
 		}
+    }
+
+    // Setup password toggles
+    var passwordToggleLabels = document.getElementsByClassName("password-mask-toggle-label");
+    for (var i=0, len=passwordToggleLabels.length|0; i<len; i=i+1|0) {
+        var label = passwordToggleLabels[i];
+        label.style=""; // Show it
+        // Make it work through keyboard
+        label.addEventListener("keyup", function(e) {
+			if (e.keyCode == 13) {
+				e.target.click();
+			}
+		});
+    }
+
+    var passwordToggles = document.getElementsByClassName("password-mask-toggle");
+    for (var i=0, len=passwordToggles.length|0; i<len; i=i+1|0) {
+        var passwordToggle = passwordToggles[i];
+        var passwordFieldId = passwordToggle.getAttribute("password-field");
+        var passwordField = document.getElementById(passwordFieldId);
+        if (passwordField) {
+            // Wire it up
+			(function (passwordToggle, passwordField) {
+				passwordToggle.onchange = function(e) {
+					if (passwordToggle.checked) {
+						passwordField.type = "text";
+						passwordField.focus();
+					} else {
+						passwordField.type = "password";
+					}
+				};
+
+				var ourPasswordParent = parentWithClass(passwordField, "password-container");
+				ourPasswordParent.addEventListener('focusout', function(e) {
+					// User may lose focus because of a click on toggle button. We must not make it unchecked yet,
+					// because the focus loss is handled before click is and it would mess everything up.
+					setTimeout(function() {
+						var newFocusedPasswordContainer = parentWithClass(document.activeElement, "password-container");
+						if (ourPasswordParent !== newFocusedPasswordContainer) {
+							// Our password parent has lost focus, hide goodies
+							passwordField.type = "password";
+                            passwordToggle.checked = false;
+						}
+					}, 1);
+                });
+			}) (passwordToggle, passwordField);
+        }
     }
 });

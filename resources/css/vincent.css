@@ -233,7 +233,6 @@ label > .label-body {
   margin-left: .5rem;
   font-weight: normal; }
 
-
 /* Lists */
 ul {
   list-style: circle inside; }
@@ -250,7 +249,6 @@ ol ul {
   font-size: 90%; }
 li {
   margin-bottom: 1rem; }
-
 
 /* Code */
 code {
@@ -507,6 +505,17 @@ hr {
 /* Min-time ticker section */
 .ticker-section { text-align: center; }
 .section-buttons-count-down { font-weight: bold; font-size: large; }
+
+/* Password visibility toggle */
+.password-mask-toggle { display: none !important; }
+.password-mask-toggle-icon { margin: 0.7rem; cursor: pointer; }
+.password-mask-toggle-icon-pass { display: none !important; }
+input:checked ~ .password-mask-toggle-icon-plain { display: none !important; }
+input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
+.password-container {
+	display: flex; flex-wrap: nowrap; align-items: center;
+}
+.password-container input { flex-grow: 1; }
 
 /* Media Queries
 Larger than mobile
