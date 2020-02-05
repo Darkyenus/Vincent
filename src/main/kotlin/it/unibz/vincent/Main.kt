@@ -187,9 +187,8 @@ fun main(args: Array<String>) {
 										it[Accounts.email] = userEmail
 										it[Accounts.password] = ByteArray(0)
 										it[accountType] = AccountType.RESERVED
-										val now = Instant.now()
-										it[timeRegistered] = now
-										it[timeLastLogin] = now
+										it[timeRegistered] = Instant.EPOCH
+										it[timeLastLogin] = Instant.EPOCH
 										it[code] = newCode
 									}
 									LOG.info("CLI: Reserved code $newCode for user with e-mail '$userEmail'")

@@ -14,6 +14,7 @@ import it.unibz.vincent.template.QuestionnaireTemplate.QuestionType.TimeVariable
 import it.unibz.vincent.template.QuestionnaireTemplate.SectionContent.Question
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.template.collectQuestionIdsTo
+import it.unibz.vincent.template.mainTitle
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formStrings
@@ -28,15 +29,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 const val DEMOGRAPHY_URL = "/demography"
 
-private const val QID_PHONE_NUMBER = "phone-number"
-private const val QID_GENDER = "gender"
-private const val QID_YEAR_OF_BIRTH = "year-of-birth"
-private const val QID_HOME_COUNTRY = "home-country"
-private const val QID_HOME_REGION = "home-region"
-private const val QID_EDUCATION = "education"
-private const val QID_SMOKING = "smoking"
-private const val QID_FOOD_INTOLERANCE = "food-intolerance"
-private const val QID_SULFITE_INTOLERANCE = "sulfite-intolerance"
+const val QID_PHONE_NUMBER = "phone-number"
+const val QID_GENDER = "gender"
+const val QID_YEAR_OF_BIRTH = "year-of-birth"
+const val QID_HOME_COUNTRY = "home-country"
+const val QID_HOME_REGION = "home-region"
+const val QID_EDUCATION = "education"
+const val QID_SMOKING = "smoking"
+const val QID_FOOD_INTOLERANCE = "food-intolerance"
+const val QID_SULFITE_INTOLERANCE = "sulfite-intolerance"
 
 private val demographyQuestions = listOf(
 		Question(QID_PHONE_NUMBER, false,
@@ -99,6 +100,27 @@ private val demographyQuestions = listOf(
 				)
 		)
 )
+
+private val oneOfDemographyQuestions: Map<String, OneOf> = demographyQuestions.mapNotNull { q ->
+	if (q.type !is OneOf) {
+		null
+	} else {
+		q.id to q.type
+	}
+}.toMap()
+
+fun demographicOneOfResponseToHumanReadableLabel(questionId:String, result:String, lang:TemplateLang):String? {
+	return oneOfDemographyQuestions[questionId]?.let { oneOf ->
+		for (category in oneOf.categories) {
+			for (option in category.options) {
+				if (option.value == result) {
+					return@let option.title.mainTitle(lang)
+				}
+			}
+		}
+		null
+	}
+}
 
 private val demographyQuestionIds: List<String> = demographyQuestions.collectQuestionIdsTo(ArrayList(), false)
 private val demographyRequiredQuestionIds: Set<String> = demographyQuestions.collectQuestionIdsTo(HashSet(), true)

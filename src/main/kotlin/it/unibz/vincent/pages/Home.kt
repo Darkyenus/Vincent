@@ -289,9 +289,9 @@ fun HttpServerExchange.home(session: Session) {
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section container") {
 					getButton(ACCOUNT_LIST_URL, classes="u-full-width", parentClasses="column") { +"All accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_REGULAR, classes="u-full-width", parentClasses="column") { +"Regular accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_GUEST, classes="u-full-width", parentClasses="column") { +"Guest accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_RESERVED, classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), classes="u-full-width", parentClasses="column") { +"Regular accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), classes="u-full-width", parentClasses="column") { +"Guest accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
 				}
 			}
 
