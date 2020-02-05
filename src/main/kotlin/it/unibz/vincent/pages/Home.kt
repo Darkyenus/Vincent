@@ -23,7 +23,6 @@ import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formFile
 import it.unibz.vincent.util.formString
-import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
@@ -258,11 +257,10 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 
 /** Show home screen for logged-in users */
 fun HttpServerExchange.home(session: Session) {
-	val userName = session.get(Accounts.name)
-	val userLevel = session.get(Accounts.accountType)
-	val locale = languages()
+	val userName = session.userName
+	val userLevel = session.accountType
 
-	sendBase { _, _ ->
+	sendBase { _, locale ->
 		div("page-container") {
 			h1 { +"Welcome $userName" }
 
@@ -290,11 +288,10 @@ fun HttpServerExchange.home(session: Session) {
 			// Show registered user lists
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section container") {
-					// TODO(jp): Implement
-					getButton("/account-list", classes="u-full-width", parentClasses="column") { +"All accounts" }
-					getButton("/account-list", "filter" to "regular", classes="u-full-width", parentClasses="column") { +"Regular accounts" }
-					getButton("/account-list", "filter" to "guest", classes="u-full-width", parentClasses="column") { +"Guest accounts" }
-					getButton("/account-list", "filter" to "reserved", classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
+					getButton(ACCOUNT_LIST_URL, classes="u-full-width", parentClasses="column") { +"All accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_REGULAR, classes="u-full-width", parentClasses="column") { +"Regular accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_GUEST, classes="u-full-width", parentClasses="column") { +"Guest accounts" }
+					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to ACCOUNT_LIST_FILTER_RESERVED, classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
 				}
 			}
 
@@ -367,12 +364,12 @@ fun RoutingHandler.setupHomeRoutes() {
 		var templateName:String? = null
 		val templateXmlBytes = transaction {
 			QuestionnaireTemplates
-					.slice(QuestionnaireTemplates.name, QuestionnaireTemplates.template_xml)
+					.slice(QuestionnaireTemplates.name, QuestionnaireTemplates.templateXml)
 					.select { QuestionnaireTemplates.id eq template }
 					.limit(1)
 					.firstOrNull()?.let {
 						templateName = it[QuestionnaireTemplates.name]
-						it[QuestionnaireTemplates.template_xml].bytes
+						it[QuestionnaireTemplates.templateXml].bytes
 					}
 		}
 
@@ -455,7 +452,7 @@ fun RoutingHandler.setupHomeRoutes() {
 				it[name] = databaseName
 				/* This is magic, but should work. Maybe. */
 				@Suppress("UNCHECKED_CAST")
-				it[template_xml as Column<InputStream>] = formFile.inputStream
+				it[templateXml as Column<InputStream>] = formFile.inputStream
 			}.value
 		}
 

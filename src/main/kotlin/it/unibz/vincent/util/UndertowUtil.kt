@@ -20,9 +20,9 @@ import io.undertow.util.Methods
 import io.undertow.util.PathTemplateMatch
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
-import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
+import it.unibz.vincent.pages.DEMOGRAPHY_URL
 import it.unibz.vincent.pages.base
 import it.unibz.vincent.pages.loginRegister
 import it.unibz.vincent.pages.messageWarning
@@ -289,7 +289,7 @@ private fun KHttpHandler.handleAuthenticated(accessLevel: AccountType?, checkCsr
 				exchange.statusCode = StatusCodes.FORBIDDEN
 				exchange.messageWarning("Please log-in first")
 				exchange.loginRegister()
-			} else if (session.get(Accounts.accountType) < accessLevel) {
+			} else if (session.accountType < accessLevel) {
 				// This guy is fired
 				exchange.sendPageOfDisapproval(StatusCodes.FORBIDDEN, "Forbidden") {
 					+"You don't have a permission to do that"
@@ -317,12 +317,23 @@ private fun routeActionPredicate(action:String):Predicate {
 typealias KHttpHandler = (HttpServerExchange) -> Unit
 
 @Suppress("FunctionName")
-fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeAction:String? = null, handler:KHttpHandler) {
+fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeAction:String? = null, requireCompletedDemography:Boolean = true, handler:KHttpHandler) {
 	val authHandler = handler.handleAuthenticated(accessLevel, false)
+	val demographyHandler = if (accessLevel != null && requireCompletedDemography) {
+		HttpHandler { exchange ->
+			val session = exchange.session()!!
+			if (!session.hasDemographyFilledOut) {
+				exchange.statusCode = StatusCodes.SEE_OTHER
+				exchange.responseHeaders.put(Headers.LOCATION, DEMOGRAPHY_URL)
+			} else {
+				authHandler.handleRequest(exchange)
+			}
+		}
+	} else authHandler
 	if (routeAction == null) {
-		get(template, authHandler)
+		get(template, demographyHandler)
 	} else {
-		get(template, routeActionPredicate(routeAction), authHandler)
+		get(template, routeActionPredicate(routeAction), demographyHandler)
 	}
 }
 

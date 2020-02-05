@@ -84,11 +84,12 @@ private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, aut
 			label("password-mask-toggle-label") {
 				style = "display: none;" // This element does not work without JS, so make it visible in JS
 				tabIndex = "0"
+				attributes["title"] = "Toggle password visibility"
+				attributes["aria-label"] = "Toggle password visibility"
+
 				checkBoxInput(name = null, classes = "password-mask-toggle") {
 					// The check box itself is never shown, hidden by the class
 					attributes["password-field"] = internalId
-					attributes["title"] = "Toggle password visibility"
-					attributes["aria-label"] = "Toggle password visibility"
 					attributes["autocomplete"] = "off"
 					checked = false
 				}

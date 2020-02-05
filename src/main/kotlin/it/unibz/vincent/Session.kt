@@ -8,7 +8,9 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.server.handlers.Cookie
 import io.undertow.server.handlers.CookieImpl
 import io.undertow.util.AttachmentKey
+import it.unibz.vincent.pages.hasUserFilledDemographyInfoSufficiently
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.Logger
@@ -69,9 +71,54 @@ class Session(val sessionId:String, val userId:Long) {
 		return synchronized(usedIdempotencyTokens) { usedIdempotencyTokens.add(id) }
 	}
 
-	fun <T> get(column: Column<T>):T {
-		return transaction {
-			Accounts.slice(column).select { Accounts.id eq userId }.single()[column]
+	private class Cache(val userName:String, val accountType:AccountType, val hasDemographyFilledOut:Boolean)
+
+	private var _cache:Cache? = null
+	private val cache:Cache
+		get() {
+			var cache = _cache
+			if (cache == null) {
+				var userName = ""
+				var accountType = AccountType.GUEST
+				var hasDemographyFilledOut = false
+				transaction {
+					Accounts.slice(Accounts.name, Accounts.accountType)
+							.select { Accounts.id eq userId }.single().let {
+								userName = it[Accounts.name]
+								accountType = it[Accounts.accountType]
+							}
+
+					hasDemographyFilledOut = hasUserFilledDemographyInfoSufficiently(userId)
+				}
+				cache = Cache(userName, accountType, hasDemographyFilledOut)
+				_cache = cache
+			}
+			return cache
+		}
+
+	val userName:String
+		get() = cache.userName
+	val accountType:AccountType
+		get() = cache.accountType
+	val hasDemographyFilledOut:Boolean
+		get() = cache.hasDemographyFilledOut
+
+	internal fun doFlushCache() {
+		_cache = null
+	}
+
+	/** Call when underlying data for [userName], [accountType] or [hasDemographyFilledOut] changes. */
+	fun flushCache() {
+		doFlushCache() // Just in case this was ejected from the cache
+		flushSessionCache(userId)
+	}
+}
+
+/** @see Sesstion.flushCache */
+fun flushSessionCache(userId:Long) {
+	for (session in activeSessions.asMap().values) {
+		if (session.userId == userId) {
+			session.doFlushCache()
 		}
 	}
 }

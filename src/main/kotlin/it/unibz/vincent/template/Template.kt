@@ -11,30 +11,27 @@ private typealias Placeholder = QuestionnaireTemplate.Text
 private typealias Min = QuestionnaireTemplate.Title
 private typealias Max = QuestionnaireTemplate.Title
 
+fun <T : MutableCollection<String>> List<QuestionnaireTemplate.SectionContent>.collectQuestionIdsTo(to:T, onlyRequired:Boolean):T {
+	for (content in this) {
+		if (content is QuestionnaireTemplate.SectionContent.Question) {
+			content.type.collectQuestionIds(content.id, onlyRequired) { to.add(it) }
+		}
+	}
+	return to
+}
+
 class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>, val sections:List<Section>) {
 
-	class Title constructor(val text:String, val language:ULocale?, val always:Boolean)
+	class Title constructor(val text:String, val language:ULocale? = null, val always:Boolean = false)
 
 	class Section(val minTimeSeconds:Int, val stage:SectionStage, val shownWine:ShownWine, val title:List<Title>, val content:List<SectionContent>) {
 
 		val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-			val result = ArrayList<String>()
-			for (content in content) {
-				if (content is SectionContent.Question) {
-					content.type.collectQuestionIds(content.id, false) { result.add(it) }
-				}
-			}
-			result
+			content.collectQuestionIdsTo(ArrayList(), false)
 		}
 
 		val requiredQuestionIds:Set<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-			val result = HashSet<String>()
-			for (content in content) {
-				if (content is SectionContent.Question && content.required) {
-					content.type.collectQuestionIds(content.id, true) { result.add(it) }
-				}
-			}
-			result
+			content.collectQuestionIdsTo(HashSet(), true)
 		}
 
 		enum class SectionStage {
@@ -57,7 +54,7 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		class Question(val id:String, val required:Boolean, title:List<Title>, text:List<Text>, val type:QuestionType) : SectionContent(title, text)
 	}
 
-	class Text(val text:String, val language:ULocale?)
+	class Text(val text:String, val language:ULocale? = null)
 
 	sealed class QuestionType {
 
@@ -72,6 +69,8 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		/** Can be presented repeatedly by [TimeProgression]. */
 		sealed class TimeVariable : QuestionType() {
 			class OneOf(val categories:List<Category>) : TimeVariable() {
+
+				constructor(vararg options:Option):this(listOf(Category(emptyList(), options.toList())))
 
 				override fun collectQuestionIds(baseId: String, onlyRequired:Boolean, collect: (String) -> Unit) {
 					super.collectQuestionIds(baseId, onlyRequired, collect)
@@ -101,25 +100,26 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		}
 	}
 
-	enum class InputType {
-		SENTENCE,
-		PARAGRAPH,
-		NUMBER
+	enum class InputType(val inputType:kotlinx.html.InputType?) {
+		SENTENCE(kotlinx.html.InputType.text),
+		NUMBER(kotlinx.html.InputType.number),
+		YEAR(kotlinx.html.InputType.text),
+		TELEPHONE(kotlinx.html.InputType.tel),
+		DATE(kotlinx.html.InputType.date),
+		PARAGRAPH(null)
 	}
 
 	class Category(val title:List<Title>, val options:List<Option>)
 	class Option(value:String, val hasDetail:Boolean, val detailType:InputType, val title:List<Title>, val detail:List<Detail>) {
+		constructor(value:String, vararg title:Title):this(value, false, InputType.SENTENCE, title.toList(), emptyList())
+
 		val value:String = sanitizeOptionValue(value)
 	}
 
 	val questionIds:List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) {
 		val result = ArrayList<String>()
 		for (section in sections) {
-			for (content in section.content) {
-				if (content is SectionContent.Question) {
-					content.type.collectQuestionIds(content.id, false) { result.add(it) }
-				}
-			}
+			section.content.collectQuestionIdsTo(result, false)
 		}
 		result
 	}

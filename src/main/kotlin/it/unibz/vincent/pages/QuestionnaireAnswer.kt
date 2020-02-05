@@ -333,21 +333,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 				routeAction(ACTION_SUBMIT_SECTION)
 				hiddenInput(name = FORM_PARAM_WINE_SECTION_CHECKSUM) { value = participation.sectionChecksum.toString() }
 
-				var idGeneratorNumber = 0
-				val idGenerator: () -> String = {
-					"q-${idGeneratorNumber++}"
-				}
-
-				for (sectionPart in section.content) {
-					div("section-part") {
-						renderTitle(sectionPart.title, lang, ::h2)
-						renderText(sectionPart.text, lang, ::p)
-
-						if (sectionPart is QuestionnaireTemplate.SectionContent.Question) {
-							renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, existingResponses, idGenerator)
-						}
-					}
-				}
+				renderSectionContent(section.content, lang, existingResponses)
 
 				val now = Instant.now()
 				val canAdvanceSectionAfter = participation.canAdvanceSectionAfter

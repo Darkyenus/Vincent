@@ -9,14 +9,15 @@ import kotlinx.html.HtmlBlockTag
 import kotlinx.html.TEXTAREA
 import kotlinx.html.attributesMapOf
 import kotlinx.html.div
+import kotlinx.html.h2
 import kotlinx.html.h4
 import kotlinx.html.id
+import kotlinx.html.input
 import kotlinx.html.label
-import kotlinx.html.numberInput
 import kotlinx.html.p
 import kotlinx.html.radioInput
 import kotlinx.html.span
-import kotlinx.html.textInput
+import kotlinx.html.title
 import kotlinx.html.unsafe
 import kotlinx.html.visit
 import kotlin.reflect.KFunction2
@@ -41,6 +42,55 @@ fun renderText(text:List<QuestionnaireTemplate.Text>, lang: TemplateLang, tag: K
 	}
 }
 
+private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.InputType, required:Boolean, classes:String?, value:String?, placeholder:String?) {
+	if (type.inputType != null) {
+		input(name = name, type = type.inputType, classes=classes) {
+			this.required = required
+			if (value != null) {
+				this.value = value
+			}
+			if (placeholder != null) {
+				this.placeholder = placeholder
+			}
+			if (type == QuestionnaireTemplate.InputType.YEAR) {
+				minLength = "4"
+				maxLength = "4"
+				pattern = "\\d*" // Only digits
+				title = "A full 4 digit year of the Gregorian calendar"
+			}
+		}
+	} else {
+		assert(type == QuestionnaireTemplate.InputType.PARAGRAPH)
+		TEXTAREA(attributesMapOf(
+				"name", name,
+				"required", required.toString(),
+				"placeholder", placeholder,
+				"class", classes), consumer).visit {
+			if (value != null) {
+				+value
+			}
+		}
+	}
+}
+
+fun HtmlBlockTag.renderSectionContent(content:List<QuestionnaireTemplate.SectionContent>, lang:TemplateLang, existingResponses:Map<String, String>) {
+	var idGeneratorNumber = 0
+	val idGenerator: () -> String = {
+		"q-${idGeneratorNumber++}"
+	}
+
+	for (sectionPart in content) {
+		div("section-part") {
+			renderTitle(sectionPart.title, lang, ::h2)
+			renderText(sectionPart.text, lang, ::p)
+
+			if (sectionPart is QuestionnaireTemplate.SectionContent.Question) {
+				renderQuestion(sectionPart.id, sectionPart.required, sectionPart.type, lang, existingResponses, idGenerator)
+			}
+		}
+	}
+}
+
 fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
 	when (type) {
 		is QuestionnaireTemplate.QuestionType.TimeVariable.OneOf -> renderQuestion(id, required, type, lang, existingResponses, idGenerator)
@@ -51,34 +101,9 @@ fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Questionnaire
 }
 
 private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.FreeText, lang: TemplateLang, existingResponses:Map<String, String>) {
-	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
-	val value = existingResponses[id] ?: ""
-
-	when (type.type) {
-		QuestionnaireTemplate.InputType.SENTENCE -> {
-			textInput(name = name, classes="free-text") {
-				this.required = required
-				this.value = value
-				type.placeholder.mainText(lang)?.let { this.placeholder = it }
-			}
-		}
-		QuestionnaireTemplate.InputType.PARAGRAPH -> {
-			TEXTAREA(attributesMapOf(
-					"name", name,
-					"required", required.toString(),
-					"placeholder", type.placeholder.mainText(lang),
-					"class", "free-text"), consumer).visit {
-				+value
-			}
-		}
-		QuestionnaireTemplate.InputType.NUMBER -> {
-			numberInput(name = name, classes="free-text") {
-				this.required = required
-				this.value = value
-				type.placeholder.mainText(lang)?.let { this.placeholder = it }
-			}
-		}
-	}
+	renderInput("$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id",
+			type.type, required, "free-text",
+			existingResponses[id], type.placeholder.mainText(lang))
 }
 
 private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeProgression, lang: TemplateLang, existingResponses:Map<String, String>) {
@@ -145,19 +170,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 				renderText(option.detail, lang, ::span, "one-of-detail-title")
 
 				val detailId = "$id-detail-${option.value}"
-				val detailValue = existingResponses[detailId] ?: ""
-				val detailName = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$detailId"
-				when (option.detailType) {
-					QuestionnaireTemplate.InputType.SENTENCE -> {
-						textInput(name = detailName, classes = "one-of-detail-input") { this.value = detailValue }
-					}
-					QuestionnaireTemplate.InputType.PARAGRAPH -> {
-						TEXTAREA(attributesMapOf("name", detailName, "class", "one-of-detail-input"), consumer).visit { +detailValue }
-					}
-					QuestionnaireTemplate.InputType.NUMBER -> {
-						numberInput(name = detailName, classes="one-of-detail-input") { this.value = detailValue }
-					}
-				}
+				renderInput("$FORM_PARAM_QUESTION_RESPONSE_PREFIX$detailId",
+						option.detailType, false, "one-of-detail-input",
+						existingResponses[detailId], null)
 			}
 		}
 	}

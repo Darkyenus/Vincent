@@ -109,13 +109,24 @@ object Accounts : LongIdTable() {
 	val timeLastLogin = timestamp("time_last_login")
 }
 
+object DemographyInfo : Table() {
+	val user = long("user").references(Accounts.id)
+	private const val MAX_QUESTION_ID_LENGTH = 64
+	val questionId = varchar("question_id", MAX_QUESTION_ID_LENGTH)
+
+	const val MAX_RESPONSE_LENGTH = 1024
+	val response = varchar("response", MAX_RESPONSE_LENGTH)
+
+	override val primaryKey = PrimaryKey(user, questionId)
+}
+
 object QuestionnaireTemplates : LongIdTable() {
 	val createdBy = long("created_by").references(Accounts.id, onDelete=ReferenceOption.SET_NULL, onUpdate=ReferenceOption.CASCADE).nullable()
 	/** Name of the template. Derived from the XML. */
 	val name = varchar("name", 128)
 	val timeCreated = timestamp("time_created").defaultExpression(CurrentTimestamp())
 
-	val template_xml = blob("template_xml")
+	val templateXml = blob("template_xml")
 
 	val CACHE: LoadingCache<Long, QuestionnaireTemplate> = CacheBuilder.newBuilder()
 			.expireAfterAccess(Duration.ofHours(24L))
@@ -124,9 +135,9 @@ object QuestionnaireTemplates : LongIdTable() {
 				override fun load(key: Long): QuestionnaireTemplate {
 					val bytes = transaction {
 						QuestionnaireTemplates
-								.slice(template_xml)
+								.slice(templateXml)
 								.select { QuestionnaireTemplates.id eq key }
-								.firstOrNull()?.let { row -> row[template_xml].bytes }
+								.firstOrNull()?.let { row -> row[templateXml].bytes }
 					} ?: throw NoSuchElementException("No such template")
 
 					return ByteArrayInputStream(bytes).use {
@@ -239,6 +250,7 @@ fun createSchemaTables() {
 	transaction {
 		SchemaUtils.create(
 				Accounts,
+				DemographyInfo,
 				QuestionnaireTemplates,
 				Questionnaires,
 				QuestionnaireParticipants,

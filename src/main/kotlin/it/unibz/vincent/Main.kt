@@ -7,6 +7,8 @@ import io.undertow.server.RoutingHandler
 import io.undertow.server.handlers.ResponseCodeHandler
 import io.undertow.server.handlers.resource.PathResourceManager
 import io.undertow.server.handlers.resource.ResourceHandler
+import it.unibz.vincent.pages.setupAccountListRoutes
+import it.unibz.vincent.pages.setupDemographyRoutes
 import it.unibz.vincent.pages.setupHomeRoutes
 import it.unibz.vincent.pages.setupQuestionnaireAnswerRoutes
 import it.unibz.vincent.pages.setupQuestionnaireEditRoutes
@@ -19,7 +21,6 @@ import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
-import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
@@ -99,6 +100,8 @@ fun main(args: Array<String>) {
 	routingHandler.setupHomeRoutes()
 	routingHandler.setupQuestionnaireEditRoutes()
 	routingHandler.setupQuestionnaireAnswerRoutes()
+	routingHandler.setupDemographyRoutes()
+	routingHandler.setupAccountListRoutes()
 
 	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
 	onShutdown {
@@ -139,21 +142,13 @@ fun main(args: Array<String>) {
 						if (updated == 0) {
 							println("No such user")
 						} else {
+							transaction {
+								for (row in Accounts.slice(Accounts.id).select { Accounts.email eq email }) {
+									flushSessionCache(row[Accounts.id].value)
+								}
+							}
 							LOG.info("CLI: Account level of {} changed to {}", email, type)
 						}
-					}
-				}
-				"list-accounts" -> {
-					transaction {
-						val rowFormat = "%8s | %20s | %20s | %6s | %8s | %24s | %24s"
-						println(rowFormat.format("ID", "E-Mail", "Name", "Type", "Code", "Registered", "Last Login"))
-						println(rowFormat.format("--------", "--------------------", "--------------------", "------", "--------", "------------------------", "------------------------"))
-						var total = 0
-						for (row in Accounts.selectAll()) {
-							println(rowFormat.format(row[Accounts.id], row[Accounts.email], row[Accounts.name], row[Accounts.accountType], row[Accounts.code] ?: "none", row[Accounts.timeRegistered], row[Accounts.timeLastLogin]))
-							total++
-						}
-						println("\tTotal: $total")
 					}
 				}
 				"reserve-code" -> {
@@ -208,8 +203,6 @@ fun main(args: Array<String>) {
 					println("\tStop the server")
 					println("account <email> <${AccountType.values().joinToString("|")}>")
 					println("\tChange account type")
-					println("list-accounts")
-					println("\tList all accounts")
 					println("reserve-code <email> <code>")
 					println("\tReserve given code for account with given e-mail")
 				}
