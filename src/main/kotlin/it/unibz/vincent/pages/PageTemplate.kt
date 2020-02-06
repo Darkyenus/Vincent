@@ -177,7 +177,7 @@ fun HttpServerExchange.messageWarning(text:String?) {
 		messages.warningMessages = it
 	}
 	list.add(text)
-	this.addExchangeCompleteListener(MESSAGE_KEEPER)
+	addExchangeCompleteListener(MESSAGE_KEEPER)
 }
 
 fun HttpServerExchange.messageInfo(text:String?) {
@@ -189,7 +189,7 @@ fun HttpServerExchange.messageInfo(text:String?) {
 		messages.infoMessages = it
 	}
 	list.add(text)
-	this.addExchangeCompleteListener(MESSAGE_KEEPER)
+	addExchangeCompleteListener(MESSAGE_KEEPER)
 }
 
 private fun FlowContent.renderMessageBox(own:List<String>, stashed:List<String>, classes:String) {
@@ -219,15 +219,15 @@ private fun FlowContent.renderMessageBox(own:List<String>, stashed:List<String>,
 }
 
 fun FlowContent.renderMessages(exchange:HttpServerExchange) {
-	val messages = exchange.getAttachment(messageAttachment) ?: return
-	val session = exchange.session()
+	val messages: Messages? = exchange.getAttachment(messageAttachment)
+	val session: Session? = exchange.session()
 
-	val warningMessages = messages.warningMessages
+	val warningMessages = messages?.warningMessages
 	val stashedWarningMessages = session?.retrieveStashedMessages(Session.MessageType.WARNING)
 	renderMessageBox(warningMessages ?: emptyList(), stashedWarningMessages ?: emptyList(), "warning box")
 	warningMessages?.clear()
 
-	val infoMessages = messages.infoMessages
+	val infoMessages = messages?.infoMessages
 	val stashedInfoMessages = session?.retrieveStashedMessages(Session.MessageType.INFO)
 	renderMessageBox(infoMessages ?: emptyList(), stashedInfoMessages ?: emptyList(), "info box")
 	infoMessages?.clear()
