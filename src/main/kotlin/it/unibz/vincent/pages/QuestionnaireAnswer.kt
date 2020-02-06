@@ -297,20 +297,22 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 
 			// Render title
 			div("page-section") {
-				style = "text-align: center;"
 				renderTitle(section.title, lang, ::h1)
 
 				renderMessages(exchange)
 
 				when (if (participation.wineCount > 0) section.shownWine else QuestionnaireTemplate.Section.ShownWine.NONE) {
 					QuestionnaireTemplate.Section.ShownWine.CURRENT -> {
-						p("sub") { +"Wine: ${participation.wineCode}" }
+						div("section-part wine-list") {
+							span("wine-list-title") { +"Wine: " }
+							span("wine-list-element-single") { +"${participation.wineCode}" }
+						}
 					}
 					QuestionnaireTemplate.Section.ShownWine.NONE -> {}
 					QuestionnaireTemplate.Section.ShownWine.ALL -> {
-						div("wine-list") {
-							+"Wines:"
-							ol {
+						div("section-part wine-list") {
+							span("wine-list-title") { +"Wines" }
+							div("wine-list-elements") {
 								transaction {
 									var alreadyDone = true
 									for (row in WineParticipantAssignment
@@ -321,11 +323,11 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 										val wineCode = row[QuestionnaireWines.code]
 										if (wineCode == participation.wineCode) {
 											alreadyDone = false
-											li("wine-list-current") { +"$wineCode" }
+											span("wine-list-element current") { +"$wineCode" }
 										} else if (alreadyDone) {
-											li("wine-list-past") { +"$wineCode" }
+											span("wine-list-element past") { +"$wineCode" }
 										} else {
-											li("wine-list-future") { +"$wineCode" }
+											span("wine-list-element future") { +"$wineCode" }
 										}
 									}
 								}

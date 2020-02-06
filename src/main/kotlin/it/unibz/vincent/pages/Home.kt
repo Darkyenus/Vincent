@@ -50,6 +50,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 const val HOME_PATH = "/"
@@ -315,6 +316,8 @@ fun HttpServerExchange.home(session: Session) {
 }
 
 fun RoutingHandler.setupHomeRoutes() {
+	val defaultNameDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
+
 	POST(HOME_PATH, AccountType.STAFF, "questionnaire-new") { exchange ->
 		val session = exchange.session()!!
 
@@ -328,7 +331,7 @@ fun RoutingHandler.setupHomeRoutes() {
 
 		val newQuestionnaireId = transaction {
 			Questionnaires.insertAndGetId {
-				it[name] = "New questionnaire ${Instant.now()}" // TODO(jp): Better default name
+				it[name] = "New questionnaire ${defaultNameDateFormatter.format(Instant.now())}"
 				it[createdBy] = session.userId
 				it[template] = templateId
 			}.value

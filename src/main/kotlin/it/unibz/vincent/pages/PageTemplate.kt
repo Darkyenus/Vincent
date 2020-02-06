@@ -198,21 +198,22 @@ private fun FlowContent.renderMessageBox(own:List<String>, stashed:List<String>,
 		return
 	}
 
-	if (totalCount == 1) {
-		div(classes) {
+	div(classes) {
+		if (totalCount == 1) {
 			if (own.isNotEmpty()) {
 				+own[0]
 			} else {
 				+stashed[0]
 			}
-		}
-	} else {
-		ul {
-			for (message in own) {
-				li { +message }
-			}
-			for (message in stashed) {
-				li { +message }
+
+		} else {
+			ul {
+				for (message in own) {
+					li { +message }
+				}
+				for (message in stashed) {
+					li { +message }
+				}
 			}
 		}
 	}

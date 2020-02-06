@@ -6,7 +6,7 @@
     <title lang="it">Questionario sul vino</title>
     <title lang="cs">Dotazník o víně</title>
 
-    <section stage="only-first">
+    <section stage="only-first" shown-wine="all">
         <title>Welcome</title>
         <title lang="cs">Vítejte</title>
 
@@ -230,7 +230,7 @@
         </question>
     </section>
 
-    <section stage="only-last">
+    <section stage="only-last" shown-wine="none">
         <title>Goodbye</title>
         <info>
             <text>Thank you for your participation.</text>

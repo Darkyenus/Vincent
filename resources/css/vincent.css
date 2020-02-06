@@ -123,14 +123,25 @@ input[type="button"] {
 button:hover,
 input[type="submit"]:hover,
 input[type="reset"]:hover,
-input[type="button"]:hover,
+input[type="button"]:hover {
+  color: #333;
+  border-color: #888;
+  outline: 0; }
+
 button:focus,
 input[type="submit"]:focus,
 input[type="reset"]:focus,
 input[type="button"]:focus {
-  color: #333;
-  border-color: #888;
-  outline: 0; }
+	color: #333;
+	box-shadow: 0px 0px 0px 3px #7db3fc;
+}
+
+button:active,
+input[type="submit"]:active,
+input[type="reset"]:active,
+input[type="button"]:active {
+	background-color: #0001;
+}
 
 button.button-primary,
 input[type="submit"].button-primary,
@@ -145,13 +156,14 @@ form:valid input[type="submit"] {
     animation-name: submit-glow;
     animation-fill-mode: forwards;
 }
-
 @keyframes submit-glow {
-  to {
-    color: #FFF;
-    background-color: #33D662;
-    border-color: #33D662;
-  }
+  to { color: #FFF; background-color: #33D662; border-color: #33D662; }
+}
+form:valid input[type="submit"]:hover {
+	border-color: #28B350 !important; /* override animation */
+}
+form:valid input[type="submit"]:active {
+	background-color: #31C45A !important; /* override animation */
 }
 
 button.button-primary:hover,
@@ -371,6 +383,11 @@ hr {
 	text-align: center;
 }
 
+/* General question styling */
+.section-part p:last-child {
+	margin-bottom: 0;
+}
+
 /* Info boxes */
 .box {
 	width: 100%;
@@ -507,6 +524,9 @@ hr {
 /* Free text question */
 .free-text {
 	width: 100%;
+	resize: vertical;
+	min-width: 100%;
+	max-width: 100%;
 }
 
 /* Min-time ticker section */
@@ -531,6 +551,42 @@ input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
 	color: #666;
 	font-variant: small-caps;
 }
+
+/* Wine list */
+.wine-list {
+	background: #EEE;
+	padding: 1.5rem;
+	text-align: center;
+}
+.wine-list-title {
+	font-variant: small-caps;
+    font-weight: bold;
+    color: #222;
+}
+.wine-list-elements {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: baseline;
+}
+.wine-list-element-single {
+	margin: 0.3rem;
+	font-weight: bold;
+}
+.wine-list-element {margin: 1rem;}
+.wine-list-element::after {
+	content: "➤";
+	margin-left: 2rem;
+	font-size: 2rem;
+	vertical-align: middle;
+}
+.wine-list-element:last-child::after {display: none;}
+.wine-list-element.current {
+	font-weight: bold;
+	font-size: larger;
+}
+.wine-list-element.past {color: #666;}
+.wine-list-element.future {}
 
 /* Account list */
 .al-cell-bad {

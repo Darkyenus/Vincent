@@ -307,7 +307,6 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 		return
 	}
 
-	val doingColors = entries.size > 1
 	val colorMap = IntIntHashMap(rounds)
 
 	h2 { +"Participant Wine Assignment" }
@@ -338,17 +337,13 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 					for (entry in entries) {
 						val wineCode = entry[round].wineCode
 
-						var bgClass:String? = null
-						if (doingColors) {
-							var bg = colorMap.getOrDefault(wineCode, -1)
-							if (bg < 0) {
-								bg = colorMap.size()
-								colorMap.put(wineCode, bg)
-							}
-							bgClass = "bg bg-p$bg"
+						var bg = colorMap.getOrDefault(wineCode, -1)
+						if (bg < 0) {
+							bg = colorMap.size()
+							colorMap.put(wineCode, bg)
 						}
 
-						td(bgClass) {
+						td("bg bg-p$bg") {
 							span("at-code") { +wineCode.toString() }
 							span("at-title") { +entry[round].wineName }
 						}
@@ -609,6 +604,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		transaction {
+			var rejectedAny = false
 			val users = exchange.formString(PARAM_USERS)
 					?.split(',')
 					?.mapNotNull { userSpecificationRaw ->
@@ -617,6 +613,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 							val id = Accounts.slice(Accounts.id).select { Accounts.email eq userSpecification }.limit(1).firstOrNull()?.let{ it[Accounts.id].value }
 							if (id == null) {
 								exchange.messageWarning("No user with e-mail $userSpecification found")
+								rejectedAny = true
 							}
 							id
 						} else if (userSpecification.all { it in '0'..'9' }) {
@@ -628,16 +625,19 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 							}
 							if (id == null) {
 								exchange.messageWarning("No user with code $userSpecification found")
+								rejectedAny = true
 							}
 							id
 						} else if (userSpecification.startsWith(GUEST_CODE_PREFIX)) {
 							val accountId = guestCodeToAccountId(userSpecification)
 							if (accountId == null) {
 								exchange.messageWarning("$userSpecification is not a valid guest code")
+								rejectedAny = true
 								return@mapNotNull null
 							}
 							if (Accounts.select { (Accounts.id eq accountId) and (Accounts.accountType eq AccountType.GUEST) }.empty()) {
 								exchange.messageWarning("Guest $userSpecification does not exist")
+								rejectedAny = true
 								return@mapNotNull null
 							}
 							accountId
@@ -651,18 +651,18 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 							if (count == 0) {
 								exchange.messageWarning("No user named $userSpecification found")
+								rejectedAny = true
 								null
 							} else if (count == 1) {
 								id
 							} else {
 								exchange.messageWarning("Name $userSpecification is ambiguous - $count candidates found, specify differently")
+								rejectedAny = true
 								null
 							}
 						}
 					} ?: emptyList()
-			if (users.isEmpty()) {
-				exchange.messageWarning("No valid users specified")
-			} else {
+			if (users.isNotEmpty()) {
 				var duplicates = 0
 				var errors = 0
 				val invited = ArrayList<Long>()
@@ -712,6 +712,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 				} else if (invited.size > 1) {
 					exchange.messageInfo("${users.size} participants invited")
 				}
+			} else if (!rejectedAny) {
+				exchange.messageWarning("No valid users specified")
 			}
 		}
 

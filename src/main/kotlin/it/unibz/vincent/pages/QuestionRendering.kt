@@ -45,7 +45,9 @@ fun renderText(text:List<QuestionnaireTemplate.Text>, lang: TemplateLang, tag: K
 private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.InputType, required:Boolean, classes:String?, value:String?, placeholder:String?) {
 	if (type.inputType != null) {
 		input(name = name, type = type.inputType, classes=classes) {
-			this.required = required
+			if (required) {
+				this.required = true
+			}
 			if (value != null) {
 				this.value = value
 			}
@@ -63,9 +65,11 @@ private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.In
 		assert(type == QuestionnaireTemplate.InputType.PARAGRAPH)
 		TEXTAREA(attributesMapOf(
 				"name", name,
-				"required", required.toString(),
 				"placeholder", placeholder,
 				"class", classes), consumer).visit {
+			if (required) {
+				this.required = true
+			}
 			if (value != null) {
 				+value
 			}
@@ -140,7 +144,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 					}
 
 					radioInput(name=name, classes="one-of-detail-radio") {
-						this.required = required
+						if (required) {
+							this.required = true
+						}
 						if (option.hasDetail) {
 							val newId = idGenerator()
 							radioIds.add(newId)
@@ -199,7 +205,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 			label("scale-item") {
 				p { +value }
 				radioInput(name = name) {
-					this.required = required
+					if (required) {
+						this.required = true
+					}
 					this.value = value
 					if (picked == value) {
 						this.checked = true

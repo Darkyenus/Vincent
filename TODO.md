@@ -1,5 +1,4 @@
 # Test
-- shown-wine=all
 
 # Implement
 - Do not allow to open questionnaire when there are wine code duplicates
@@ -11,3 +10,4 @@
 - Implement guest accounts, with separate codes
 - Change own password
 - Forgot password
+- Better CSS for forms under tables
