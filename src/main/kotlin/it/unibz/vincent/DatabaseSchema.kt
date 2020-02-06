@@ -200,6 +200,9 @@ object QuestionnaireWines : LongIdTable() {
 	/** Primary code assigned to this wine for this questionnaire */
 	val code = integer("code")
 
+	init {
+		index(false, questionnaire)
+	}
 
 	/** Call in transaction. */
 	fun findUniqueCode(questionnaireId:Long, primary:Int = -1):Int {

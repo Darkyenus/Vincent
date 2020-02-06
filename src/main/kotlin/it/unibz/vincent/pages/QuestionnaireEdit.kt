@@ -214,6 +214,11 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
  * - Add new wine (only if not started yet)
  */
 private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack, questionnaire: Questionnaire) {
+	if (!questionnaire.hasWines) {
+		// This is by default true and becomes false only after opening
+		return
+	}
+
 	h2 { +"Wines" }
 
 	var empty = true
@@ -311,6 +316,11 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 private fun FlowContent.questionnaireWineParticipantAssociations(session: Session, locale: LocaleStack, questionnaire: Questionnaire) {
 	data class Entry(val participantName:String, val panelistCode:Int?, val accountId:Long, val wineName:String, val wineCode:Int)
 
+	if (!questionnaire.hasWines) {
+		// This is by default true and becomes false only after opening
+		return
+	}
+
 	val entries = ArrayList<ArrayList<Entry>>()
 
 	// Collect data
@@ -339,8 +349,6 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[Accounts.id].value, row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
 		}
 	}
-
-
 
 	if (entries.isEmpty()) {
 		return
@@ -435,7 +443,7 @@ private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStac
 	}
 }
 
-private class Questionnaire(val id:Long, val name:String, val state:QuestionnaireState, val templateId:Long, val templateName:String)
+private class Questionnaire(val id:Long, val name:String, val state:QuestionnaireState, val templateId:Long, val templateName:String, val hasWines:Boolean)
 private val QUESTIONNAIRE_KEY = AttachmentKey.create(Questionnaire::class.java)
 
 private fun HttpServerExchange.dropQuestionnaire() {
@@ -459,7 +467,7 @@ private fun HttpServerExchange.questionnaire():Questionnaire? {
 		Questionnaires
 				.leftJoin(QuestionnaireTemplates, { template }, { QuestionnaireTemplates.id })
 				.select { Questionnaires.id eq questionnaireId }.limit(1).firstOrNull()?.let {
-					questionnaire = Questionnaire(questionnaireId, it[Questionnaires.name], it[Questionnaires.state], it[Questionnaires.template], it[QuestionnaireTemplates.name])
+					questionnaire = Questionnaire(questionnaireId, it[Questionnaires.name], it[Questionnaires.state], it[Questionnaires.template], it[QuestionnaireTemplates.name], it[Questionnaires.hasWines])
 				}
 	}
 
@@ -564,7 +572,6 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		class WineParticipant(val wineId:Long?, val wineName:String, val participantId:Long, val participantCode:String)
 
 		val responses = LinkedHashMap<WineParticipant, Array<String?>>()
-		var hasWines = false
 
 		transaction {
 			var lastParticipant:WineParticipant? = null
@@ -577,11 +584,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 					.orderBy(QuestionnaireResponses.wine)
 					.orderBy(QuestionnaireResponses.participant)) {
 
-				val wineId = row.getOrNull(QuestionnaireResponses.wine)
-				if (wineId != null) {
-					hasWines = true
-				}
-				val wineName = if (wineId != null) row.getOrNull(QuestionnaireWines.name) ?: "" else ""
+				val wineId = row[QuestionnaireResponses.wine]
+				val wineName = row[QuestionnaireWines.name]
 
 				val participantId = row[QuestionnaireResponses.participant]
 				if (lastParticipant == null) {
@@ -609,6 +613,8 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 				return Charsets.UTF_8.encode(CharBuffer.wrap(buf, 0, count))
 			}
 		}
+
+		val hasWines = questionnaire.hasWines
 		CSVWriter(writer).use { csv ->
 			// Header
 			csv.item("participant")
@@ -945,10 +951,28 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		val updated = transaction {
-			// TODO(jp): Check if there are no wines and add a dummy wine and all that
+			val wineCount = QuestionnaireWines.select { (QuestionnaireWines.questionnaire eq questionnaire.id) }.count()
+			if (wineCount <= 0) {
+				// This is a wine-less questionnaire, generate null wine and hide it
+				// This is required because the whole DB schema relies on foreign key guarantees and the wine also appears in PK.
+				QuestionnaireWines.insert {
+					it[QuestionnaireWines.name] = "none"
+					it[QuestionnaireWines.questionnaire] = questionnaire.id
+					it[QuestionnaireWines.code] = 0
+				}
+
+				// Regenerate assignments
+				regenerateWineAssignments(questionnaire.id)
+			}
+
 			Questionnaires.update(
 					where={ (Questionnaires.id eq questionnaire.id) and (Questionnaires.state eq QuestionnaireState.CREATED) },
-					limit=1) { it[state] = QuestionnaireState.RUNNING }
+					limit=1) {
+				it[state] = QuestionnaireState.RUNNING
+				if (wineCount <= 0) {
+					it[Questionnaires.hasWines] = false
+				}
+			}
 		}
 		if (updated == 1) {
 			exchange.messageInfo("Questionnaire opened")

@@ -1,7 +1,6 @@
 # Test
 
 # Implement
-- Reimplement no-wine questionnaires through a hidden null-wine for better DB schema consistency
 
 # Backlog
 - Proper header with back buttons and link to profile page

@@ -122,31 +122,32 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 	var templateId:Long? = null
 	var questionnaireName = ""
 	var questionnaireState: QuestionnaireState = QuestionnaireState.CLOSED
+	var hasWines = true
+	var participationState: QuestionnaireParticipationState? = null
 
-	val state: QuestionnaireParticipationState? = transaction {
-		wineCount = WineParticipantAssignment.select {
-			(WineParticipantAssignment.questionnaire eq questionnaireId) and
-					(WineParticipantAssignment.participant eq session.userId) }
-				.count()
-
+	transaction {
 		QuestionnaireParticipants
 				.leftJoin(Questionnaires, { questionnaire }, { Questionnaires.id })
-				.slice(QuestionnaireParticipants.currentSection, QuestionnaireParticipants.currentSectionStartedAt, QuestionnaireParticipants.currentWineIndex, QuestionnaireParticipants.state, Questionnaires.template, Questionnaires.state, Questionnaires.name)
+				.slice(QuestionnaireParticipants.currentSection, QuestionnaireParticipants.currentSectionStartedAt, QuestionnaireParticipants.currentWineIndex, QuestionnaireParticipants.state, Questionnaires.template, Questionnaires.state, Questionnaires.name, Questionnaires.hasWines)
 				.select { (QuestionnaireParticipants.participant eq session.userId) and (QuestionnaireParticipants.questionnaire eq questionnaireId) }
 				.limit(1)
 				.firstOrNull()?.let {
 					currentSection = it[QuestionnaireParticipants.currentSection]
 					currentSectionStartedAt = it[QuestionnaireParticipants.currentSectionStartedAt]
 					currentWineIndex = it[QuestionnaireParticipants.currentWineIndex]
+					participationState = it[QuestionnaireParticipants.state]
 					templateId = it[Questionnaires.template]
+					hasWines = it[Questionnaires.hasWines]
 					questionnaireName = it.getOrNull(Questionnaires.name) ?: "Questionnaire"
 					questionnaireState = it.getOrNull(Questionnaires.state) ?: QuestionnaireState.CLOSED
-
-					it[QuestionnaireParticipants.state]
 				}
+
+		if (hasWines) {
+			wineCount = QuestionnaireWines.select { (QuestionnaireWines.questionnaire eq questionnaireId) }.count()
+		}
 	}
 
-	if (state == null) {
+	if (participationState == null) {
 		statusCode = StatusCodes.FORBIDDEN
 		messageWarning("That questionnaire does not exist, or you weren't invited")
 		home(session)
@@ -160,7 +161,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		return null
 	}
 
-	if (state == QuestionnaireParticipationState.DONE) {
+	if (participationState == QuestionnaireParticipationState.DONE) {
 		// Redirect home, this questionnaire is already done
 		redirect(HOME_PATH)
 		return null
@@ -175,7 +176,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 		return null
 	}
 
-	if (state == QuestionnaireParticipationState.INVITED) {
+	if (participationState == QuestionnaireParticipationState.INVITED) {
 		// Mark as started and set appropriate section
 		val wineSection = nextSection(-1, 0, wineCount, template)
 		val now = Instant.now()
@@ -209,17 +210,15 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 	var wineCode:Int = -1
 	var wineId:Long = -1
 
-	if (wineCount > 0) {
-		transaction {
-			WineParticipantAssignment
-					.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
-					.slice(WineParticipantAssignment.wine, QuestionnaireWines.code)
-					.select { (WineParticipantAssignment.questionnaire eq questionnaireId) and (WineParticipantAssignment.participant eq session.userId) and (WineParticipantAssignment.order eq currentWineIndex) }
-					.limit(1).firstOrNull()?.let { row ->
-						wineId = row[WineParticipantAssignment.wine]
-						wineCode = row[QuestionnaireWines.code]
-					}
-		}
+	transaction {
+		WineParticipantAssignment
+				.leftJoin(QuestionnaireWines, { wine }, { QuestionnaireWines.id })
+				.slice(WineParticipantAssignment.wine, QuestionnaireWines.code)
+				.select { (WineParticipantAssignment.questionnaire eq questionnaireId) and (WineParticipantAssignment.participant eq session.userId) and (WineParticipantAssignment.order eq currentWineIndex) }
+				.limit(1).firstOrNull()?.let { row ->
+					wineId = row[WineParticipantAssignment.wine]
+					wineCode = row[QuestionnaireWines.code]
+				}
 	}
 
 	val minTimeSeconds = template.sections[currentSection].minTimeSeconds
