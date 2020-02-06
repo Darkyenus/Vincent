@@ -112,6 +112,32 @@ class Session(val sessionId:String, val userId:Long) {
 		doFlushCache() // Just in case this was ejected from the cache
 		flushSessionCache(userId)
 	}
+
+	enum class MessageType {
+		INFO,
+		WARNING
+	}
+	private val messageStashes = Array(MessageType.values().size) { ArrayList<String>() }
+
+	fun stashMessages(messages:List<String>, type:MessageType) {
+		val stash = messageStashes[type.ordinal]
+		synchronized(stash) {
+			stash.addAll(messages)
+		}
+	}
+
+	fun retrieveStashedMessages(type:MessageType):List<String> {
+		val stash = messageStashes[type.ordinal]
+		return synchronized(stash) {
+			if (stash.isEmpty()) {
+				emptyList()
+			} else {
+				val result = ArrayList(stash)
+				stash.clear()
+				result
+			}
+		}
+	}
 }
 
 /** @see Sesstion.flushCache */

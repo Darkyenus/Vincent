@@ -81,6 +81,10 @@ fun HtmlBlockTag.renderSectionContent(content:List<QuestionnaireTemplate.Section
 
 	for (sectionPart in content) {
 		div("section-part") {
+			if (sectionPart is QuestionnaireTemplate.SectionContent.Question && !sectionPart.required) {
+				span("question-optional") { this.title="You do not have to answer this question"; +"Optional" }
+			}
+
 			renderTitle(sectionPart.title, lang, ::h2)
 			renderText(sectionPart.text, lang, ::p)
 
@@ -143,7 +147,7 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 							this.id = newId
 						}
 						this.value = option.value
-						if (checked == name) {
+						if (checked == option.value) {
 							this.checked = true
 						}
 					}
@@ -170,9 +174,10 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 				renderText(option.detail, lang, ::span, "one-of-detail-title")
 
 				val detailId = "$id-detail-${option.value}"
+				val existingDetail = existingResponses[detailId]
 				renderInput("$FORM_PARAM_QUESTION_RESPONSE_PREFIX$detailId",
 						option.detailType, false, "one-of-detail-input",
-						existingResponses[detailId], null)
+						existingDetail, null)
 			}
 		}
 	}

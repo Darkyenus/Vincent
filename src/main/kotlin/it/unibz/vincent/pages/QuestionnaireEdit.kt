@@ -29,6 +29,7 @@ import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.pathString
+import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
 import kotlinx.html.div
@@ -67,6 +68,14 @@ import java.sql.SQLException
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
 
 private const val PATH_QUESTIONNAIRE_ID = "qId"
+fun questionnaireEditPath(questionnaireId:Long):String {
+	return "/questionnaire/$questionnaireId/edit"
+}
+fun questionnaireResultsPath(questionnaireId:Long):String {
+	return "/questionnaire/$questionnaireId/results"
+}
+private const val QUESTIONNAIRE_EDIT_PATH_TEMPLATE = "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit"
+private const val QUESTIONNAIRE_RESULTS_PATH_TEMPLATE = "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/results"
 
 /**
  * List of:
@@ -116,7 +125,7 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 
 						if (questionnaire.state != QuestionnaireState.CLOSED) {
 							td {
-								postButton(session, "/questionnaire/${questionnaire.id}/edit",
+								postButton(session, questionnaireEditPath(questionnaire.id),
 										PARAM_USER_ID to accountId.toString(),
 										routeAction = ACTION_UNINVITE, confirmation = "Are you sure? This will delete all responses from this participant as well!") {
 									+"Uninvite"
@@ -136,7 +145,7 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 	}
 
 	if (questionnaire.state != QuestionnaireState.CLOSED) {
-		postForm("/questionnaire/${questionnaire.id}/edit") {
+		postForm(questionnaireEditPath(questionnaire.id)) {
 			session(session)
 			routeAction(ACTION_INVITE)
 			textInput(name = PARAM_USERS) { required = true; placeholder = "ex@mp.le, 123, ..." }
@@ -186,7 +195,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 					tr {
 						td { +(index++).toString() }
 						td {
-							postForm("/questionnaire/${questionnaire.id}/edit") {
+							postForm(questionnaireEditPath(questionnaire.id)) {
 								session(session)
 								routeAction(ACTION_RENAME_WINE)
 								hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
@@ -195,7 +204,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 						}
 						td {
 							if (questionnaire.state == QuestionnaireState.CREATED) {
-								postForm("/questionnaire/${questionnaire.id}/edit") {
+								postForm(questionnaireEditPath(questionnaire.id)) {
 									session(session)
 									routeAction(ACTION_WINE_UPDATE_CODE)
 									hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
@@ -207,7 +216,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 						}
 						if (questionnaire.state == QuestionnaireState.CREATED) {
 							td {
-								postButton(session, "/questionnaire/${questionnaire.id}/edit", PARAM_WINE_ID to wineId.toString(), routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
+								postButton(session, questionnaireEditPath(questionnaire.id), PARAM_WINE_ID to wineId.toString(), routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
 									icon(Icons.TRASH)
 								}
 							}
@@ -229,7 +238,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 	}
 
 	if (questionnaire.state == QuestionnaireState.CREATED) {
-		postForm("/questionnaire/${questionnaire.id}/edit") {
+		postForm(questionnaireEditPath(questionnaire.id)) {
 			session(session)
 			routeAction(ACTION_ADD_WINE)
 			label {
@@ -362,22 +371,22 @@ private fun FlowContent.questionnaireActions(session: Session, locale:LocaleStac
 		val warning = if (transaction { QuestionnaireWines.select { QuestionnaireWines.questionnaire eq questionnaire.id }.empty() }) {
 			"Do you really want to create a questionnaire without any wines?"
 		} else null
-		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_OPEN, confirmation = warning, classes="u-full-width", parentClasses="column") { +"Open the questionnaire" }
+		postButton(session, questionnaireEditPath(questionnaire.id), routeAction = ACTION_QUESTIONNAIRE_OPEN, confirmation = warning, classes="u-full-width", parentClasses="column") { +"Open the questionnaire" }
 	}
 
 	// Button to close
 	if (questionnaire.state == QuestionnaireState.RUNNING) {
-		postButton(session, "/questionnaire/${questionnaire.id}/edit", routeAction = ACTION_QUESTIONNAIRE_CLOSE, classes="u-full-width", parentClasses="column") { +"Close the questionnaire" }
+		postButton(session, questionnaireEditPath(questionnaire.id), routeAction = ACTION_QUESTIONNAIRE_CLOSE, classes="u-full-width", parentClasses="column") { +"Close the questionnaire" }
 	}
 
 	// Button to download results
 	if (questionnaire.state == QuestionnaireState.CLOSED) {
-		getButton("/questionnaire/${questionnaire.id}/results", classes="u-full-width", parentClasses="column") { +"Download results" }
+		getButton(questionnaireResultsPath(questionnaire.id), classes="u-full-width", parentClasses="column") { +"Download results" }
 	}
 
 	// Button to delete
 	if (questionnaire.state != QuestionnaireState.RUNNING) {
-		postButton(session, "/", PARAM_QUESTIONNAIRE_ID to questionnaire.id.toString(), routeAction= ACTION_QUESTIONNAIRE_DELETE, classes="dangerous u-full-width", parentClasses="column", confirmation="Do you really want to delete this questionnaire? Even results will be deleted!") {
+		postButton(session, HOME_PATH, PARAM_QUESTIONNAIRE_ID to questionnaire.id.toString(), routeAction= ACTION_QUESTIONNAIRE_DELETE, classes="dangerous u-full-width", parentClasses="column", confirmation="Do you really want to delete this questionnaire? Even results will be deleted!") {
 			+"Delete questionnaire"
 		}
 	}
@@ -423,7 +432,7 @@ private fun HttpServerExchange.questionnaire():Questionnaire? {
 }
 
 /** Page for editing questionnaires. */
-private fun HttpServerExchange.editQuestionnairePage() {
+private fun HttpServerExchange.showEditQuestionnairePage() {
 	val questionnaire = questionnaire() ?: return
 	val session = session()!!
 
@@ -434,7 +443,7 @@ private fun HttpServerExchange.editQuestionnairePage() {
 			div("page-section") {
 				h1 {
 					if (questionnaire.state == QuestionnaireState.CREATED) {
-						postForm("/questionnaire/${questionnaire.id}/edit") {
+						postForm(questionnaireEditPath(questionnaire.id)) {
 							session(session)
 							routeAction(ACTION_QUESTIONNAIRE_RENAME)
 							textInput(name = PARAM_QUESTIONNAIRE_NAME) {
@@ -450,7 +459,7 @@ private fun HttpServerExchange.editQuestionnairePage() {
 				p("sub") { +questionnaire.templateName }
 			}
 
-			renderMessages(this@editQuestionnairePage)
+			renderMessages(this@showEditQuestionnairePage)
 
 			// Participants
 			div("page-section") {
@@ -493,21 +502,21 @@ private const val PARAM_WINE_NAME = "wine-name"
 private const val PARAM_QUESTIONNAIRE_NAME = "questionnaire-name"
 
 fun RoutingHandler.setupQuestionnaireEditRoutes() {
-	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF) { exchange ->
-		exchange.editQuestionnairePage()
+	GET(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF) { exchange ->
+		exchange.showEditQuestionnairePage()
 	}
 
-	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/results", AccountType.STAFF) { exchange ->
+	GET(QUESTIONNAIRE_RESULTS_PATH_TEMPLATE, AccountType.STAFF) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@GET
 		if (questionnaire.state != QuestionnaireState.CLOSED) {
 			exchange.messageWarning("Close the questionnaire before downloading the results")
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@GET
 		}
 
 		val template = QuestionnaireTemplates.parsed(questionnaire.templateId) ?: run {
 			exchange.messageWarning("Template has been deleted") // probably
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@GET
 		}
 		val questionIds = template.questionIds
@@ -591,11 +600,11 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 	}
 
 	// Invite more
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_INVITE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_INVITE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state == QuestionnaireState.CLOSED) {
 			exchange.messageWarning("Can't invite more people after the questionnaire has closed")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -706,17 +715,17 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			}
 		}
 
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
 	// Uninvite some (and delete responses)
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_UNINVITE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_UNINVITE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		// No need for state check, people can be removed any time
 
 		val userId = exchange.formString(PARAM_USER_ID)?.toLongOrNull() ?: run {
 			exchange.messageWarning("No such user")
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@POST
 		}
 
@@ -726,7 +735,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 		if (deleted == 0) {
 			exchange.messageWarning("This user was not invited")
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@POST
 		}
 
@@ -745,14 +754,15 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		} else {
 			exchange.messageInfo("Successfully uninvited and $deletedResponses responses deleted")
 		}
-		exchange.editQuestionnairePage()
+
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_WINE_UPDATE_CODE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_WINE_UPDATE_CODE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
 			exchange.messageWarning("Can't change wine code after the questionnaire has been opened")
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@POST
 		}
 
@@ -761,7 +771,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 		if (wineId == null || newCode == null) {
 			exchange.messageWarning("Invalid change")
-			exchange.editQuestionnairePage()
+			exchange.showEditQuestionnairePage()
 			return@POST
 		}
 
@@ -774,14 +784,14 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		} else {
 			exchange.messageInfo("Wine code changed")
 		}
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_REMOVE_WINE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_REMOVE_WINE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
 			exchange.messageWarning("Can't delete wine after the questionnaire has been opened")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -801,17 +811,17 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			}
 			exchange.messageInfo("Wine removed")
 		}
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_RENAME_WINE) { exchange ->
-		exchange.questionnaire() ?: return@POST
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_RENAME_WINE) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
 		// Wine renaming is allowed always
 
 		val wineName = exchange.formString(PARAM_WINE_NAME) ?: ""
 		if (wineName.isBlank()) {
 			exchange.messageWarning("Wine name can't be blank")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -828,21 +838,21 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		} else {
 			exchange.messageInfo("Wine name changed")
 		}
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_ADD_WINE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_ADD_WINE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
 			exchange.messageWarning("Can't add new wines after the questionnaire was opened")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
 		val wineName = exchange.formString(PARAM_WINE_NAME) ?: ""
 		if (wineName.isBlank()) {
 			exchange.messageWarning("Specify wine name first")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -859,14 +869,14 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		exchange.messageInfo("Wine added")
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_RENAME) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_QUESTIONNAIRE_RENAME) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
 			exchange.messageWarning("Can't edit name of this questionnaire - it has already been opened")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -883,14 +893,14 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			exchange.messageWarning("Name of a questionnaire can't be blank")
 		}
 
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_OPEN) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_QUESTIONNAIRE_OPEN) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		if (questionnaire.state != QuestionnaireState.CREATED) {
 			exchange.messageWarning("Can't open this questionnaire - already opened")
-			exchange.editQuestionnairePage()
+			exchange.redirect(questionnaireEditPath(questionnaire.id))
 			return@POST
 		}
 
@@ -903,10 +913,10 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			exchange.messageInfo("Questionnaire opened")
 		}
 		exchange.dropQuestionnaire()
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit", AccountType.STAFF, ACTION_QUESTIONNAIRE_CLOSE) { exchange ->
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_QUESTIONNAIRE_CLOSE) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
 		val updated = transaction {
 			Questionnaires.update(
@@ -917,7 +927,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			exchange.messageInfo("Questionnaire closed")
 		}
 		exchange.dropQuestionnaire()
-		exchange.editQuestionnairePage()
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 }
 

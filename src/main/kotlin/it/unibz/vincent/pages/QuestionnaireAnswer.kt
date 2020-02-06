@@ -23,6 +23,7 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.formStrings
 import it.unibz.vincent.util.merge
 import it.unibz.vincent.util.pathString
+import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.div
 import kotlinx.html.h1
@@ -49,6 +50,11 @@ import kotlin.math.max
 private val LOG = LoggerFactory.getLogger("QuestionnaireAnswer")
 
 private const val PATH_QUESTIONNAIRE_ID = "qId"
+fun questionnaireAnswerPath(questionnaireId:Long):String {
+	return "/questionnaire/$questionnaireId"
+}
+private const val QUESTIONNAIRE_ANSWER_PATH_TEMPLATE = "/questionnaire/{$PATH_QUESTIONNAIRE_ID}"
+
 private const val ACTION_SUBMIT_SECTION = "submit-section"
 private const val FORM_PARAM_WINE_SECTION_CHECKSUM = "section"
 
@@ -161,8 +167,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 
 	if (state == QuestionnaireParticipationState.DONE) {
 		// Redirect home, this questionnaire is already done
-		statusCode = StatusCodes.SEE_OTHER
-		responseHeaders.put(Headers.LOCATION, "/")
+		redirect(HOME_PATH)
 		return null
 	}
 
@@ -263,7 +268,7 @@ private fun QuestionnaireParticipation.advanceSection(): Boolean {
 	return false
 }
 
-private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:QuestionnaireParticipation, highlightMissing:Boolean = false) {
+private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:QuestionnaireParticipation) {
 	val existingResponses = HashMap<String, String>()
 	try {
 		transaction {
@@ -280,6 +285,9 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 	} catch (e:Exception) {
 		LOG.error("Failed to retrieve existing responses for {}", participation, e)
 	}
+
+	// TODO(jp): Highlight missing required responses
+	val highlightMissing = existingResponses.isNotEmpty()
 
 	exchange.sendBase(participation.questionnaireName) { _, locale ->
 		val section = participation.template.sections[participation.currentSection]
@@ -328,7 +336,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 			}
 
 			// Render questions
-			postForm(action = "/questionnaire/${participation.questionnaireId}") {
+			postForm(action = questionnaireAnswerPath(participation.questionnaireId)) {
 				session(exchange.session()!!)
 				routeAction(ACTION_SUBMIT_SECTION)
 				hiddenInput(name = FORM_PARAM_WINE_SECTION_CHECKSUM) { value = participation.sectionChecksum.toString() }
@@ -375,13 +383,13 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 
 fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 
-	GET("/questionnaire/{$PATH_QUESTIONNAIRE_ID}", AccountType.NORMAL) { exchange ->
+	GET(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.NORMAL) { exchange ->
 		val participation = exchange.questionnaireParticipation() ?: return@GET
 		handleQuestionnaireShow(exchange, participation)
 	}
 
 	// Sent on next section button press
-	POST("/questionnaire/{$PATH_QUESTIONNAIRE_ID}", AccountType.NORMAL, ACTION_SUBMIT_SECTION) { exchange ->
+	POST(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.NORMAL, ACTION_SUBMIT_SECTION) { exchange ->
 		val participation = exchange.questionnaireParticipation() ?: return@POST
 
 		// Check that the answer belongs to a correct assignment
@@ -390,7 +398,7 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 			if (participation.sectionChecksum != requestedWineIndex) {
 				// Wrong part!
 				exchange.messageWarning("Questionnaire must be answered in order")
-				handleQuestionnaireShow(exchange, participation)
+				exchange.redirect(questionnaireAnswerPath(participation.questionnaireId))
 				return@POST
 			}
 		}
@@ -442,21 +450,18 @@ fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 
 		if (tooSoon) {
 			exchange.messageInfo("Please wait before advancing to next section")
-			handleQuestionnaireShow(exchange, participation)
 		} else {
 			// Check if all required questions are answered
 			val missingResponses = requiredQuestionIds - alreadyPresentResponses
 			if (missingResponses.isEmpty()) {
 				if (participation.advanceSection()) {
 					// Done
-					exchange.statusCode = StatusCodes.SEE_OTHER
-					exchange.responseHeaders.put(Headers.LOCATION, "/")
-				} else {
-					handleQuestionnaireShow(exchange, exchange.questionnaireParticipation() ?: return@POST)
+					exchange.redirect(HOME_PATH)
+					return@POST
 				}
-			} else {
-				handleQuestionnaireShow(exchange, participation, highlightMissing = true)
 			}
 		}
+
+		exchange.redirect(questionnaireAnswerPath(participation.questionnaireId))
 	}
 }

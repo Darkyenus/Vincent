@@ -3,8 +3,6 @@ package it.unibz.vincent.pages
 import com.ibm.icu.util.ULocale
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
-import io.undertow.util.Headers
-import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.DemographyInfo
 import it.unibz.vincent.session
@@ -19,6 +17,7 @@ import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formStrings
 import it.unibz.vincent.util.merge
+import it.unibz.vincent.util.redirect
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.p
@@ -27,7 +26,7 @@ import kotlinx.html.submitInput
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 
-const val DEMOGRAPHY_URL = "/demography"
+const val DEMOGRAPHY_PATH = "/demography"
 
 const val QID_PHONE_NUMBER = "phone-number"
 const val QID_GENDER = "gender"
@@ -153,17 +152,17 @@ private fun showDemographyQuestionnaire(exchange: HttpServerExchange) {
 			renderMessages(exchange)
 
 			div ("page-section") {
-				postForm(action = DEMOGRAPHY_URL) {
+				postForm(action = DEMOGRAPHY_PATH) {
 					session(session)
 					renderSectionContent(demographyQuestions, TemplateLang(ULocale.ENGLISH, locale), existingResponses)
-				}
-			}
 
-			div("section-buttons") {
-				if (existingResponses.isEmpty()) {
-					submitInput { value = "Finish" }
-				} else {
-					submitInput { value = "Save" }
+					div("section-buttons") {
+						if (existingResponses.isEmpty()) {
+							submitInput { value = "Finish" }
+						} else {
+							submitInput { value = "Save" }
+						}
+					}
 				}
 			}
 		}
@@ -183,11 +182,11 @@ fun hasUserFilledDemographyInfoSufficiently(userId:Long):Boolean {
 }
 
 fun RoutingHandler.setupDemographyRoutes() {
-	GET(DEMOGRAPHY_URL, AccountType.NORMAL, requireCompletedDemography = false) { exchange ->
+	GET(DEMOGRAPHY_PATH, AccountType.NORMAL, requireCompletedDemography = false) { exchange ->
 		showDemographyQuestionnaire(exchange)
 	}
 
-	POST(DEMOGRAPHY_URL, AccountType.NORMAL) { exchange ->
+	POST(DEMOGRAPHY_PATH, AccountType.NORMAL) { exchange ->
 		val session = exchange.session()!!
 
 		// Save responses
@@ -214,12 +213,11 @@ fun RoutingHandler.setupDemographyRoutes() {
 		if (missingResponses.isEmpty()) {
 			// Everything is filled, redirect home
 			session.flushCache()
-			exchange.statusCode = StatusCodes.SEE_OTHER
-			exchange.responseHeaders.put(Headers.LOCATION, "/")
+			exchange.redirect(HOME_PATH)
 		} else {
 			// Some questions are missing
 			exchange.messageWarning("Please fill out all required questions")
-			showDemographyQuestionnaire(exchange)
+			exchange.redirect(DEMOGRAPHY_PATH)
 		}
 	}
 }

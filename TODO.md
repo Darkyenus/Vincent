@@ -1,6 +1,4 @@
 # Test
-- Demographic questionnaire collection
-- Account list
 - shown-wine=all
 
 # Implement

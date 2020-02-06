@@ -187,7 +187,7 @@ fun main(args: Array<String>) {
 										it[Accounts.email] = userEmail
 										it[Accounts.password] = ByteArray(0)
 										it[accountType] = AccountType.RESERVED
-										it[timeRegistered] = Instant.EPOCH
+										it[timeRegistered] = Instant.now()
 										it[timeLastLogin] = Instant.EPOCH
 										it[code] = newCode
 									}

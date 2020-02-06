@@ -22,7 +22,7 @@ import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
-import it.unibz.vincent.pages.DEMOGRAPHY_URL
+import it.unibz.vincent.pages.DEMOGRAPHY_PATH
 import it.unibz.vincent.pages.base
 import it.unibz.vincent.pages.loginRegister
 import it.unibz.vincent.pages.messageWarning
@@ -218,6 +218,11 @@ private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, mes
 	}
 }
 
+fun HttpServerExchange.redirect(path:String, code:Int = StatusCodes.SEE_OTHER) {
+	statusCode = code
+	responseHeaders.put(Headers.LOCATION, path)
+}
+
 /** Wrap [handler] for extra functionality:
  * - make "urlencoded" content accessible
  * - make [HttpResponseException] work
@@ -316,15 +321,19 @@ private fun routeActionPredicate(action:String):Predicate {
 // SAM Conversion crutch, TODO: Remove after upgrading to Kotlin 1.4
 typealias KHttpHandler = (HttpServerExchange) -> Unit
 
+/**
+ * Handle a GET request.
+ *
+ * @param requireCompletedDemography if the request is authenticated, and the user has not filled the demography survey yet, redirect to that page instead
+ */
 @Suppress("FunctionName")
-fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeAction:String? = null, requireCompletedDemography:Boolean = true, handler:KHttpHandler) {
+fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeAction:String? = null, requireCompletedDemography:Boolean = accessLevel != null, handler:KHttpHandler) {
 	val authHandler = handler.handleAuthenticated(accessLevel, false)
-	val demographyHandler = if (accessLevel != null && requireCompletedDemography) {
+	val demographyHandler = if (requireCompletedDemography) {
 		HttpHandler { exchange ->
-			val session = exchange.session()!!
-			if (!session.hasDemographyFilledOut) {
-				exchange.statusCode = StatusCodes.SEE_OTHER
-				exchange.responseHeaders.put(Headers.LOCATION, DEMOGRAPHY_URL)
+			val session = exchange.session()
+			if (session != null && !session.hasDemographyFilledOut) {
+				exchange.redirect(DEMOGRAPHY_PATH)
 			} else {
 				authHandler.handleRequest(exchange)
 			}
@@ -337,6 +346,12 @@ fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeA
 	}
 }
 
+/**
+ * Handle a POST request.
+ *
+ * If this request does not fail in such a way that it would make sense to repeat the request (bad request, bad state, etc.),
+ * redirect instead. Especially on success.
+ */
 @Suppress("FunctionName")
 fun RoutingHandler.POST(template:String, accessLevel: AccountType? = null, routeAction:String? = null, handler:KHttpHandler) {
 	val idempotentHandler:KHttpHandler = if (accessLevel == null) handler else { exchange ->

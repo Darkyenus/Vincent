@@ -7,6 +7,7 @@ import io.undertow.server.RoutingHandler
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.DemographyInfo
+import it.unibz.vincent.accountIdToGuestCode
 import it.unibz.vincent.session
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.util.GET
@@ -32,13 +33,18 @@ import java.time.format.DateTimeFormatter
 
 private val LOG = LoggerFactory.getLogger("AccountList")
 
-const val ACCOUNT_LIST_URL = "/account-list"
+const val ACCOUNT_LIST_PATH = "/account-list"
 const val ACCOUNT_LIST_FILTER_PARAM = "filter"
-enum class AccountListFilter(val title:String, val hasQuestionnaire:Boolean) {
-	ALL("All accounts", true),
-	REGULAR("Regular accounts", true),
-	GUEST("Guest accounts", false),
-	RESERVED("Reserved codes", false);
+enum class AccountListFilter(
+		val title:String,
+		val hasQuestionnaire:Boolean,
+		val hasName:Boolean,
+		val hasAccountType:Boolean,
+		val hasLoginTime:Boolean) {
+	ALL("All accounts", true, true, true, true),
+	REGULAR("Regular accounts", true, true, true, true),
+	GUEST("Guest accounts", false, false, false, true),
+	RESERVED("Reserved codes", false, false, false, false);
 
 	private val toString = name.toLowerCase()
 	override fun toString(): String = toString
@@ -88,7 +94,7 @@ private fun TR.problemWithDetailTd(value:Boolean?, detail:String?, goodIs:Boolea
 
 	val text = if (detail == null || value == goodIs) valueStr else "$valueStr - $detail"
 
-	td(classes=if (value != goodIs) "account-list-problem-cell" else null) {
+	td(classes=if (value != goodIs) "al-cell-bad" else "al-cell-ok") {
 		+text
 	}
 }
@@ -145,7 +151,7 @@ private fun showAccountList(exchange: HttpServerExchange) {
 						else -> LOG.warn("Invalid food intolerance response: {}", response)
 					}
 				}
-				"$QID_FOOD_INTOLERANCE-detail" -> accountInfo.foodIntoleranceDetail = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
+				"$QID_FOOD_INTOLERANCE-detail-yes" -> accountInfo.foodIntoleranceDetail = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
 				QID_SULFITE_INTOLERANCE -> {
 					when (response.toLowerCase()) {
 						"yes" -> accountInfo.sulfiteIntolerance = true
@@ -174,7 +180,7 @@ private fun showAccountList(exchange: HttpServerExchange) {
 						else -> LOG.warn("Invalid smoking response: {}", response)
 					}
 				}
-				"$QID_SMOKING-detail" -> accountInfo.smokingDetail = response
+				"$QID_SMOKING-detail-yes" -> accountInfo.smokingDetail = response
 			}
 		}
 	}
@@ -189,18 +195,28 @@ private fun showAccountList(exchange: HttpServerExchange) {
 	}
 
 	exchange.sendBase("${filter.title} - Vincent") { _, locale ->
-		div("page-container") {
+		div("page-container-wide") {
 			h1 { +filter.title }
 
 			table {
 				thead {
 					tr {
-						th { +"Name" }
+						if (filter.hasName) {
+							th { +"Name" }
+						}
 						th { +"E-mail" }
-						th { +"Account type" }
+						if (filter.hasAccountType) {
+							th { +"Account type" }
+						}
 						th { +"Code" }
-						th { +"Registered at" }
-						th { +"Last login at" }
+						if (filter == AccountListFilter.RESERVED) {
+							th { +"Reserved at" }
+						} else {
+							th { +"Registered at" }
+						}
+						if (filter.hasLoginTime) {
+							th { +"Last login at" }
+						}
 
 						if (filter.hasQuestionnaire) {
 							th { +"Food intolerant" }
@@ -221,12 +237,24 @@ private fun showAccountList(exchange: HttpServerExchange) {
 				tbody {
 					for (info in sortedAccounts) {
 						tr {
-							td { +info.name }
+							if (filter.hasName) {
+								td { +info.name }
+							}
 							td { +info.email }
-							td { +info.accountType.toString().toLowerCase().capitalize() }
-							td { +(info.code?.toString() ?: "?") }
+							if (filter.hasAccountType) {
+								td { +info.accountType.toString().toLowerCase().capitalize() }
+							}
+							td {
+								if (info.accountType == AccountType.GUEST) {
+									+accountIdToGuestCode(info.id)
+								} else {
+									+(info.code?.toString() ?: "?")
+								}
+							}
 							td { +(info.timeRegistered?.let { DATE_FORMATTER.format(it) } ?: "?") }
-							td { +(info.timeLastLogin?.let { DATE_FORMATTER.format(it) } ?: "?") }
+							if (filter.hasLoginTime) {
+								td { +(info.timeLastLogin?.let { DATE_FORMATTER.format(it) } ?: "?") }
+							}
 							if (filter.hasQuestionnaire) {
 								problemWithDetailTd(info.foodIntolerance, info.foodIntoleranceDetail, false)
 								problemWithDetailTd(info.sulfiteIntolerance, null, false)
@@ -264,7 +292,7 @@ private fun showAccountList(exchange: HttpServerExchange) {
 
 
 fun RoutingHandler.setupAccountListRoutes() {
-	GET(ACCOUNT_LIST_URL, accessLevel=AccountType.STAFF) { exchange ->
+	GET(ACCOUNT_LIST_PATH, accessLevel=AccountType.STAFF) { exchange ->
 		showAccountList(exchange)
 	}
 }

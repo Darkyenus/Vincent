@@ -2,7 +2,6 @@ package it.unibz.vincent.pages
 
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
-import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
@@ -18,6 +17,7 @@ import it.unibz.vincent.util.checkPassword
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
+import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import it.unibz.vincent.util.toRawPassword
 import it.unibz.vincent.util.type
@@ -93,8 +93,8 @@ private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, aut
 					attributes["autocomplete"] = "off"
 					checked = false
 				}
-				span("password-mask-toggle-icon password-mask-toggle-icon-plain gg-eye") {}
-				span("password-mask-toggle-icon password-mask-toggle-icon-pass gg-eye-closed") {}
+				span("password-mask-toggle-icon password-mask-toggle-icon-plain ${Icons.EYE.cssClass}") {}
+				span("password-mask-toggle-icon password-mask-toggle-icon-pass ${Icons.EYE_CLOSED.cssClass}") {}
 			}
 		}
 	}
@@ -120,15 +120,14 @@ private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, aut
 private const val POST_LOGIN_REDIRECT = "post-login-redirect"
 fun FORM.postLoginRedirect(exchange:HttpServerExchange) {
 	val relativePath = exchange.relativePath ?: ""
-	if (relativePath.isNotEmpty() && relativePath != "/") {
+	if (relativePath.isNotEmpty() && relativePath != HOME_PATH) {
 		hiddenInput(name=POST_LOGIN_REDIRECT) { value=relativePath }
 	}
 }
 
 fun HttpServerExchange.handlePostLoginRedirect():Boolean {
 	val redirectUrl = formString(POST_LOGIN_REDIRECT) ?: return false
-	statusCode = StatusCodes.SEE_OTHER
-	responseHeaders.put(Headers.LOCATION, redirectUrl)
+	redirect(redirectUrl)
 	return true
 }
 
@@ -156,7 +155,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 			div("page-section container") {
 				div("column") {
 					h4 { +"Login" }
-					form(action = "/", method = FormMethod.post) {
+					form(action = HOME_PATH, method = FormMethod.post) {
 						routeAction("login")
 						postLoginRedirect(exchange)
 						div("form-section") { emailField(FORM_EMAIL, "on", loginEmail) }
@@ -169,7 +168,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 
 				div("column") {
 					h4 { +"Register" }
-					form(action = "/", method = FormMethod.post) {
+					form(action = HOME_PATH, method = FormMethod.post) {
 						routeAction("register")
 						postLoginRedirect(exchange)
 						div("form-section") { emailField(FORM_EMAIL, "off", registerEmail) }
@@ -204,17 +203,17 @@ private fun logoutMessage(sessionsDestroyed:Int):String? {
 }
 
 fun RoutingHandler.setupWelcomeRoutes() {
-	POST("/", routeAction = "logout", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = "logout", accessLevel=null) { exchange ->
 		exchange.messageInfo(logoutMessage(exchange.destroySession(false)))
-		exchange.loginRegister()
+		exchange.redirect(HOME_PATH)
 	}
 
-	POST("/", routeAction = "logout-fully", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = "logout-fully", accessLevel=null) { exchange ->
 		exchange.messageInfo(logoutMessage(exchange.destroySession(true)))
-		exchange.loginRegister()
+		exchange.redirect(HOME_PATH)
 	}
 
-	GET("/", accessLevel=null) { exchange ->
+	GET(HOME_PATH, accessLevel=null, requireCompletedDemography = true) { exchange ->
 		val session = exchange.session()
 		if (session != null) {
 			exchange.home(session)
@@ -223,7 +222,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	POST("/", routeAction = "login", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = "login", accessLevel=null) { exchange ->
 		val l = exchange.languages()
 
 		val email = exchange.formString(FORM_EMAIL)
@@ -235,16 +234,20 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			return@POST
 		}
 
+		var hasProblems = false
 		if (!EMAIL_PATTERN.matches(email)) {
 			exchange.messageWarning("Email is not valid")
+			hasProblems = true
 		}
 		if (providedPassword.length < MIN_PASSWORD_LENGTH) {
 			exchange.messageWarning("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
+			hasProblems = true
 		} else if (providedPassword.length > MAX_PASSWORD_LENGTH) {
 			exchange.messageWarning("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
+			hasProblems = true
 		}
 
-		if (exchange.messageWarningCount() > 0) {
+		if (hasProblems) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(loginEmail = email)
 			return@POST
@@ -291,15 +294,15 @@ fun RoutingHandler.setupWelcomeRoutes() {
 					LOG.warn("A successful login time update modified an unexpected amount of rows: {}", updateCount)
 				}
 
-				val session = exchange.createSession(accountId)
+				exchange.createSession(accountId)
 				if (!exchange.handlePostLoginRedirect()) {
-					exchange.home(session)
+					exchange.redirect(HOME_PATH)
 				}
 			}
 		}
 	}
 
-	POST("/", routeAction = "register", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = "register", accessLevel=null) { exchange ->
 		val email = exchange.formString(FORM_EMAIL)
 		// https://pages.nist.gov/800-63-3/sp800-63b.html#sec5
 		val password = exchange.formString(FORM_PASSWORD)
@@ -311,19 +314,24 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			return@POST
 		}
 
+		var hasProblems = false
 		if (!EMAIL_PATTERN.matches(email)) {
 			exchange.messageWarning("Email is not valid")
+			hasProblems = true
 		}
 		if (password.length < MIN_PASSWORD_LENGTH) {
 			exchange.messageWarning("Password is too short - must be at least $MIN_PASSWORD_LENGTH characters long")
+			hasProblems = true
 		} else if (password.length > MAX_PASSWORD_LENGTH) {
 			exchange.messageWarning("Password is too long - can't be longer than $MAX_PASSWORD_LENGTH characters")
+			hasProblems = true
 		}
 		if (name.isEmpty()) {
 			exchange.messageWarning("Name must not be empty")
+			hasProblems = true
 		}
 
-		if (exchange.messageWarningCount() > 0) {
+		if (hasProblems) {
 			exchange.statusCode = StatusCodes.BAD_REQUEST
 			exchange.loginRegister(registerEmail=email, registerName=name)
 			return@POST
@@ -387,8 +395,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		LOG.info("Successful registration of {} (from {})", newAccountId, exchange.sourceAddress)
 		exchange.createSession(newAccountId)
 		if (!exchange.handlePostLoginRedirect()) {
-			exchange.statusCode = StatusCodes.SEE_OTHER
-			exchange.responseHeaders.put(Headers.LOCATION, "/")
+			exchange.redirect(HOME_PATH)
 		}
 	}
 }

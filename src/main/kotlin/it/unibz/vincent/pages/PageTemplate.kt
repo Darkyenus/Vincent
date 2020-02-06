@@ -1,10 +1,12 @@
 package it.unibz.vincent.pages
 
+import io.undertow.server.ExchangeCompletionListener
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
+import it.unibz.vincent.session
 import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.ROUTE_ACTION_PARAM_NAME
 import it.unibz.vincent.util.languages
@@ -38,6 +40,9 @@ import kotlinx.html.span
 import kotlinx.html.title
 import kotlinx.html.ul
 import kotlinx.html.visit
+import org.slf4j.LoggerFactory
+
+private val LOG = LoggerFactory.getLogger("PageTemplate")
 
 /** Build head and body. */
 fun HTML.base(lang:String = "en", title:String = "Vincent", description:String = "", createBody: BODY.() -> Unit) {
@@ -131,6 +136,38 @@ private class Messages {
 
 private val messageAttachment = AttachmentKey.create(Messages::class.java)
 
+private val MESSAGE_KEEPER: ExchangeCompletionListener = ExchangeCompletionListener { exchange, nextListener ->
+	try {
+		val messages: Messages? = exchange.getAttachment(messageAttachment)
+		if (messages?.infoMessages.isNullOrEmpty() && messages?.warningMessages.isNullOrEmpty()) {
+			// Nothing to save
+			return@ExchangeCompletionListener
+		}
+		val session = exchange.session()
+		if (session == null) {
+			// Nowhere to save
+			LOG.warn("Lost messages - no session ({}, {})", messages?.infoMessages, messages?.warningMessages)
+			return@ExchangeCompletionListener
+		}
+
+		messages?.infoMessages?.let {
+			if (it.isNotEmpty()) {
+				session.stashMessages(it, Session.MessageType.INFO)
+				it.clear()
+			}
+		}
+
+		messages?.warningMessages?.let {
+			if (it.isNotEmpty()) {
+				session.stashMessages(it, Session.MessageType.WARNING)
+				it.clear()
+			}
+		}
+	} finally {
+		nextListener.proceed()
+	}
+}
+
 fun HttpServerExchange.messageWarning(text:String?) {
 	text ?: return
 	val messages = getAttachment(messageAttachment) ?: Messages().also {
@@ -140,12 +177,7 @@ fun HttpServerExchange.messageWarning(text:String?) {
 		messages.warningMessages = it
 	}
 	list.add(text)
-}
-
-fun HttpServerExchange.messageWarningCount():Int {
-	val messages = getAttachment(messageAttachment) ?: return 0
-	val list = messages.warningMessages ?: return 0
-	return list.size
+	this.addExchangeCompleteListener(MESSAGE_KEEPER)
 }
 
 fun HttpServerExchange.messageInfo(text:String?) {
@@ -157,48 +189,54 @@ fun HttpServerExchange.messageInfo(text:String?) {
 		messages.infoMessages = it
 	}
 	list.add(text)
+	this.addExchangeCompleteListener(MESSAGE_KEEPER)
+}
+
+private fun FlowContent.renderMessageBox(own:List<String>, stashed:List<String>, classes:String) {
+	val totalCount = own.size + stashed.size
+	if (totalCount <= 0) {
+		return
+	}
+
+	if (totalCount == 1) {
+		div(classes) {
+			if (own.isNotEmpty()) {
+				+own[0]
+			} else {
+				+stashed[0]
+			}
+		}
+	} else {
+		ul {
+			for (message in own) {
+				li { +message }
+			}
+			for (message in stashed) {
+				li { +message }
+			}
+		}
+	}
 }
 
 fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 	val messages = exchange.getAttachment(messageAttachment) ?: return
+	val session = exchange.session()
 
-	messages.warningMessages?.let {
-		if (it.isNotEmpty()) {
-			div("warning box") {
-				if (it.size == 1) {
-					+it[0]
-				} else {
-					ul {
-						for (message in it) {
-							li { +message }
-						}
-					}
-				}
-			}
-		}
-	}
-	messages.warningMessages?.clear()
+	val warningMessages = messages.warningMessages
+	val stashedWarningMessages = session?.retrieveStashedMessages(Session.MessageType.WARNING)
+	renderMessageBox(warningMessages ?: emptyList(), stashedWarningMessages ?: emptyList(), "warning box")
+	warningMessages?.clear()
 
-	messages.infoMessages?.let {
-		if (it.isNotEmpty()) {
-			div("info box") {
-				if (it.size == 1) {
-					+it[0]
-				} else {
-					ul {
-						for (message in it) {
-							li { +message }
-						}
-					}
-				}
-			}
-		}
-	}
-	messages.infoMessages?.clear()
+	val infoMessages = messages.infoMessages
+	val stashedInfoMessages = session?.retrieveStashedMessages(Session.MessageType.INFO)
+	renderMessageBox(infoMessages ?: emptyList(), stashedInfoMessages ?: emptyList(), "info box")
+	infoMessages?.clear()
 }
 
 enum class Icons(val cssClass:String) {
-	TRASH("gg-trash")
+	TRASH("gg-trash"),
+	EYE("gg-eye"),
+	EYE_CLOSED("gg-eye-closed")
 }
 
 @HtmlTagMarker

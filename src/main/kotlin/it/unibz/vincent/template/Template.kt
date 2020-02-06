@@ -14,6 +14,9 @@ private typealias Max = QuestionnaireTemplate.Title
 fun <T : MutableCollection<String>> List<QuestionnaireTemplate.SectionContent>.collectQuestionIdsTo(to:T, onlyRequired:Boolean):T {
 	for (content in this) {
 		if (content is QuestionnaireTemplate.SectionContent.Question) {
+			if (onlyRequired && !content.required) {
+				continue
+			}
 			content.type.collectQuestionIds(content.id, onlyRequired) { to.add(it) }
 		}
 	}

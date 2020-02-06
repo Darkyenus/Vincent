@@ -23,6 +23,7 @@ import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formFile
 import it.unibz.vincent.util.formString
+import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
@@ -50,6 +51,8 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+
+const val HOME_PATH = "/"
 
 /**
  * Show table of all questionnaires that you can start (are invited to)/that are in progress.
@@ -89,7 +92,7 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 						td { +state.toString() /* TODO: Localize */ }
 						val id = row[Questionnaires.id].value
 						td {
-							getButton("/questionnaire/$id") {
+							getButton(questionnaireAnswerPath(id)) {
 								+if (state == QuestionnaireParticipationState.INVITED) {
 									"Start"
 								} else {
@@ -167,7 +170,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 							val participantCount = QuestionnaireParticipants.select { QuestionnaireParticipants.questionnaire eq questionnaireId }.count()
 							+(participantCount.toString())
 						}
-						td { getButton("/questionnaire/$questionnaireId/edit") { +"Detail" } }
+						td { getButton(questionnaireEditPath(questionnaireId)) { +"Detail" } }
 					}
 				}
 			}
@@ -230,9 +233,9 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						td { +row[Accounts.name] }
 						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
-						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "questionnaire-new") { +"Use" } }
-						td { getButton("/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-download") { +"Download" } }
-						td { postButton(session, "/", PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
+						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "questionnaire-new") { +"Use" } }
+						td { getButton(HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "template-download") { +"Download" } }
+						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
 					}
 				}
 			}
@@ -245,7 +248,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 		}
 	}
 
-	postForm("/") {
+	postForm(HOME_PATH) {
 		encType = FormEncType.multipartFormData
 		session(session)
 		routeAction("template-new")
@@ -288,22 +291,22 @@ fun HttpServerExchange.home(session: Session) {
 			// Show registered user lists
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section container") {
-					getButton(ACCOUNT_LIST_URL, classes="u-full-width", parentClasses="column") { +"All accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), classes="u-full-width", parentClasses="column") { +"Regular accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), classes="u-full-width", parentClasses="column") { +"Guest accounts" }
-					getButton(ACCOUNT_LIST_URL, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
+					getButton(ACCOUNT_LIST_PATH, classes="u-full-width", parentClasses="column") { +"All accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), classes="u-full-width", parentClasses="column") { +"Regular accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), classes="u-full-width", parentClasses="column") { +"Guest accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
 				}
 			}
 
 			div("page-section container") {
 				div("column") {
-					postButton(session, "/", routeAction = "logout", classes = "dangerous u-centered") { +"Logout" }
+					postButton(session, HOME_PATH, routeAction = "logout", classes = "dangerous u-centered") { +"Logout" }
 				}
 
 				if (userLevel >= AccountType.STAFF) {
 					// Let's not confuse ordinary users with this
 					div("column") {
-						postButton(session, "/", routeAction = "logout-fully", classes = "dangerous u-centered") { +"Logout from all browsers" }
+						postButton(session, HOME_PATH, routeAction = "logout-fully", classes = "dangerous u-centered") { +"Logout from all browsers" }
 					}
 				}
 			}
@@ -312,7 +315,7 @@ fun HttpServerExchange.home(session: Session) {
 }
 
 fun RoutingHandler.setupHomeRoutes() {
-	POST("/", AccountType.STAFF, "questionnaire-new") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, "questionnaire-new") { exchange ->
 		val session = exchange.session()!!
 
 		val templateId = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -332,11 +335,10 @@ fun RoutingHandler.setupHomeRoutes() {
 		}
 
 		// Redirect
-		exchange.statusCode = StatusCodes.SEE_OTHER
-		exchange.responseHeaders.put(Headers.LOCATION, "/questionnaire/$newQuestionnaireId/edit")
+		exchange.redirect(questionnaireEditPath(newQuestionnaireId))
 	}
 
-	POST("/", AccountType.STAFF, ACTION_QUESTIONNAIRE_DELETE) { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, ACTION_QUESTIONNAIRE_DELETE) { exchange ->
 		val questionnaireId = exchange.formString(PARAM_QUESTIONNAIRE_ID)?.toLongOrNull()
 
 		val deleted = if (questionnaireId == null) 0 else transaction {
@@ -347,10 +349,10 @@ fun RoutingHandler.setupHomeRoutes() {
 			exchange.messageInfo("Questionnaire deleted")
 		}
 
-		exchange.home(exchange.session()!!)
+		exchange.redirect(HOME_PATH)
 	}
 
-	GET("/", AccountType.STAFF, "template-download") { exchange ->
+	GET(HOME_PATH, AccountType.STAFF, "template-download", requireCompletedDemography = false) { exchange ->
 		val session = exchange.session()!!
 
 		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -385,7 +387,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.responseSender.send(ByteBuffer.wrap(templateXmlBytes))
 	}
 
-	POST("/", AccountType.STAFF, "template-delete") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, "template-delete") { exchange ->
 		val session = exchange.session()!!
 
 		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -402,18 +404,14 @@ fun RoutingHandler.setupHomeRoutes() {
 		}
 
 		if (deleted == 0) {
-			exchange.statusCode = StatusCodes.NOT_FOUND
 			exchange.messageWarning("Template no longer exists")
-			exchange.home(session)
-			return@POST
+		} else {
+			exchange.messageInfo("Template deleted")
 		}
-
-		exchange.statusCode = StatusCodes.OK
-		exchange.messageInfo("Template deleted")
-		exchange.home(session)
+		exchange.redirect(HOME_PATH)
 	}
 
-	POST("/", AccountType.STAFF, "template-new") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, "template-new") { exchange ->
 		val session = exchange.session()!!
 
 		val formFile = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)
@@ -458,7 +456,6 @@ fun RoutingHandler.setupHomeRoutes() {
 
 		QuestionnaireTemplates.CACHE.put(templateId, parsed.result)
 
-		exchange.statusCode = StatusCodes.CREATED
-		exchange.home(session)
+		exchange.redirect(HOME_PATH)
 	}
 }
