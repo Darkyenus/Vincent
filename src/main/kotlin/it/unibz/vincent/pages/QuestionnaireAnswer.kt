@@ -2,7 +2,6 @@ package it.unibz.vincent.pages
 
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
-import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.QuestionnaireParticipants
@@ -27,12 +26,8 @@ import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.div
 import kotlinx.html.h1
-import kotlinx.html.h2
 import kotlinx.html.hiddenInput
 import kotlinx.html.id
-import kotlinx.html.li
-import kotlinx.html.ol
-import kotlinx.html.p
 import kotlinx.html.postForm
 import kotlinx.html.span
 import kotlinx.html.style
@@ -212,7 +207,7 @@ private fun HttpServerExchange.questionnaireParticipation():QuestionnairePartici
 	}
 
 	var wineCode:Int = -1
-	var wineId:Long = -1L
+	var wineId:Long = -1
 
 	if (wineCount > 0) {
 		transaction {
@@ -286,9 +281,6 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 		LOG.error("Failed to retrieve existing responses for {}", participation, e)
 	}
 
-	// TODO(jp): Highlight missing required responses
-	val highlightMissing = existingResponses.isNotEmpty()
-
 	exchange.sendBase(participation.questionnaireName) { _, locale ->
 		val section = participation.template.sections[participation.currentSection]
 		val lang = TemplateLang(participation.template.defaultLanguage, locale)
@@ -343,7 +335,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 				routeAction(ACTION_SUBMIT_SECTION)
 				hiddenInput(name = FORM_PARAM_WINE_SECTION_CHECKSUM) { value = participation.sectionChecksum.toString() }
 
-				renderSectionContent(section.content, lang, existingResponses)
+				renderSectionContent(section.content, lang, existingResponses, section.questionIds.any { it in existingResponses })
 
 				val now = Instant.now()
 				val canAdvanceSectionAfter = participation.canAdvanceSectionAfter

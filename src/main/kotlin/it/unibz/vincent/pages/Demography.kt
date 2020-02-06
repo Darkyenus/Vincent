@@ -174,7 +174,7 @@ private fun showDemographyQuestionnaire(exchange: HttpServerExchange) {
 			div ("page-section") {
 				postForm(action = DEMOGRAPHY_PATH) {
 					session(session)
-					renderSectionContent(demographyQuestions, TemplateLang(ULocale.ENGLISH, locale), existingResponses)
+					renderSectionContent(demographyQuestions, TemplateLang(ULocale.ENGLISH, locale), existingResponses, existingResponses.isNotEmpty())
 
 					div("section-buttons") {
 						if (existingResponses.isEmpty()) {

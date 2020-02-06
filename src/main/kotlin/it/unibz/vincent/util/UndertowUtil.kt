@@ -199,7 +199,7 @@ private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, mes
 	statusCode = code
 	sendHtml {
 		base(title="Vincent - $title") {
-			div("container") {
+			div("page-container") {
 				style = "padding: 5%"
 
 				a(href="https://en.wikipedia.org/wiki/Vincent_of_Saragossa") {

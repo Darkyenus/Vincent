@@ -56,8 +56,8 @@ private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.In
 			}
 			if (type == QuestionnaireTemplate.InputType.YEAR) {
 				minLength = "4"
-				maxLength = "4"
-				pattern = "\\d*" // Only digits
+				//maxLength = "4" can be confusing when there is some random whitespace
+				pattern = "\\s*\\d{4}\\s*" // Only digits (possibly surrounded by whitespace)
 				title = "A full 4 digit year of the Gregorian calendar"
 			}
 		}
@@ -77,16 +77,30 @@ private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.In
 	}
 }
 
-fun HtmlBlockTag.renderSectionContent(content:List<QuestionnaireTemplate.SectionContent>, lang:TemplateLang, existingResponses:Map<String, String>) {
+fun HtmlBlockTag.renderSectionContent(content:List<QuestionnaireTemplate.SectionContent>, lang:TemplateLang, existingResponses:Map<String, String>, highlightMissingResponses:Boolean) {
 	var idGeneratorNumber = 0
 	val idGenerator: () -> String = {
 		"q-${idGeneratorNumber++}"
 	}
 
 	for (sectionPart in content) {
-		div("section-part") {
-			if (sectionPart is QuestionnaireTemplate.SectionContent.Question && !sectionPart.required) {
-				span("question-optional") { this.title="You do not have to answer this question"; +"Optional" }
+		var missingRequired = false
+		if (highlightMissingResponses && sectionPart is QuestionnaireTemplate.SectionContent.Question && sectionPart.required) {
+			// Check if missing
+			sectionPart.type.collectQuestionIds(sectionPart.id, true) { requiredId ->
+				if (requiredId !in existingResponses) {
+					missingRequired = true
+				}
+			}
+		}
+
+		div(if (missingRequired) "section-part section-part-required" else "section-part") {
+			if (missingRequired) {
+				span("question-required") { this.title="This question is mandatory"; +"Required" }
+			} else {
+				if (sectionPart is QuestionnaireTemplate.SectionContent.Question && !sectionPart.required) {
+					span("question-optional") { this.title="You do not have to answer this question"; +"Optional" }
+				}
 			}
 
 			renderTitle(sectionPart.title, lang, ::h2)

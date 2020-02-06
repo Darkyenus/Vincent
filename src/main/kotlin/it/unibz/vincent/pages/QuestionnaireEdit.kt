@@ -485,18 +485,14 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 		div("page-container") {
 			div("page-section") {
 				h1 {
-					if (questionnaire.state == QuestionnaireState.CREATED) {
-						postForm(questionnaireEditPath(questionnaire.id)) {
-							session(session)
-							routeAction(ACTION_QUESTIONNAIRE_RENAME)
-							textInput(name = PARAM_QUESTIONNAIRE_NAME) {
-								required = true
-								style = "height: unset; width: 100%;"
-								value = questionnaire.name
-							}
+					postForm(questionnaireEditPath(questionnaire.id)) {
+						session(session)
+						routeAction(ACTION_QUESTIONNAIRE_RENAME)
+						textInput(name = PARAM_QUESTIONNAIRE_NAME) {
+							required = true
+							style = "height: unset; width: 100%;"
+							value = questionnaire.name
 						}
-					} else {
-						+questionnaire.name
 					}
 				}
 				p("sub") { +questionnaire.templateName }
@@ -924,18 +920,12 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_QUESTIONNAIRE_RENAME) { exchange ->
 		val questionnaire = exchange.questionnaire() ?: return@POST
-		if (questionnaire.state != QuestionnaireState.CREATED) {
-			exchange.messageWarning("Can't edit name of this questionnaire - it has already been opened")
-			exchange.redirect(questionnaireEditPath(questionnaire.id))
-			return@POST
-		}
-
 		val newName = exchange.formString(PARAM_QUESTIONNAIRE_NAME)?.trim()?.takeUnless { it.isBlank() }
 
 		if (newName != null) {
 			transaction {
 				Questionnaires.update(
-						where = { (Questionnaires.id eq questionnaire.id) and (Questionnaires.state eq QuestionnaireState.CREATED) },
+						where = { (Questionnaires.id eq questionnaire.id) },
 						limit = 1) { it[Questionnaires.name] = newName }
 			}
 			exchange.dropQuestionnaire()
@@ -955,6 +945,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		val updated = transaction {
+			// TODO(jp): Check if there are no wines and add a dummy wine and all that
 			Questionnaires.update(
 					where={ (Questionnaires.id eq questionnaire.id) and (Questionnaires.state eq QuestionnaireState.CREATED) },
 					limit=1) { it[state] = QuestionnaireState.RUNNING }

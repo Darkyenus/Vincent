@@ -172,6 +172,8 @@ object Questionnaires : LongIdTable() {
 	val timeCreated = timestamp("time_created").defaultExpression(CurrentTimestamp())
 	val template = long("template").references(QuestionnaireTemplates.id, onDelete=ReferenceOption.CASCADE, onUpdate=ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireState::class).default(QuestionnaireState.CREATED)
+
+	val hasWines = bool("has_no_wines").default(true)
 }
 
 enum class QuestionnaireParticipationState {
@@ -185,7 +187,7 @@ object QuestionnaireParticipants : Table() {
 	val questionnaire = long("questionnaire").references(Questionnaires.id, onDelete=ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	val state = enumeration("state", QuestionnaireParticipationState::class).default(QuestionnaireParticipationState.INVITED)
 
-	val currentWineIndex = integer("wineIndex").default(0)
+	val currentWineIndex = integer("wine_index").default(0)
 	val currentSection = integer("section").default(0)
 	val currentSectionStartedAt = timestamp("section_started_at").default(Instant.EPOCH)
 

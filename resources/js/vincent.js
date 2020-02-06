@@ -148,4 +148,10 @@ window.addEventListener('DOMContentLoaded', (event) => {
 			}) (passwordToggle, passwordField);
         }
     }
+
+    // Scroll to the missing field, if any
+    var requiredQuestions = document.getElementsByClassName("section-part-required");
+    if (requiredQuestions.length > 0) {
+        requiredQuestions[0].scrollIntoView();
+    }
 });
