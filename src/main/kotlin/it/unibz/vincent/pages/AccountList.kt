@@ -26,12 +26,9 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-
-private val LOG = LoggerFactory.getLogger("AccountList")
 
 const val ACCOUNT_LIST_PATH = "/account-list"
 const val ACCOUNT_LIST_FILTER_PARAM = "filter"
@@ -144,21 +141,9 @@ private fun showAccountList(exchange: HttpServerExchange) {
 			val response = row.getOrNull(DemographyInfo.response) ?: continue
 
 			when (questionId) {
-				QID_FOOD_INTOLERANCE -> {
-					when (response.toLowerCase()) {
-						"yes" -> accountInfo.foodIntolerance = true
-						"no" -> accountInfo.foodIntolerance = false
-						else -> LOG.warn("Invalid food intolerance response: {}", response)
-					}
-				}
-				"$QID_FOOD_INTOLERANCE-detail-yes" -> accountInfo.foodIntoleranceDetail = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
-				QID_SULFITE_INTOLERANCE -> {
-					when (response.toLowerCase()) {
-						"yes" -> accountInfo.sulfiteIntolerance = true
-						"no" -> accountInfo.sulfiteIntolerance = false
-						else -> LOG.warn("Invalid sulfite intolerance response: {}", response)
-					}
-				}
+				QID_FOOD_INTOLERANCE -> accountInfo.foodIntolerance = demographicYesNoToBool(response)
+				QID_FOOD_INTOLERANCE_DETAIL -> accountInfo.foodIntoleranceDetail = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
+				QID_SULFITE_INTOLERANCE -> accountInfo.sulfiteIntolerance = demographicYesNoToBool(response)
 			}
 
 			// Only admins have access to what comes next
@@ -173,14 +158,8 @@ private fun showAccountList(exchange: HttpServerExchange) {
 				QID_HOME_COUNTRY -> accountInfo.homeCountry = response
 				QID_HOME_REGION -> accountInfo.homeRegion = response
 				QID_EDUCATION -> accountInfo.education = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
-				QID_SMOKING -> {
-					when (response.toLowerCase()) {
-						"yes" -> accountInfo.smoking = true
-						"no" -> accountInfo.smoking = false
-						else -> LOG.warn("Invalid smoking response: {}", response)
-					}
-				}
-				"$QID_SMOKING-detail-yes" -> accountInfo.smokingDetail = response
+				QID_SMOKING -> accountInfo.smoking = demographicYesNoToBool(response)
+				QID_SMOKING_DETAIL -> accountInfo.smokingDetail = response
 			}
 		}
 	}

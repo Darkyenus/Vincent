@@ -25,8 +25,15 @@ import kotlinx.html.postForm
 import kotlinx.html.submitInput
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.LoggerFactory
+
+
+private val LOG = LoggerFactory.getLogger("Demography")
 
 const val DEMOGRAPHY_PATH = "/demography"
+
+private const val YES = "yes"
+private const val NO = "no"
 
 const val QID_PHONE_NUMBER = "phone-number"
 const val QID_GENDER = "gender"
@@ -35,7 +42,9 @@ const val QID_HOME_COUNTRY = "home-country"
 const val QID_HOME_REGION = "home-region"
 const val QID_EDUCATION = "education"
 const val QID_SMOKING = "smoking"
+const val QID_SMOKING_DETAIL = "$QID_SMOKING-detail-$YES"
 const val QID_FOOD_INTOLERANCE = "food-intolerance"
+const val QID_FOOD_INTOLERANCE_DETAIL = "$QID_FOOD_INTOLERANCE-detail-$YES"
 const val QID_SULFITE_INTOLERANCE = "sulfite-intolerance"
 
 private val demographyQuestions = listOf(
@@ -80,22 +89,22 @@ private val demographyQuestions = listOf(
 				listOf(Title("Do you smoke?")),
 				listOf(),
 				OneOf(
-						Option("no", Title("No")),
-						Option("yes", true, InputType.SENTENCE, listOf(Title("Yes")), listOf(Text("How many times per day?")))
+						Option(NO, Title("No")),
+						Option(YES, true, InputType.SENTENCE, listOf(Title("Yes")), listOf(Text("How many times per day?")))
 				)),
 		Question(QID_FOOD_INTOLERANCE, true,
 				listOf(Title("Do you have any <a href=\"https://en.wikipedia.org/wiki/Food_intolerance\">food intolerance</a> or <a href=\"https://en.wikipedia.org/wiki/Food_allergy\">food allergies</a>?")),
 				emptyList(),
 				OneOf(
-						Option("no", Title("No")),
-						Option("yes", true, InputType.SENTENCE, listOf(Title("Yes")), listOf(Text("Which?")))
+						Option(NO, Title("No")),
+						Option(YES, true, InputType.SENTENCE, listOf(Title("Yes")), listOf(Text("Which?")))
 				)),
 		Question(QID_SULFITE_INTOLERANCE, true,
 				listOf(Title("Do you have sulfite intolerance?")),
 				listOf(Text("Sulfites have a number of technological functions, including antioxidant, bleaching agent, flour treatment agent and preservative, and are used in a wide variety of applications in the food/wine industry. The Health World Organization committee established for sulfite of 0-0.7 mg/kg bw the limit. The level added in the wine it’s below this limit. For more information <a href=\"http://www.inchem.org/documents/jecfa/jecmono/v042je06.htm\">click here</a> or see <a href=\"https://en.wikipedia.org/wiki/Sulfite#Health_effects\">the Wikipedia article</a>.")),
 				OneOf(
-						Option("no", Title("No")),
-						Option("yes", Title("Yes"))
+						Option(NO, Title("No")),
+						Option(YES, Title("Yes"))
 				)
 		)
 )
@@ -117,6 +126,17 @@ fun demographicOneOfResponseToHumanReadableLabel(questionId:String, result:Strin
 				}
 			}
 		}
+		null
+	}
+}
+
+fun demographicYesNoToBool(result:String):Boolean? {
+	return if (result.equals(YES, ignoreCase = true)) {
+		true
+	} else if (result.equals(NO, ignoreCase = true)) {
+		false
+	} else {
+		LOG.warn("Got invalid YES/NO result '{}'", result)
 		null
 	}
 }

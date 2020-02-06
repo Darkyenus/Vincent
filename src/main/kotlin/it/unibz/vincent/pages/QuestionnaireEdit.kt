@@ -8,6 +8,7 @@ import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.DemographyInfo
 import it.unibz.vincent.GUEST_CODE_PREFIX
 import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.QuestionnaireResponses
@@ -77,6 +78,8 @@ fun questionnaireResultsPath(questionnaireId:Long):String {
 private const val QUESTIONNAIRE_EDIT_PATH_TEMPLATE = "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/edit"
 private const val QUESTIONNAIRE_RESULTS_PATH_TEMPLATE = "/questionnaire/{$PATH_QUESTIONNAIRE_ID}/results"
 
+private val intoleranceQuestionList = listOf(QID_SULFITE_INTOLERANCE, QID_FOOD_INTOLERANCE, QID_FOOD_INTOLERANCE_DETAIL)
+
 /**
  * List of:
  * - Participant name
@@ -101,6 +104,8 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 				th { +"E-mail" }
 				th { +"Code" }
 				th { +"State" }
+				th { +"Sulfite Intolerance" }
+				th { +"Food Intolerance" }
 				// if editable: Kick
 			}
 		}
@@ -121,7 +126,50 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 						td { +row[Accounts.name] }
 						td { +row[Accounts.email] }
 						td { +(row[Accounts.code]?.toString() ?: accountIdToGuestCode(accountId)) }
-						td { +row[QuestionnaireParticipants.state].toString() /* TODO Localize */ }
+						td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
+
+						// Intolerances
+						var sulfiteIntolerance:Boolean? = null
+						var foodIntolerance:Boolean? = null
+						var foodIntoleranceDetail:String? = null
+						for (intoleranceRow in DemographyInfo
+								.slice(DemographyInfo.questionId, DemographyInfo.response)
+								.select { (DemographyInfo.user eq accountId) and (DemographyInfo.questionId inList intoleranceQuestionList) }) {
+							val response = intoleranceRow[DemographyInfo.response]
+							when (intoleranceRow[DemographyInfo.questionId]) {
+								QID_SULFITE_INTOLERANCE -> sulfiteIntolerance = demographicYesNoToBool(response)
+								QID_FOOD_INTOLERANCE -> foodIntolerance = demographicYesNoToBool(response)
+								QID_FOOD_INTOLERANCE_DETAIL -> foodIntoleranceDetail = response
+							}
+						}
+
+						if (sulfiteIntolerance == false) {
+							td("al-cell-ok") { +"No" }
+						} else {
+							td("al-cell-bad") {
+								if (sulfiteIntolerance == null) {
+									+"?"
+								} else {
+									+"Yes"
+								}
+							}
+						}
+
+						if (foodIntolerance == false) {
+							td("al-cell-ok") { +"No" }
+						} else {
+							td("al-cell-bad") {
+								if (foodIntolerance == null) {
+									+"?"
+								} else {
+									if (foodIntoleranceDetail == null || foodIntoleranceDetail.isBlank()) {
+										+"Yes"
+									} else {
+										+foodIntoleranceDetail
+									}
+								}
+							}
+						}
 
 						if (questionnaire.state != QuestionnaireState.CLOSED) {
 							td {

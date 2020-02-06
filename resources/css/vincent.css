@@ -591,9 +591,11 @@ input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
 /* Account list */
 .al-cell-bad {
 	color: #a00;
+	text-align: center;
 }
 .al-cell-ok {
 	color: #006000;
+	text-align: center;
 }
 
 /* Media Queries
