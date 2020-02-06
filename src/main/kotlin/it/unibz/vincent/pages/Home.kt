@@ -185,7 +185,12 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 	}
 }
 
+const val ACTION_QUESTIONNAIRE_NEW = "questionnaire-new"
 const val ACTION_QUESTIONNAIRE_DELETE = "questionnaire-delete"
+const val ACTION_TEMPLATE_DOWNLOAD = "template-download"
+const val ACTION_TEMPLATE_DELETE = "template-delete"
+const val ACTION_TEMPLATE_NEW = "template-new"
+
 const val PARAM_QUESTIONNAIRE_ID = "questionnaire-id"
 
 private const val PARAM_TEMPLATE_ID = "template"
@@ -234,9 +239,9 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						td { +row[Accounts.name] }
 						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
-						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "questionnaire-new") { +"Use" } }
-						td { getButton(HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "template-download") { +"Download" } }
-						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = "template-delete", classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
+						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_QUESTIONNAIRE_NEW) { +"Use" } }
+						td { getButton(HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_TEMPLATE_DOWNLOAD) { +"Download" } }
+						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_TEMPLATE_DELETE, classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
 					}
 				}
 			}
@@ -252,7 +257,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 	postForm(HOME_PATH) {
 		encType = FormEncType.multipartFormData
 		session(session)
-		routeAction("template-new")
+		routeAction(ACTION_TEMPLATE_NEW)
 		// TODO(jp): Client side size validation (https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5/Constraint_validation)
 		fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) { required=true; accept=".xml,application/xml,text/xml"; multiple=false; }
 		submitInput { value="Upload new template" }
@@ -261,12 +266,10 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 
 /** Show home screen for logged-in users */
 fun HttpServerExchange.home(session: Session) {
-	val userName = session.userName
 	val userLevel = session.accountType
 
-	sendBase { _, locale ->
+	sendBase("") { _, locale ->
 		div("page-container") {
-			h1 { +"Welcome $userName" }
 
 			renderMessages(this@home)
 
@@ -291,24 +294,11 @@ fun HttpServerExchange.home(session: Session) {
 
 			// Show registered user lists
 			if (userLevel >= AccountType.STAFF) {
-				div("page-section container") {
-					getButton(ACCOUNT_LIST_PATH, classes="u-full-width", parentClasses="column") { +"All accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), classes="u-full-width", parentClasses="column") { +"Regular accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), classes="u-full-width", parentClasses="column") { +"Guest accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), classes="u-full-width", parentClasses="column") { +"Reserved accounts" }
-				}
-			}
-
-			div("page-section container") {
-				div("column") {
-					postButton(session, HOME_PATH, routeAction = "logout", classes = "dangerous u-centered") { +"Logout" }
-				}
-
-				if (userLevel >= AccountType.STAFF) {
-					// Let's not confuse ordinary users with this
-					div("column") {
-						postButton(session, HOME_PATH, routeAction = "logout-fully", classes = "dangerous u-centered") { +"Logout from all browsers" }
-					}
+				div("page-section button-container") {
+					getButton(ACCOUNT_LIST_PATH, parentClasses="column") { +"All accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), parentClasses="column") { +"Regular accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), parentClasses="column") { +"Guest accounts" }
+					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), parentClasses="column") { +"Reserved accounts" }
 				}
 			}
 		}
@@ -318,7 +308,7 @@ fun HttpServerExchange.home(session: Session) {
 fun RoutingHandler.setupHomeRoutes() {
 	val defaultNameDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
 
-	POST(HOME_PATH, AccountType.STAFF, "questionnaire-new") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, ACTION_QUESTIONNAIRE_NEW) { exchange ->
 		val session = exchange.session()!!
 
 		val templateId = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -355,7 +345,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.redirect(HOME_PATH)
 	}
 
-	GET(HOME_PATH, AccountType.STAFF, "template-download", requireCompletedDemography = false) { exchange ->
+	GET(HOME_PATH, AccountType.STAFF, ACTION_TEMPLATE_DOWNLOAD, requireCompletedDemography = false) { exchange ->
 		val session = exchange.session()!!
 
 		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -390,7 +380,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.responseSender.send(ByteBuffer.wrap(templateXmlBytes))
 	}
 
-	POST(HOME_PATH, AccountType.STAFF, "template-delete") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, ACTION_TEMPLATE_DELETE) { exchange ->
 		val session = exchange.session()!!
 
 		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
@@ -414,7 +404,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		exchange.redirect(HOME_PATH)
 	}
 
-	POST(HOME_PATH, AccountType.STAFF, "template-new") { exchange ->
+	POST(HOME_PATH, AccountType.STAFF, ACTION_TEMPLATE_NEW) { exchange ->
 		val session = exchange.session()!!
 
 		val formFile = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)

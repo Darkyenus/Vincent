@@ -5,16 +5,24 @@ www.getskeleton.com - Free to use under the MIT license.
 
 /* Grid */
 .container {}
-
 .column {
 	width: 100%;
 	box-sizing: border-box;
 	padding: 0;
 }
-
 @media (min-width: 550px) {
 	.container { display: flex; flex-wrap: wrap; align-items: stretch; } /* TODO margin: -1.5rem; does not really work */
 	.column { width: unset; margin: 1.5rem; flex-grow: 1; }
+}
+
+.button-container {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	justify-content: space-around;
+}
+.button-container > * {
+	margin: 1rem;
 }
 
 
@@ -335,12 +343,12 @@ hr {
 .page-container {
 	width: 100%;
     max-width: 960px;
-    margin: 5rem auto;
+    margin: 2rem auto;
     box-sizing: border-box;
-    padding: 0;
+    padding: 0 4px;
 }
-@media (min-width: 400px) { .page-container { width: 85%; } }
-@media (min-width: 550px) { .page-container { width: 80%; } }
+@media (min-width: 400px) { .page-container { width: 85%; padding: 0; margin: 5rem auto; } }
+@media (min-width: 550px) { .page-container { width: 80%; padding: 0; margin: 5rem auto; } }
 
 .page-container-wide {
 	margin: 0 auto;
@@ -611,6 +619,35 @@ input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
 	color: #006000;
 	text-align: center;
 }
+
+/* Page header */
+.header-button, .header-button:hover, .header-button:visited, .header-button:link, .header-button:active {
+    text-decoration: none;
+    color: white;
+}
+.header-button:hover {
+    color: #F3F3F3;
+}
+.header-button:active {
+    color: #EEE;
+}
+
+.page-header {
+	width: 100%;
+	box-sizing: border-box;
+	background-color: #535353;
+	color: #EEE;
+	padding: 1rem 5%;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: baseline;
+}
+.page-header-logo {
+	font-variant: small-caps;
+	font-size: 2.5rem;
+}
+.page-header-profile {}
 
 /* Media Queries
 Larger than mobile

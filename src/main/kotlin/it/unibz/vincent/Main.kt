@@ -10,6 +10,7 @@ import io.undertow.server.handlers.resource.ResourceHandler
 import it.unibz.vincent.pages.setupAccountListRoutes
 import it.unibz.vincent.pages.setupDemographyRoutes
 import it.unibz.vincent.pages.setupHomeRoutes
+import it.unibz.vincent.pages.setupProfileRoutes
 import it.unibz.vincent.pages.setupQuestionnaireAnswerRoutes
 import it.unibz.vincent.pages.setupQuestionnaireEditRoutes
 import it.unibz.vincent.pages.setupWelcomeRoutes
@@ -102,6 +103,7 @@ fun main(args: Array<String>) {
 	routingHandler.setupQuestionnaireAnswerRoutes()
 	routingHandler.setupDemographyRoutes()
 	routingHandler.setupAccountListRoutes()
+	routingHandler.setupProfileRoutes()
 
 	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
 	onShutdown {

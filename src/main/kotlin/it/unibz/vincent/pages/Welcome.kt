@@ -22,24 +22,14 @@ import it.unibz.vincent.util.toHumanReadableTime
 import it.unibz.vincent.util.toRawPassword
 import it.unibz.vincent.util.type
 import kotlinx.html.FORM
-import kotlinx.html.FlowOrInteractiveOrPhrasingContent
 import kotlinx.html.FormMethod
-import kotlinx.html.checkBoxInput
 import kotlinx.html.div
-import kotlinx.html.emailInput
 import kotlinx.html.form
 import kotlinx.html.h1
 import kotlinx.html.h4
 import kotlinx.html.hiddenInput
-import kotlinx.html.id
-import kotlinx.html.label
 import kotlinx.html.p
-import kotlinx.html.passwordInput
-import kotlinx.html.span
-import kotlinx.html.style
 import kotlinx.html.submitInput
-import kotlinx.html.tabIndex
-import kotlinx.html.textInput
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
@@ -49,73 +39,7 @@ import org.slf4j.LoggerFactory
 import java.sql.SQLException
 import java.time.Instant
 
-private val LOG = LoggerFactory.getLogger("WelcomePage")
-
-private fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, autoComplete:String, preFillValue:String?) {
-	label {
-		+"E-mail"
-		emailInput(classes = "u-full-width") {
-			name = fieldId
-			minLength = "3"
-			maxLength = Accounts.MAX_EMAIL_LENGTH.toString()
-			placeholder = "your-email@example.com"
-			required = true
-			if (preFillValue != null) {
-				value = preFillValue
-			}
-			attributes["autocomplete"] = autoComplete
-		}
-	}
-}
-
-private fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, autoComplete:String, internalId:String) {
-	label {
-		+"Password"
-		div("password-container") {
-			passwordInput(classes = "u-full-width") {
-				name = fieldId
-				minLength = MIN_PASSWORD_LENGTH.toString()
-				maxLength = MAX_PASSWORD_LENGTH.toString()
-				required = true
-				attributes["autocomplete"] = autoComplete
-				id = internalId
-			}
-
-			label("password-mask-toggle-label") {
-				style = "display: none;" // This element does not work without JS, so make it visible in JS
-				tabIndex = "0"
-				attributes["title"] = "Toggle password visibility"
-				attributes["aria-label"] = "Toggle password visibility"
-
-				checkBoxInput(name = null, classes = "password-mask-toggle") {
-					// The check box itself is never shown, hidden by the class
-					attributes["password-field"] = internalId
-					attributes["autocomplete"] = "off"
-					checked = false
-				}
-				span("password-mask-toggle-icon password-mask-toggle-icon-plain ${Icons.EYE.cssClass}") {}
-				span("password-mask-toggle-icon password-mask-toggle-icon-pass ${Icons.EYE_CLOSED.cssClass}") {}
-			}
-		}
-	}
-}
-
-private fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplete:String, preFillValue:String?) {
-	label {
-		+"Name"
-		textInput(classes = "u-full-width") {
-			name = fieldId
-			minLength = "1"
-			maxLength = Accounts.MAX_NAME_LENGTH.toString()
-			placeholder = "John Doe"
-			required = true
-			if (preFillValue != null) {
-				value = preFillValue
-			}
-			attributes["autocomplete"] = autoComplete
-		}
-	}
-}
+private val LOG = LoggerFactory.getLogger("Welcome")
 
 private const val POST_LOGIN_REDIRECT = "post-login-redirect"
 fun FORM.postLoginRedirect(exchange:HttpServerExchange) {
@@ -131,19 +55,20 @@ fun HttpServerExchange.handlePostLoginRedirect():Boolean {
 	return true
 }
 
+private const val ACTION_LOGIN = "login"
+private const val ACTION_REGISTER = "register"
+
 private const val FORM_EMAIL = "e"
 private const val FORM_PASSWORD = "p"
 private const val FORM_FULL_NAME = "n"
 
-private const val MIN_PASSWORD_LENGTH = 8
-private const val MAX_PASSWORD_LENGTH = 1000
 
 /** Show initial page where user can log in and register. */
 fun HttpServerExchange.loginRegister(/* Pre-filled values */
                                      loginEmail:String? = null,
                                      registerEmail:String? = null,
                                      registerName:String? = null) {
-	sendBase("Vincent - Welcome") { exchange, _ ->
+	sendBase("", showHeader = false) { exchange, _ ->
 		div("page-container") {
 			div("page-section") {
 				h1 { +"Vincent" }
@@ -156,7 +81,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 				div("column") {
 					h4 { +"Login" }
 					form(action = HOME_PATH, method = FormMethod.post) {
-						routeAction("login")
+						routeAction(ACTION_LOGIN)
 						postLoginRedirect(exchange)
 						div("form-section") { emailField(FORM_EMAIL, "on", loginEmail) }
 						div("form-section") { passwordField(FORM_PASSWORD, "current-password", internalId="l-pass") }
@@ -169,7 +94,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 				div("column") {
 					h4 { +"Register" }
 					form(action = HOME_PATH, method = FormMethod.post) {
-						routeAction("register")
+						routeAction(ACTION_REGISTER)
 						postLoginRedirect(exchange)
 						div("form-section") { emailField(FORM_EMAIL, "off", registerEmail) }
 						div("form-section") { passwordField(FORM_PASSWORD, "new-password", internalId="r-pass") }
@@ -222,7 +147,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	POST(HOME_PATH, routeAction = "login", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = ACTION_LOGIN, accessLevel=null) { exchange ->
 		val l = exchange.languages()
 
 		val email = exchange.formString(FORM_EMAIL)
@@ -302,7 +227,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 		}
 	}
 
-	POST(HOME_PATH, routeAction = "register", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = ACTION_REGISTER, accessLevel=null) { exchange ->
 		val email = exchange.formString(FORM_EMAIL)
 		// https://pages.nist.gov/800-63-3/sp800-63b.html#sec5
 		val password = exchange.formString(FORM_PASSWORD)

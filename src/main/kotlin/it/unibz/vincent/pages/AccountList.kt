@@ -173,7 +173,7 @@ private fun showAccountList(exchange: HttpServerExchange) {
 		result
 	}
 
-	exchange.sendBase("${filter.title} - Vincent") { _, locale ->
+	exchange.sendBase(filter.title) { _, locale ->
 		div("page-container-wide") {
 			h1 { +filter.title }
 

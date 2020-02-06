@@ -3,6 +3,7 @@ package it.unibz.vincent.pages
 import io.undertow.server.ExchangeCompletionListener
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
+import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
@@ -17,6 +18,7 @@ import kotlinx.html.BUTTON
 import kotlinx.html.ButtonType
 import kotlinx.html.FORM
 import kotlinx.html.FlowContent
+import kotlinx.html.FlowOrInteractiveOrPhrasingContent
 import kotlinx.html.FlowOrPhrasingContent
 import kotlinx.html.FormMethod
 import kotlinx.html.HTML
@@ -24,19 +26,28 @@ import kotlinx.html.HTMLTag
 import kotlinx.html.HtmlBlockTag
 import kotlinx.html.HtmlTagMarker
 import kotlinx.html.TagConsumer
+import kotlinx.html.a
 import kotlinx.html.attributesMapOf
 import kotlinx.html.body
 import kotlinx.html.button
+import kotlinx.html.checkBoxInput
 import kotlinx.html.div
+import kotlinx.html.emailInput
 import kotlinx.html.form
 import kotlinx.html.head
 import kotlinx.html.hiddenInput
+import kotlinx.html.id
+import kotlinx.html.label
 import kotlinx.html.lang
 import kotlinx.html.li
 import kotlinx.html.link
 import kotlinx.html.meta
+import kotlinx.html.passwordInput
 import kotlinx.html.script
 import kotlinx.html.span
+import kotlinx.html.style
+import kotlinx.html.tabIndex
+import kotlinx.html.textInput
 import kotlinx.html.title
 import kotlinx.html.ul
 import kotlinx.html.visit
@@ -118,12 +129,27 @@ fun FlowContent.postButton(session:Session, url:String, vararg extraParams:Pair<
 	}
 }
 
-fun HttpServerExchange.sendBase(title:String = "", createBody: BODY.(HttpServerExchange, LocaleStack) -> Unit) {
+fun HttpServerExchange.sendBase(title:String, showHeader:Boolean = true, createBody: BODY.(HttpServerExchange, LocaleStack) -> Unit) {
 	val languages = languages()
+	val session = session()
 	// TODO(jp): Localize!
 	sendHtml {
-		base("en", title, "Wine evaluation questionnaires") {
-			// TODO(jp): Header with logged-in-as and logout buttons?
+		base("en", if (title.isEmpty()) "Vincent" else "$title - Vincent", "Wine evaluation questionnaires") {
+			if (showHeader) {
+				// Header
+				div("page-header") {
+					a(href = HOME_PATH, classes = "header-button page-header-logo") {
+						+"Vincent"
+					}
+
+					if (session != null) {
+						a(href = PROFILE_PATH, classes = "header-button page-header-profile") {
+							+session.userName
+						}
+					}
+				}
+			}
+
 			createBody(this@sendBase, languages)
 		}
 	}
@@ -232,6 +258,75 @@ fun FlowContent.renderMessages(exchange:HttpServerExchange) {
 	val stashedInfoMessages = session?.retrieveStashedMessages(Session.MessageType.INFO)
 	renderMessageBox(infoMessages ?: emptyList(), stashedInfoMessages ?: emptyList(), "info box")
 	infoMessages?.clear()
+}
+
+fun FlowOrInteractiveOrPhrasingContent.emailField(fieldId:String, autoComplete:String, preFillValue:String?) {
+	label {
+		+"E-mail"
+		emailInput(classes = "u-full-width") {
+			name = fieldId
+			minLength = "3"
+			maxLength = Accounts.MAX_EMAIL_LENGTH.toString()
+			placeholder = "your-email@example.com"
+			required = true
+			if (preFillValue != null) {
+				value = preFillValue
+			}
+			attributes["autocomplete"] = autoComplete
+		}
+	}
+}
+
+const val MIN_PASSWORD_LENGTH = 8
+const val MAX_PASSWORD_LENGTH = 1000
+
+fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, autoComplete:String, internalId:String, label:String = "Password") {
+	label {
+		+label
+		div("password-container") {
+			passwordInput(classes = "u-full-width") {
+				name = fieldId
+				minLength = MIN_PASSWORD_LENGTH.toString()
+				maxLength = MAX_PASSWORD_LENGTH.toString()
+				required = true
+				attributes["autocomplete"] = autoComplete
+				id = internalId
+			}
+
+			label("password-mask-toggle-label") {
+				style = "display: none;" // This element does not work without JS, so make it visible in JS
+				tabIndex = "0"
+				attributes["title"] = "Toggle password visibility"
+				attributes["aria-label"] = "Toggle password visibility"
+
+				checkBoxInput(name = null, classes = "password-mask-toggle") {
+					// The check box itself is never shown, hidden by the class
+					attributes["password-field"] = internalId
+					attributes["autocomplete"] = "off"
+					checked = false
+				}
+				span("password-mask-toggle-icon password-mask-toggle-icon-plain ${Icons.EYE.cssClass}") {}
+				span("password-mask-toggle-icon password-mask-toggle-icon-pass ${Icons.EYE_CLOSED.cssClass}") {}
+			}
+		}
+	}
+}
+
+fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplete:String, preFillValue:String?) {
+	label {
+		+"Name"
+		textInput(classes = "u-full-width") {
+			name = fieldId
+			minLength = "1"
+			maxLength = Accounts.MAX_NAME_LENGTH.toString()
+			placeholder = "John Doe"
+			required = true
+			if (preFillValue != null) {
+				value = preFillValue
+			}
+			attributes["autocomplete"] = autoComplete
+		}
+	}
 }
 
 enum class Icons(val cssClass:String) {

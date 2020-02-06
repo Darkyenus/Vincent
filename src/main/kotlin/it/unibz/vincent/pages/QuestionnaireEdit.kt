@@ -503,7 +503,7 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 
 	val locale = languages()
 
-	sendBase { _, _ ->
+	sendBase("${questionnaire.name} - Edit") { _, _ ->
 		div("page-container") {
 			div("page-section") {
 				h1 {
@@ -538,7 +538,7 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 			}
 
 			// Actions
-			div("page-section container") {
+			div("page-section button-container") {
 				questionnaireActions(session, locale, questionnaire)
 			}
 		}

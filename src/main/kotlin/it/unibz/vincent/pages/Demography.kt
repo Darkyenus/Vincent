@@ -157,7 +157,7 @@ private fun showDemographyQuestionnaire(exchange: HttpServerExchange) {
 				.associateByTo(HashMap(), { it[DemographyInfo.questionId] }, { it[DemographyInfo.response] })
 	}
 
-	exchange.sendBase("Demography info - Vincent") { _, locale ->
+	exchange.sendBase("Demography info") { _, locale ->
 		div("page-container") {
 
 			div ("page-section") {
