@@ -7,9 +7,6 @@
 - Profile page
     - Change own password
     - Logout
-- Do not allow to open questionnaire when there are wine code duplicates
-    - Highlight duplicates
-    - Name duplicates are allowed
 - Add (dynamically shown) save button to single field forms
 - Better CSS for forms under tables
 

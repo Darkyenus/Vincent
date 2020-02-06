@@ -1,5 +1,6 @@
 package it.unibz.vincent.pages
 
+import com.carrotsearch.hppc.IntHashSet
 import com.carrotsearch.hppc.IntIntHashMap
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
@@ -221,7 +222,29 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 
 	h2 { +"Wines" }
 
-	var empty = true
+	class Wine(val id:Long, val name:String, val code:Int)
+
+	val wines = ArrayList<Wine>()
+	transaction {
+		for (row in QuestionnaireWines
+				.select { QuestionnaireWines.questionnaire eq questionnaire.id }
+				.orderBy(QuestionnaireWines.name)
+				.orderBy(QuestionnaireWines.id)) {
+			val wineId = row[QuestionnaireWines.id].value
+			val wineName = row[QuestionnaireWines.name]
+			val wineCode = row[QuestionnaireWines.code]
+			wines.add(Wine(wineId, wineName, wineCode))
+		}
+	}
+
+	val duplicateCodes = IntHashSet().apply {
+		val allCodes = IntHashSet(wines.size)
+		for (wine in wines) {
+			if (!allCodes.add(wine.code)) {
+				add(wine.code)
+			}
+		}
+	}
 
 	table {
 		thead {
@@ -234,44 +257,35 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 		}
 
 		tbody {
-			var index = 1
-			transaction {
-				for (row in QuestionnaireWines
-						.select { QuestionnaireWines.questionnaire eq questionnaire.id }
-						.orderBy(QuestionnaireWines.name)
-						.orderBy(QuestionnaireWines.id)) {
-					empty = false
-					val wineId = row[QuestionnaireWines.id].value
-					val wineName = row[QuestionnaireWines.name]
-					val wineCode = row[QuestionnaireWines.code]
+			for ((index, wine) in wines.withIndex()) {
+				val wineIdStr = wine.id.toString()
 
-					tr {
-						td { +(index++).toString() }
-						td {
+				tr {
+					td { +(index + 1).toString() }
+					td {
+						postForm(questionnaireEditPath(questionnaire.id)) {
+							session(session)
+							routeAction(ACTION_RENAME_WINE)
+							hiddenInput(name = PARAM_WINE_ID) { value = wineIdStr }
+							textInput(name = PARAM_WINE_NAME) { required = true; value = wine.name }
+						}
+					}
+					td(if (duplicateCodes.contains(wine.code)) "at-duplicate" else null) {
+						if (questionnaire.state == QuestionnaireState.CREATED) {
 							postForm(questionnaireEditPath(questionnaire.id)) {
 								session(session)
-								routeAction(ACTION_RENAME_WINE)
-								hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
-								textInput(name = PARAM_WINE_NAME) { required = true; value = wineName }
+								routeAction(ACTION_WINE_UPDATE_CODE)
+								hiddenInput(name = PARAM_WINE_ID) { value = wineIdStr }
+								numberInput(name = PARAM_WINE_CODE) { value = wine.code.toString() }
 							}
+						} else {
+							+wine.code.toString()
 						}
+					}
+					if (questionnaire.state == QuestionnaireState.CREATED) {
 						td {
-							if (questionnaire.state == QuestionnaireState.CREATED) {
-								postForm(questionnaireEditPath(questionnaire.id)) {
-									session(session)
-									routeAction(ACTION_WINE_UPDATE_CODE)
-									hiddenInput(name = PARAM_WINE_ID) { value = wineId.toString() }
-									numberInput(name = PARAM_WINE_CODE) { value = wineCode.toString() }
-								}
-							} else {
-								+wineCode.toString()
-							}
-						}
-						if (questionnaire.state == QuestionnaireState.CREATED) {
-							td {
-								postButton(session, questionnaireEditPath(questionnaire.id), PARAM_WINE_ID to wineId.toString(), routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
-									icon(Icons.TRASH)
-								}
+							postButton(session, questionnaireEditPath(questionnaire.id), PARAM_WINE_ID to wineIdStr, routeAction=ACTION_REMOVE_WINE, classes="dangerous") {
+								icon(Icons.TRASH)
 							}
 						}
 					}
@@ -280,7 +294,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 		}
 	}
 
-	if (empty) {
+	if (wines.isEmpty()) {
 		div("table-no-elements") {
 			if (questionnaire.state == QuestionnaireState.CREATED) {
 				+"Add wines"
@@ -951,8 +965,13 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		val updated = transaction {
-			val wineCount = QuestionnaireWines.select { (QuestionnaireWines.questionnaire eq questionnaire.id) }.count()
-			if (wineCount <= 0) {
+			val wineCodes = QuestionnaireWines
+					.slice(QuestionnaireWines.code)
+					.select { (QuestionnaireWines.questionnaire eq questionnaire.id) }
+					.map { it[QuestionnaireWines.code] }
+			val hasNoWines = wineCodes.isEmpty()
+
+			if (hasNoWines) {
 				// This is a wine-less questionnaire, generate null wine and hide it
 				// This is required because the whole DB schema relies on foreign key guarantees and the wine also appears in PK.
 				QuestionnaireWines.insert {
@@ -963,13 +982,31 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 				// Regenerate assignments
 				regenerateWineAssignments(questionnaire.id)
+			} else {
+				// Check for code duplicates
+				val codeSet = IntHashSet(wineCodes.size)
+				val codeDupes = IntHashSet()
+				for (wineCode in wineCodes) {
+					if (!codeSet.add(wineCode)) {
+						if (codeDupes.isEmpty) {
+							exchange.messageWarning("Can't open - wine codes must be unique")
+						}
+						if (codeDupes.add(wineCode)) {
+							exchange.messageWarning("Duplicated wine code: $wineCode")
+						}
+					}
+				}
+
+				if (!codeDupes.isEmpty) {
+					return@transaction -1
+				}
 			}
 
 			Questionnaires.update(
 					where={ (Questionnaires.id eq questionnaire.id) and (Questionnaires.state eq QuestionnaireState.CREATED) },
 					limit=1) {
 				it[state] = QuestionnaireState.RUNNING
-				if (wineCount <= 0) {
+				if (hasNoWines) {
 					it[Questionnaires.hasWines] = false
 				}
 			}
@@ -977,7 +1014,9 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		if (updated == 1) {
 			exchange.messageInfo("Questionnaire opened")
 		}
-		exchange.dropQuestionnaire()
+		if (updated >= 0) {
+			exchange.dropQuestionnaire()
+		}
 		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 

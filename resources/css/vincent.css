@@ -404,6 +404,8 @@ hr {
     background:#ffecec;
     border:1px solid #f5aca6;
 }
+.box li:last-child { margin-bottom: 0; }
+.box ul:last-child { margin-bottom: 0; }
 
 .warning.box {
     background:#ffecec;
@@ -420,11 +422,13 @@ hr {
 	display: block;
 	text-align: center;
 }
-
 .at-title {
 	font-size: smaller;
 	display: block;
 	text-align: center;
+}
+.at-duplicate input {
+    box-shadow: 0px 0px 6px 0px #DD0808;
 }
 
 /* Wine-assignment colors */
