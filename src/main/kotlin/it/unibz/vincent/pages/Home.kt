@@ -30,8 +30,11 @@ import kotlinx.html.FormEncType
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
+import kotlinx.html.label
 import kotlinx.html.p
 import kotlinx.html.postForm
+import kotlinx.html.span
+import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.table
 import kotlinx.html.tbody
@@ -254,12 +257,19 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 		}
 	}
 
-	postForm(HOME_PATH) {
+	postForm(HOME_PATH, classes = "compact-form") {
 		encType = FormEncType.multipartFormData
 		session(session)
 		routeAction(ACTION_TEMPLATE_NEW)
-		// TODO(jp): Client side size validation (https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5/Constraint_validation)
-		fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) { required=true; accept=".xml,application/xml,text/xml"; multiple=false; }
+		label("main") {
+			span("label") { +"Template file" }
+			fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) {
+				style = "font-weight: normal;";
+				required = true;
+				accept = ".xml,application/xml,text/xml";
+				multiple = false;
+			}
+		}
 		submitInput { value="Upload new template" }
 	}
 }

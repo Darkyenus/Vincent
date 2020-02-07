@@ -194,10 +194,13 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 	}
 
 	if (questionnaire.state != QuestionnaireState.CLOSED) {
-		postForm(questionnaireEditPath(questionnaire.id)) {
+		postForm(questionnaireEditPath(questionnaire.id), classes = "compact-form") {
 			session(session)
 			routeAction(ACTION_INVITE)
-			textInput(name = PARAM_USERS) { required = true; placeholder = "ex@mp.le, 123, ..." }
+			label("main") {
+				span("label") { +"Invitees" }
+				textInput(name = PARAM_USERS) { required = true; placeholder = "ex@mp.le, 123, ..." }
+			}
 			submitInput { value = "Invite" }
 		}
 	}
@@ -305,15 +308,15 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 	}
 
 	if (questionnaire.state == QuestionnaireState.CREATED) {
-		postForm(questionnaireEditPath(questionnaire.id)) {
+		postForm(questionnaireEditPath(questionnaire.id), classes = "compact-form") {
 			session(session)
 			routeAction(ACTION_ADD_WINE)
-			label {
-				+"Wine name"
+			label("main") {
+				span("label") { +"Wine name" }
 				textInput(name = PARAM_WINE_NAME) { required = true; placeholder = "Chardonnay" }
 			}
 			label {
-				+"Code"
+				span("label") { +"Code" }
 				numberInput(name = PARAM_WINE_CODE) { required = false; placeholder = "Random" }
 			}
 			submitInput { value = "Add Wine" }

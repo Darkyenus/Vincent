@@ -66,7 +66,7 @@ const val GUEST_CODE_PREFIX = "G#"
 private const val GUEST_CODE_CIPHER_SIZE_BYTES = 8
 private const val GUEST_CODE_OBFUSCATION_CIPHER_NAME = "DES/ECB/NoPadding"
 
-/** **This provides no security** and is only for minor obfuscation. TODO: Generate key and save it into the DB for some security */
+/** **This provides no security** and is only for minor obfuscation. */
 private val obfuscationKey = SecretKeySpec("Vincent".toByteArray(Charsets.UTF_8).copyOf(GUEST_CODE_CIPHER_SIZE_BYTES), "DES")
 
 fun accountIdToGuestCode(accountId:Long):String {
