@@ -279,7 +279,10 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 								session(session)
 								routeAction(ACTION_WINE_UPDATE_CODE)
 								hiddenInput(name = PARAM_WINE_ID) { value = wineIdStr }
-								numberInput(name = PARAM_WINE_CODE) { value = wine.code.toString() }
+								numberInput(name = PARAM_WINE_CODE) {
+									placeholder = "Random"
+									value = wine.code.toString()
+								}
 							}
 						} else {
 							+wine.code.toString()
@@ -836,12 +839,17 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		}
 
 		val wineId = exchange.formString(PARAM_WINE_ID)?.toLongOrNull()
-		val newCode = exchange.formString(PARAM_WINE_CODE)?.toIntOrNull()
+		var newCode = exchange.formString(PARAM_WINE_CODE)?.toIntOrNull()
 
-		if (wineId == null || newCode == null) {
+		if (wineId == null) {
 			exchange.messageWarning("Invalid change")
 			exchange.showEditQuestionnairePage()
 			return@POST
+		}
+
+		if (newCode == null) {
+			// Random code
+			newCode = transaction { QuestionnaireWines.findUniqueCode(questionnaire.id) }
 		}
 
 		val updated = transaction {
