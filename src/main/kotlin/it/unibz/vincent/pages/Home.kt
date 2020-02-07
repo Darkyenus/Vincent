@@ -67,7 +67,7 @@ const val HOME_PATH = "/"
  * - Start
  */
 private fun FlowContent.questionnairesToAnswer(session:Session) {
-	h1 { +"Questionnaire invitations" }
+	h1 { +"Invitations" }
 
 	var noInvitations = true
 
@@ -213,7 +213,7 @@ private const val TEMPLATE_NEW_TEMPLATE_XML = "template-xml"
  * - Upload a new template (\w name)
  */
 private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Session) {
-	h1 { +"Questionnaire templates" }
+	h1 { +"Templates" }
 
 	var noTemplates = true
 
@@ -305,6 +305,7 @@ fun HttpServerExchange.home(session: Session) {
 			// Show registered user lists
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section button-container") {
+					h1 { +"Accounts" }
 					getButton(ACCOUNT_LIST_PATH, parentClasses="column") { +"All accounts" }
 					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), parentClasses="column") { +"Regular accounts" }
 					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), parentClasses="column") { +"Guest accounts" }

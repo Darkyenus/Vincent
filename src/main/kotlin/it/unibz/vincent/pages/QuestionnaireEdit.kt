@@ -34,6 +34,7 @@ import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
+import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
@@ -266,23 +267,25 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
 				tr {
 					td { +(index + 1).toString() }
 					td {
-						postForm(questionnaireEditPath(questionnaire.id)) {
+						postForm(questionnaireEditPath(questionnaire.id), classes="super-compact-form") {
 							session(session)
 							routeAction(ACTION_RENAME_WINE)
 							hiddenInput(name = PARAM_WINE_ID) { value = wineIdStr }
-							textInput(name = PARAM_WINE_NAME) { required = true; value = wine.name }
+							textInput(name = PARAM_WINE_NAME, classes = "super-compact-input") { required = true; value = wine.name }
+							superCompactSaveButton()
 						}
 					}
 					td(if (duplicateCodes.contains(wine.code)) "at-duplicate" else null) {
 						if (questionnaire.state == QuestionnaireState.CREATED) {
-							postForm(questionnaireEditPath(questionnaire.id)) {
+							postForm(questionnaireEditPath(questionnaire.id), classes="super-compact-form") {
 								session(session)
 								routeAction(ACTION_WINE_UPDATE_CODE)
 								hiddenInput(name = PARAM_WINE_ID) { value = wineIdStr }
-								numberInput(name = PARAM_WINE_CODE) {
+								numberInput(name = PARAM_WINE_CODE, classes = "super-compact-input") {
 									placeholder = "Random"
 									value = wine.code.toString()
 								}
+								superCompactSaveButton()
 							}
 						} else {
 							+wine.code.toString()
@@ -513,14 +516,15 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 		div("page-container") {
 			div("page-section") {
 				h1 {
-					postForm(questionnaireEditPath(questionnaire.id)) {
+					postForm(questionnaireEditPath(questionnaire.id), classes="super-compact-form") {
 						session(session)
 						routeAction(ACTION_QUESTIONNAIRE_RENAME)
-						textInput(name = PARAM_QUESTIONNAIRE_NAME) {
+						textInput(name = PARAM_QUESTIONNAIRE_NAME, classes = "super-compact-input") {
 							required = true
 							style = "height: unset; width: 100%;"
 							value = questionnaire.name
 						}
+						superCompactSaveButton()
 					}
 				}
 				p("sub") { +questionnaire.templateName }

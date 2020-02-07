@@ -14,6 +14,18 @@ function parentWithClass(element, className) {
 	return element;
 }
 
+function setupSuperCompactForm(formInput) {
+	var originalValue = formInput.value;
+	formInput.onchange = function() {
+		var newValue = formInput.value;
+		if (newValue != originalValue) {
+			formInput.classList.add("changed");
+		} else {
+			formInput.classList.remove("changed");
+		}
+	};
+}
+
 window.addEventListener('DOMContentLoaded', (event) => {
 	// Setup confirm buttons
     var confirmForms = document.getElementsByClassName("confirmed-submit");
@@ -153,5 +165,11 @@ window.addEventListener('DOMContentLoaded', (event) => {
     var requiredQuestions = document.getElementsByClassName("section-part-required");
     if (requiredQuestions.length > 0) {
         requiredQuestions[0].scrollIntoView();
+    }
+
+    // Setup super-compact forms
+    var superCompactForms = document.getElementsByClassName("super-compact-input");
+    for (var i=0, len=superCompactForms.length|0; i<len; i=i+1|0) {
+        setupSuperCompactForm(superCompactForms[i]);
     }
 });

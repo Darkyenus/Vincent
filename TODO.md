@@ -3,7 +3,6 @@
 # Implement
 
 # Backlog
-- Add (dynamically shown) save button to single field forms
 - Implement TimeProgression
 - Add some sort of online template guide/manual
 

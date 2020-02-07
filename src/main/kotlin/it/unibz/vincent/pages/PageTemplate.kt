@@ -46,6 +46,7 @@ import kotlinx.html.passwordInput
 import kotlinx.html.script
 import kotlinx.html.span
 import kotlinx.html.style
+import kotlinx.html.submitInput
 import kotlinx.html.tabIndex
 import kotlinx.html.textInput
 import kotlinx.html.title
@@ -326,6 +327,12 @@ fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplet
 			}
 			attributes["autocomplete"] = autoComplete
 		}
+	}
+}
+
+fun FORM.superCompactSaveButton() {
+	div("super-compact-submit") {
+		submitInput { this.value="Save" }
 	}
 }
 
