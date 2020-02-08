@@ -349,9 +349,8 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 						}
 
 						val haveToWaitSeconds = Duration.between(now, canAdvanceSectionAfter).seconds
-						div("section-buttons-count-down") {
+						div("section-buttons-count-down hidden" /* Shown in JS */) {
 							this.id="section-count-down-ticker"
-							this.style = "display: none;" // Shown through javascript
 							this.attributes["seconds"] = haveToWaitSeconds.toString()
 
 							+"%02d:%02d".format(haveToWaitSeconds / 60, haveToWaitSeconds % 60)
