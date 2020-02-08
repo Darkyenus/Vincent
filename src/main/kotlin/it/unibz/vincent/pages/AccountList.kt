@@ -80,8 +80,6 @@ private class AccountInfo(
 	}
 }
 
-private val DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
-
 private fun TR.problemWithDetailTd(value:Boolean?, detail:String?, goodIs:Boolean) {
 	val valueStr = when (value) {
 		true -> "Yes"
@@ -98,6 +96,7 @@ private fun TR.problemWithDetailTd(value:Boolean?, detail:String?, goodIs:Boolea
 
 private fun showAccountList(exchange: HttpServerExchange) {
 	val session = exchange.session()!!
+	val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(session.timeZone)
 	val ownAccountType = session.accountType
 	val lang = TemplateLang(ULocale.ENGLISH, exchange.languages())
 
@@ -230,9 +229,9 @@ private fun showAccountList(exchange: HttpServerExchange) {
 									+(info.code?.toString() ?: "?")
 								}
 							}
-							td { +(info.timeRegistered?.let { DATE_FORMATTER.format(it) } ?: "?") }
+							td { +(info.timeRegistered?.let { dateFormatter.format(it) } ?: "?") }
 							if (filter.hasLoginTime) {
-								td { +(info.timeLastLogin?.let { DATE_FORMATTER.format(it) } ?: "?") }
+								td { +(info.timeLastLogin?.let { dateFormatter.format(it) } ?: "?") }
 							}
 							if (filter.hasQuestionnaire) {
 								problemWithDetailTd(info.foodIntolerance, info.foodIntoleranceDetail, false)

@@ -3,7 +3,6 @@
 # Implement
 
 # Backlog
-- Refactor vincent.js, remove code duplicates, use hidden class
 - Add some sort of online template guide/manual
 
 # Low priority
@@ -11,6 +10,5 @@
 - Allow to invite everyone from some other questionnaire, creating a dependency
 - Ability to create guest accounts
 - Forgot password
-- Use user provided time zone offset
 - Aroma tree
 - Logo

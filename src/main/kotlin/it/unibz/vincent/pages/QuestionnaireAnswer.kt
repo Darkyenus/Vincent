@@ -30,7 +30,6 @@ import kotlinx.html.hiddenInput
 import kotlinx.html.id
 import kotlinx.html.postForm
 import kotlinx.html.span
-import kotlinx.html.style
 import kotlinx.html.submitInput
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.leftJoin
@@ -263,6 +262,7 @@ private fun QuestionnaireParticipation.advanceSection(): Boolean {
 }
 
 private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:QuestionnaireParticipation) {
+	val session = exchange.session()!!
 	val existingResponses = HashMap<String, String>()
 	try {
 		transaction {
@@ -345,7 +345,7 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 
 						// Render waiting timer
 						noscript {
-							span { +"Next section available ${canAdvanceSectionAfter.toHumanReadableTime(locale, relative = true)}" }
+							span { +"Next section available ${canAdvanceSectionAfter.toHumanReadableTime(locale, session.timeZone, relative = true)}" }
 						}
 
 						val haveToWaitSeconds = Duration.between(now, canAdvanceSectionAfter).seconds

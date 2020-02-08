@@ -9,8 +9,6 @@ import io.undertow.server.handlers.Cookie
 import io.undertow.server.handlers.CookieImpl
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.pages.hasUserFilledDemographyInfoSufficiently
-import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.Logger
@@ -18,6 +16,7 @@ import org.slf4j.LoggerFactory
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -40,7 +39,7 @@ const val IDEMPOTENCY_FORM_TOKEN_NAME = "idmp"
  * @param sessionId The ID of the session, stored in session cookie
  * @param userId database ID of the user whose session this is
  */
-class Session(val sessionId:String, val userId:Long) {
+class Session(val sessionId:String, val userId:Long, val timeZone:ZoneId) {
 
 	/** Token to be included in each fork the user posts to prevent CSRF attacks.
 	 * Server automatically checks for the token to be set on each POST when the user is authenticated
@@ -193,13 +192,13 @@ private fun createSessionCookie(sessionId:String?): Cookie {
 	return cookie
 }
 
-fun HttpServerExchange.createSession(user:Long):Session {
+fun HttpServerExchange.createSession(user:Long, timeZone:ZoneId):Session {
 	var sessionId: String
 	do {
 		sessionId = randomSessionId()
 	} while (activeSessions.getIfPresent(sessionId) != null) // Extremely unlikely
 
-	val session = Session(sessionId, user)
+	val session = Session(sessionId, user, timeZone)
 	activeSessions.put(sessionId, session)
 
 	setResponseCookie(createSessionCookie(sessionId))

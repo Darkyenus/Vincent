@@ -269,4 +269,10 @@ window.addEventListener('DOMContentLoaded', (event) => {
     for (var i=0, len=timeProgressionContainers.length|0; i<len; i=i+1|0) {
         setupTimeProgression(timeProgressionContainers[i]);
     }
+
+    // Fill login time-zone
+    var timeZoneInputs = document.getElementsByClassName("put-timezone-here");
+    for (var i=0, len=timeZoneInputs.length|0; i<len; i=i+1|0) {
+        timeZoneInputs[i].value = -new Date().getTimezoneOffset();
+    }
 });

@@ -24,7 +24,7 @@ fun LocaleStack.l(template:String):String {
 	return template
 }
 
-fun Instant.toHumanReadableTime(locale:LocaleStack, relative:Boolean? = null):String {
+fun Instant.toHumanReadableTime(locale:LocaleStack, timeZone:ZoneId?, relative:Boolean? = null):String {
 	val uLocale = locale.defaultLocale()
 
 	if (relative != false) {

@@ -114,7 +114,7 @@ fun RoutingHandler.setupProfileRoutes() {
 		rateLimiter.attemptLogin({ waitUntil ->
 			LOG.info("{} - Attempted password change too soon (password change, from {})", session.userId, exchange.sourceAddress)
 
-			exchange.messageWarning("Too many failed login attempts, try again ${waitUntil.toHumanReadableTime(lang, relative = true)}")
+			exchange.messageWarning("Too many failed login attempts, try again ${waitUntil.toHumanReadableTime(lang, session.timeZone, relative = true)}")
 			exchange.redirect(PROFILE_PATH)
 		}) { now ->
 			val storedPassword = transaction {

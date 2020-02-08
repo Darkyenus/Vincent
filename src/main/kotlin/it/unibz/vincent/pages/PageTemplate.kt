@@ -329,6 +329,11 @@ fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplet
 	}
 }
 
+const val HIDDEN_TIMEZONE_INPUT_NAME = "timezone"
+fun FlowOrInteractiveOrPhrasingContent.hiddenTimezoneInput() {
+	hiddenInput(name=HIDDEN_TIMEZONE_INPUT_NAME, classes = "put-timezone-here") { this.value = "none" }
+}
+
 fun FORM.superCompactSaveButton() {
 	div("super-compact-submit") {
 		submitInput { this.value="Save" }

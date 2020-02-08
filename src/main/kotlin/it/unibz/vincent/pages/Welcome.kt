@@ -37,7 +37,10 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.sql.SQLException
+import java.time.DateTimeException
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 private val LOG = LoggerFactory.getLogger("Welcome")
 
@@ -83,6 +86,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 					form(action = HOME_PATH, method = FormMethod.post) {
 						routeAction(ACTION_LOGIN)
 						postLoginRedirect(exchange)
+						hiddenTimezoneInput()
 						div("form-section") { emailField(FORM_EMAIL, "on", loginEmail) }
 						div("form-section") { passwordField(FORM_PASSWORD, "current-password", internalId="l-pass") }
 						div("form-section-last") {
@@ -96,6 +100,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 					form(action = HOME_PATH, method = FormMethod.post) {
 						routeAction(ACTION_REGISTER)
 						postLoginRedirect(exchange)
+						hiddenTimezoneInput()
 						div("form-section") { emailField(FORM_EMAIL, "off", registerEmail) }
 						div("form-section") { passwordField(FORM_PASSWORD, "new-password", internalId="r-pass") }
 						div("form-section") { fullNameField(FORM_FULL_NAME, "name", registerName) }
@@ -127,6 +132,16 @@ private fun logoutMessage(sessionsDestroyed:Int):String? {
 	}
 }
 
+private val defaultTimeZone = ZoneId.systemDefault()
+private fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
+	val minuteOffset = exchange.formString(HIDDEN_TIMEZONE_INPUT_NAME)?.toIntOrNull() ?: return defaultTimeZone
+	return try {
+		ZoneOffset.ofTotalSeconds(minuteOffset * 60)
+	} catch (e: DateTimeException) {
+		defaultTimeZone
+	}
+}
+
 fun RoutingHandler.setupWelcomeRoutes() {
 	POST(HOME_PATH, routeAction = "logout", accessLevel=null) { exchange ->
 		exchange.messageInfo(logoutMessage(exchange.destroySession(false)))
@@ -149,6 +164,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 
 	POST(HOME_PATH, routeAction = ACTION_LOGIN, accessLevel=null) { exchange ->
 		val l = exchange.languages()
+		val timeZone = getTimeZoneOffset(exchange)
 
 		val email = exchange.formString(FORM_EMAIL)
 		val providedPassword = exchange.formString(FORM_PASSWORD)
@@ -199,7 +215,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			LOG.info("{} - Attempted login too soon (from {})", accountId, exchange.sourceAddress)
 
 			exchange.statusCode = StatusCodes.UNAUTHORIZED
-			exchange.messageWarning("Too many failed login attempts, try again ${waitUntil.toHumanReadableTime(l, relative = true)}")
+			exchange.messageWarning("Too many failed login attempts, try again ${waitUntil.toHumanReadableTime(l, timeZone, relative = true)}")
 			exchange.loginRegister(loginEmail = email, registerEmail = email)
 		}) { now ->
 			val validPassword = checkPassword(providedPassword.toRawPassword(), storedPassword)
@@ -219,7 +235,7 @@ fun RoutingHandler.setupWelcomeRoutes() {
 					LOG.warn("A successful login time update modified an unexpected amount of rows: {}", updateCount)
 				}
 
-				exchange.createSession(accountId)
+				exchange.createSession(accountId, timeZone)
 				if (!exchange.handlePostLoginRedirect()) {
 					exchange.redirect(HOME_PATH)
 				}
@@ -317,8 +333,10 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			return@POST
 		}
 
+		val timeZone = getTimeZoneOffset(exchange)
+
 		LOG.info("Successful registration of {} (from {})", newAccountId, exchange.sourceAddress)
-		exchange.createSession(newAccountId)
+		exchange.createSession(newAccountId, timeZone)
 		if (!exchange.handlePostLoginRedirect()) {
 			exchange.redirect(HOME_PATH)
 		}

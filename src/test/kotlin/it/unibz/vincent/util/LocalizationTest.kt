@@ -3,6 +3,7 @@ package it.unibz.vincent.util
 import com.ibm.icu.util.ULocale
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
 /**
@@ -27,7 +28,7 @@ class LocalizationTest {
 		fun printTime(time:Instant) {
 			println("------------ $time -----------")
 			for (locale in locales) {
-				println(time.toHumanReadableTime(locale))
+				println(time.toHumanReadableTime(locale, ZoneId.systemDefault()))
 			}
 		}
 

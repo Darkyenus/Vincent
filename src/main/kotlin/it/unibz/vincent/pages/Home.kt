@@ -53,7 +53,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 const val HOME_PATH = "/"
@@ -128,7 +127,7 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
  * Actions per questionnaire:
  * - Open detail page
  */
-private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
+private fun FlowContent.questionnairesToManage(locale: LocaleStack, session:Session) {
 	h1 { +"Questionnaires" }
 
 	var noQuestionnaires = true
@@ -167,7 +166,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack) {
 							}
 						}
 						td { +row[QuestionnaireTemplates.name] }
-						td { +row[Questionnaires.timeCreated].toHumanReadableTime(locale) }
+						td { +row[Questionnaires.timeCreated].toHumanReadableTime(locale, session.timeZone) }
 						val questionnaireId = row[Questionnaires.id].value
 						td {
 							// Participants
@@ -240,7 +239,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 					tr {
 						td { +row[QuestionnaireTemplates.name] }
 						td { +row[Accounts.name] }
-						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale) }
+						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale, session.timeZone) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
 						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_QUESTIONNAIRE_NEW) { +"Use" } }
 						td { getButton(HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_TEMPLATE_DOWNLOAD) { +"Download" } }
@@ -264,10 +263,10 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 		label("main") {
 			span("label") { +"Template file" }
 			fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) {
-				style = "font-weight: normal;";
-				required = true;
-				accept = ".xml,application/xml,text/xml";
-				multiple = false;
+				style = "font-weight: normal;"
+				required = true
+				accept = ".xml,application/xml,text/xml"
+				multiple = false
 			}
 		}
 		submitInput { value="Upload new template" }
@@ -291,7 +290,7 @@ fun HttpServerExchange.home(session: Session) {
 			// Show running questionnaires
 			if (userLevel >= AccountType.STAFF) {
 				div("page-section") {
-					questionnairesToManage(locale)
+					questionnairesToManage(locale, session)
 				}
 			}
 
@@ -319,10 +318,9 @@ fun HttpServerExchange.home(session: Session) {
 }
 
 fun RoutingHandler.setupHomeRoutes() {
-	val defaultNameDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.systemDefault())
-
 	POST(HOME_PATH, AccountType.STAFF, ACTION_QUESTIONNAIRE_NEW) { exchange ->
 		val session = exchange.session()!!
+		val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(session.timeZone)
 
 		val templateId = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
 		if (templateId == null) {
@@ -334,7 +332,7 @@ fun RoutingHandler.setupHomeRoutes() {
 
 		val newQuestionnaireId = transaction {
 			Questionnaires.insertAndGetId {
-				it[name] = "New questionnaire ${defaultNameDateFormatter.format(Instant.now())}"
+				it[name] = "New questionnaire ${dateFormatter.format(Instant.now())}"
 				it[createdBy] = session.userId
 				it[template] = templateId
 			}.value
@@ -433,7 +431,7 @@ fun RoutingHandler.setupHomeRoutes() {
 		}
 
 		if (parsed.errors.isNotEmpty()) {
-			exchange.statusCode = StatusCodes.BAD_REQUEST // UNPROCESSABLE_ENTITY would also be correct in some cases
+			exchange.statusCode = StatusCodes.BAD_REQUEST
 			for (error in parsed.errors) {
 				exchange.messageWarning(error)
 			}
