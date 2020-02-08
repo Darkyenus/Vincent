@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE questionnaire PUBLIC "-//UNIBZ//Vincent Questionnaire Template 1.0//EN" "vincent://questionnaire.dtd">
+<questionnaire>
+    <title>Time-gated Wine Taste Survey</title>
+
+    <section stage="only-first" shown-wine="all">
+        <title>Welcome</title>
+
+        <info>
+            <text>
+                In the following test, you will evaluate the wine taste as it evolves over time.
+                Do not drink until prompted to and then try to answer each question as soon as it appears,
+                with the response that is appropriate at the time of response.
+                If you don't manage to respond in the given time limit, just continue as if nothing had happened,
+                it will not prevent you from continuing. Nevertheless, please try to respond to all questions.
+            </text>
+        </info>
+
+        <question id="example" required="false">
+            <title>Practice example</title>
+            <text>
+                This is just an example! You can practise answering time-gated questions here, but <b>do not drink any wine </b> prior.
+                This is not a part of the evaluation.
+            </text>
+            <time-progression interval="10" repeats="4">
+                <one-of>
+                    <option>Good</option>
+                    <option>Mediocre</option>
+                    <option>Bad</option>
+                </one-of>
+            </time-progression>
+        </question>
+    </section>
+
+    <section stage="except-first" min-time="60" shown-wine="all">
+        <info>
+            <text>Cleanse your palate before continuing to the next wine.</text>
+        </info>
+        <question id="feedback" required="false">
+            <title>Feedback</title>
+            <text>While you are waiting, feel free to share any feedback you might have.</text>
+            <free-text type="paragraph"/>
+        </question>
+    </section>
+
+    <section>
+        <title>Evaluation</title>
+
+        <question id="evaluation">
+            <title>Taste over time</title>
+            <time-progression interval="5" repeats="6">
+                <scale min="-5" max="5">
+                    <min>Bad</min>
+                    <max>Good</max>
+                </scale>
+            </time-progression>
+        </question>
+    </section>
+
+    <section stage="only-last" shown-wine="none">
+        <title>Goodbye</title>
+        <info>
+            <text>Thank you for your participation.</text>
+        </info>
+    </section>
+</questionnaire>

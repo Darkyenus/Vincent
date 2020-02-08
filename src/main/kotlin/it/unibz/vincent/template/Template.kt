@@ -96,8 +96,12 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 		class TimeProgression(val interval: Duration, val repeats:Int, val base:TimeVariable) : QuestionType() {
 			override fun collectQuestionIds(baseId: String, onlyRequired:Boolean, collect: (String) -> Unit) {
-				for (i in 0 until repeats) {
-					base.collectQuestionIds("$i-$baseId", onlyRequired, collect)
+				collect("$baseId-completed")
+
+				if (!onlyRequired) {
+					for (i in 0 until repeats) {
+						base.collectQuestionIds("$i-$baseId", onlyRequired, collect)
+					}
 				}
 			}
 		}

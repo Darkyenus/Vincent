@@ -26,6 +26,120 @@ function setupSuperCompactForm(formInput) {
 	};
 }
 
+function enterClickEvent(element) {
+	element.addEventListener("keyup", function(e) {
+        if (e.keyCode == 13) {
+            e.target.click();
+        }
+    });
+}
+
+function hideElement(element) {
+	element.classList.add("hidden");
+}
+function hideElements(elements) {
+	for (var i=0, len=elements.length|0; i<len; i=i+1|0) {
+		hideElement(elements[i]);
+    }
+}
+
+function showElement(element) {
+	element.classList.remove("hidden");
+}
+function showElements(elements) {
+	for (var i=0, len=elements.length|0; i<len; i=i+1|0) {
+		showElement(elements[i]);
+    }
+}
+
+function updateTimerElement(element, remainingSeconds) {
+	var minutes = (remainingSeconds / 60) | 0;
+    var seconds = (remainingSeconds % 60) | 0;
+    if (minutes < 10) {
+        minutes = "0"+minutes;
+    }
+    if (seconds < 10) {
+        seconds = "0"+seconds;
+    }
+    element.textContent = minutes+":"+seconds;
+}
+
+function startTimerCountdown(element, seconds, onDone) {
+	var remainingSeconds = seconds | 0;
+	updateTimerElement(element, remainingSeconds);
+
+	if (remainingSeconds <= 0) {
+		if (onDone) {
+			onDone();
+		}
+		return;
+	}
+
+	function tick() {
+		remainingSeconds -= 1;
+        if (remainingSeconds <= 0) {
+            updateTimerElement(element, 0);
+            if (onDone) {
+                window.setTimeout(onDone, 500);
+            }
+        } else {
+            updateTimerElement(element, remainingSeconds);
+            window.setTimeout(tick, 1000);
+        }
+	}
+
+	// First tick half second, then seconds and the last bit is also half second
+	window.setTimeout(tick, 500);
+}
+
+function setupTimeProgression(timeProgressionContainer) {
+	var stepSeconds = timeProgressionContainer.getAttribute("time-progression-step-seconds") | 0;
+	var stepMs = stepSeconds * 1000;
+
+	var examples = timeProgressionContainer.getElementsByClassName("time-progression-example");
+	var timeProgressionDone = timeProgressionContainer.getElementsByClassName("time-progression-done")[0];
+	var timeProgressionTimer = timeProgressionContainer.getElementsByClassName("time-progression-timer")[0];
+	var timeProgressionStarts = timeProgressionContainer.getElementsByClassName("time-progression-start");
+	var timeProgressionParts = timeProgressionContainer.getElementsByClassName("time-progression-part");
+	var timeProgressionEnds = timeProgressionContainer.getElementsByClassName("time-progression-end");
+
+	showElements(examples);
+	showElements(timeProgressionStarts);
+	var partCount = timeProgressionParts.length | 0;
+
+	var started = false;
+	var startButton = timeProgressionStarts[0].getElementsByTagName("button")[0];
+	enterClickEvent(startButton);
+	startButton.addEventListener("click", function (e) {
+		e.preventDefault();
+		if (started) {
+			return;
+		}
+		started = true;
+
+		// Hide example & start & show first
+		hideElements(examples);
+		hideElements(timeProgressionStarts);
+		showElement(timeProgressionTimer);
+		showElement(timeProgressionParts[0]);
+
+		var shownPart = 0;
+		function showNextPart() {
+			hideElement(timeProgressionParts[shownPart]);
+			shownPart += 1;
+			if (shownPart < partCount) {
+				showElement(timeProgressionParts[shownPart]);
+				startTimerCountdown(timeProgressionTimer, stepSeconds, showNextPart);
+			} else {
+				hideElement(timeProgressionTimer);
+				showElements(timeProgressionEnds);
+				timeProgressionDone.checked = true;
+			}
+		}
+		startTimerCountdown(timeProgressionTimer, stepSeconds, showNextPart);
+	});
+}
+
 window.addEventListener('DOMContentLoaded', (event) => {
 	// Setup confirm buttons
     var confirmForms = document.getElementsByClassName("confirmed-submit");
@@ -120,11 +234,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
         var label = passwordToggleLabels[i];
         label.style=""; // Show it
         // Make it work through keyboard
-        label.addEventListener("keyup", function(e) {
-			if (e.keyCode == 13) {
-				e.target.click();
-			}
-		});
+        enterClickEvent(label);
     }
 
     var passwordToggles = document.getElementsByClassName("password-mask-toggle");
@@ -171,5 +281,11 @@ window.addEventListener('DOMContentLoaded', (event) => {
     var superCompactForms = document.getElementsByClassName("super-compact-input");
     for (var i=0, len=superCompactForms.length|0; i<len; i=i+1|0) {
         setupSuperCompactForm(superCompactForms[i]);
+    }
+
+    // Setup time progression
+    var timeProgressionContainers = document.getElementsByClassName("time-progression-container");
+    for (var i=0, len=timeProgressionContainers.length|0; i<len; i=i+1|0) {
+        setupTimeProgression(timeProgressionContainers[i]);
     }
 });

@@ -4,10 +4,13 @@ import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.template.fullTitle
 import it.unibz.vincent.template.mainText
+import kotlinx.html.ButtonType
 import kotlinx.html.HTMLTag
 import kotlinx.html.HtmlBlockTag
 import kotlinx.html.TEXTAREA
 import kotlinx.html.attributesMapOf
+import kotlinx.html.button
+import kotlinx.html.checkBoxInput
 import kotlinx.html.div
 import kotlinx.html.h2
 import kotlinx.html.h4
@@ -42,11 +45,14 @@ fun renderText(text:List<QuestionnaireTemplate.Text>, lang: TemplateLang, tag: K
 	}
 }
 
-private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.InputType, required:Boolean, classes:String?, value:String?, placeholder:String?) {
+private fun HtmlBlockTag.renderInput(name:String?, type: QuestionnaireTemplate.InputType, required:Boolean, classes:String?, value:String?, placeholder:String?) {
 	if (type.inputType != null) {
 		input(name = name, type = type.inputType, classes=classes) {
 			if (required) {
 				this.required = true
+			}
+			if (name == null) {
+				this.disabled = true
 			}
 			if (value != null) {
 				this.value = value
@@ -69,6 +75,9 @@ private fun HtmlBlockTag.renderInput(name:String, type: QuestionnaireTemplate.In
 				"class", classes), consumer).visit {
 			if (required) {
 				this.required = true
+			}
+			if (name == null) {
+				this.disabled = true
 			}
 			if (value != null) {
 				+value
@@ -113,28 +122,73 @@ fun HtmlBlockTag.renderSectionContent(content:List<QuestionnaireTemplate.Section
 	}
 }
 
-fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
+fun HtmlBlockTag.renderQuestion(id:String?, required:Boolean, type: QuestionnaireTemplate.QuestionType, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
 	when (type) {
 		is QuestionnaireTemplate.QuestionType.TimeVariable.OneOf -> renderQuestion(id, required, type, lang, existingResponses, idGenerator)
 		is QuestionnaireTemplate.QuestionType.TimeVariable.Scale -> renderQuestion(id, required, type, lang, existingResponses)
 		is QuestionnaireTemplate.QuestionType.FreeText -> renderQuestion(id, required, type, lang, existingResponses)
-		is QuestionnaireTemplate.QuestionType.TimeProgression -> renderQuestion(id, required, type, lang, existingResponses)
+		is QuestionnaireTemplate.QuestionType.TimeProgression -> renderQuestion(id, required, type, lang, existingResponses, idGenerator)
 	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.FreeText, lang: TemplateLang, existingResponses:Map<String, String>) {
-	renderInput("$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id",
+private fun HtmlBlockTag.renderQuestion(id:String?, required:Boolean, type: QuestionnaireTemplate.QuestionType.FreeText, lang: TemplateLang, existingResponses:Map<String, String>) {
+	renderInput(id?.let { "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$it" },
 			type.type, required, "free-text",
-			existingResponses[id], type.placeholder.mainText(lang))
+			id?.let { existingResponses[it] }, type.placeholder.mainText(lang))
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeProgression, lang: TemplateLang, existingResponses:Map<String, String>) {
-	p { +"TimeVariable type not implemented yet" }
-	//TODO
+private fun HtmlBlockTag.renderQuestion(id:String?, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeProgression, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
+	div("time-progression-container") {
+		attributes["time-progression-step-seconds"] = type.interval.seconds.toString()
+		if (id != null) {
+			val completedName = "$id-completed"
+			val value = "1"
+			checkBoxInput(name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$completedName", classes = "time-progression-done hidden") {
+				this.value = value
+				if (required) {
+					this.required = true
+				}
+				if (existingResponses[completedName] == value) {
+					this.checked = true
+				}
+			}
+		}
+
+		noscript {
+			p { +"This question requires JavaScript - please turn it on" }
+		}
+
+		div("time-progression-example hidden") {
+			span("time-progression-example-badge") { +"Example" }
+			renderQuestion(null, false, type.base, lang, emptyMap(), idGenerator)
+		}
+
+		if (id == null) {
+			return@div
+		}
+
+		div("time-progression-start hidden") {
+			button(classes="time-progression-start-button", type=ButtonType.button) { +"Start" }
+		}
+
+		div("time-progression-timer hidden") {}
+
+		for (repeat in 0 until type.repeats) {
+			val repeatId = "$repeat-$id"
+
+			div("time-progression-part hidden") {
+				renderQuestion(repeatId, false, type.base, lang, existingResponses, idGenerator)
+			}
+		}
+
+		div("time-progression-end hidden") {
+			+"Done"
+		}
+	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
-	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
+private fun HtmlBlockTag.renderQuestion(id:String?, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.OneOf, lang: TemplateLang, existingResponses:Map<String, String>, idGenerator:()->String) {
+	val name = id?.let { "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$it" }
 	val checked = existingResponses[id]
 
 	for (category in type.categories) {
@@ -160,6 +214,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 					radioInput(name=name, classes="one-of-detail-radio") {
 						if (required) {
 							this.required = true
+						}
+						if (name == null) {
+							this.disabled = true
 						}
 						if (option.hasDetail) {
 							val newId = idGenerator()
@@ -193,9 +250,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 				}
 				renderText(option.detail, lang, ::span, "one-of-detail-title")
 
-				val detailId = "$id-detail-${option.value}"
-				val existingDetail = existingResponses[detailId]
-				renderInput("$FORM_PARAM_QUESTION_RESPONSE_PREFIX$detailId",
+				val detailId = id?.let { "$it-detail-${option.value}" }
+				val existingDetail = detailId?.let { existingResponses[it] }
+				renderInput(detailId?.let { "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$it" },
 						option.detailType, false, "one-of-detail-input",
 						existingDetail, null)
 			}
@@ -203,9 +260,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 	}
 }
 
-private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.Scale, lang: TemplateLang, existingResponses:Map<String, String>) {
-	val picked = existingResponses[id]
-	val name = "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$id"
+private fun HtmlBlockTag.renderQuestion(id:String?, required:Boolean, type: QuestionnaireTemplate.QuestionType.TimeVariable.Scale, lang: TemplateLang, existingResponses:Map<String, String>) {
+	val picked = id?.let { existingResponses[it] }
+	val name = id?.let { "$FORM_PARAM_QUESTION_RESPONSE_PREFIX$it" }
 
 	div("scale-parent") {
 		if (type.minLabel.isNotEmpty()) {
@@ -221,6 +278,9 @@ private fun HtmlBlockTag.renderQuestion(id:String, required:Boolean, type: Quest
 				radioInput(name = name) {
 					if (required) {
 						this.required = true
+					}
+					if (name == null) {
+						this.disabled = true
 					}
 					this.value = value
 					if (picked == value) {

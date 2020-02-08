@@ -304,12 +304,14 @@ fun HttpServerExchange.home(session: Session) {
 
 			// Show registered user lists
 			if (userLevel >= AccountType.STAFF) {
-				div("page-section button-container") {
+				div("page-section") {
 					h1 { +"Accounts" }
-					getButton(ACCOUNT_LIST_PATH, parentClasses="column") { +"All accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), parentClasses="column") { +"Regular accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), parentClasses="column") { +"Guest accounts" }
-					getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), parentClasses="column") { +"Reserved accounts" }
+					div("button-container") {
+						getButton(ACCOUNT_LIST_PATH, parentClasses = "column") { +"All accounts" }
+						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), parentClasses = "column") { +"Regular accounts" }
+						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), parentClasses = "column") { +"Guest accounts" }
+						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), parentClasses = "column") { +"Reserved accounts" }
+					}
 				}
 			}
 		}

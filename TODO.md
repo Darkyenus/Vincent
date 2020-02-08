@@ -3,7 +3,7 @@
 # Implement
 
 # Backlog
-- Implement TimeProgression
+- Refactor vincent.js, remove code duplicates, use hidden class
 - Add some sort of online template guide/manual
 
 # Low priority
