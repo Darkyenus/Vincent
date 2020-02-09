@@ -63,9 +63,7 @@ fun Instant.toHumanReadableTime(locale:LocaleStack, timeZone:ZoneId?, relative:B
 		}
 	}
 
-	// TODO(jp): User provided time zone offset
-	val zone = ZoneId.systemDefault()
-	val icuZone = JavaTimeZone(TimeZone.getTimeZone(zone), null)
+	val icuZone = JavaTimeZone(TimeZone.getTimeZone(timeZone), null)
 	val dateFormat = DateFormat.getDateTimeInstance(Calendar.getInstance(icuZone, uLocale), DateFormat.FULL, DateFormat.SHORT, uLocale)
 	return dateFormat.format(Date.from(this))
 }
