@@ -1,6 +1,7 @@
 @file:JvmName("Main")
 package it.unibz.vincent
 
+import com.darkyen.tproll.TPLogger
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.server.HttpHandler
@@ -87,6 +88,16 @@ fun main(args: Array<String>) {
 			Option(Option.NO_SHORT_NAME, "behind-reverse-proxy", "Makes Vincent aware that it is behind a reverse proxy and will handle X-Forwarded headers correctly") { _, _ ->
 				behindReverseProxy = true
 			},
+			Option('l', "log", "Set the log level", true, "trace|debug|info|warn|error") { arg, _ ->
+				when (arg.toLowerCase().firstOrNull()) {
+					't' -> TPLogger.TRACE()
+					'd' -> TPLogger.DEBUG()
+					'i' -> TPLogger.INFO()
+					'w' -> TPLogger.WARN()
+					'e' -> TPLogger.ERROR()
+					else -> println("Invalid log level: $arg")
+				}
+			},
 			Option('?', "help", "Display this help and exit") { _, allOptions ->
 				Option.printLaunchHelp(allOptions)
 				exitProcess(0)
@@ -143,6 +154,7 @@ fun main(args: Array<String>) {
 				"stop" -> {
 					LOG.info("CLI: Stopping the server")
 					undertow.stop()
+					LOG.info("CLI: Server stopped")
 					exitProcess(0)
 				}
 				"account" -> {
