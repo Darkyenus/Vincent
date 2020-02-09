@@ -1,15 +1,32 @@
+@file:Suppress("unused")
+
+import wemi.Configurations.debug
+import wemi.compile.KotlinCompilerVersion
+import wemi.configuration
 import wemi.dependency.JCenter
 import wemi.dependency.Jitpack
 
-@Suppress("unused")
+val deployment by configuration("Temporary deployment config") {
+	runArguments set { listOf(
+			"--static=${projectRoot.get().toAbsolutePath() / "resources"}",
+			"--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}",
+			"--database=${cacheDirectory.get() / "-database/vincent" }",
+			"--host=localhost",
+			"--port=8071") }
+}
+
 val Vincent by project {
 
 	projectGroup set { "it.unibz.inf" }
 	projectName set { "Vincent" }
 	projectVersion set { "0.1-SNAPSHOT" }
 
+	kotlinVersion set { KotlinCompilerVersion.Version1_3_41 }
+
 	mainClass set { "it.unibz.vincent.Main" }
-	runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
+	extend(debug) {
+		runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
+	}
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources"}" }
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }
