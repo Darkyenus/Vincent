@@ -12,7 +12,8 @@ val deployment by configuration("Temporary deployment config") {
 			"--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}",
 			"--database=${cacheDirectory.get() / "-database/vincent" }",
 			"--host=localhost",
-			"--port=8071") }
+			"--port=8071",
+			"--behind-reverse-proxy") }
 }
 
 val Vincent by project {

@@ -1,6 +1,7 @@
 @file:JvmName("Main")
 package it.unibz.vincent
 
+import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.server.HttpHandler
 import io.undertow.server.RoutingHandler
@@ -45,6 +46,7 @@ fun main(args: Array<String>) {
 	var host = "0.0.0.0"
 	var port = 7000
 	var databaseFile:Path? = null
+	var behindReverseProxy = false
 
 	// Parse options
 	val options = arrayOf(
@@ -82,6 +84,9 @@ fun main(args: Array<String>) {
 				LOG.warn("Enabling unsafe mode - I hope I'm not in production!")
 				VINCENT_UNSAFE_MODE = true
 			},
+			Option(Option.NO_SHORT_NAME, "behind-reverse-proxy", "Makes Vincent aware that it is behind a reverse proxy and will handle X-Forwarded headers correctly") { _, _ ->
+				behindReverseProxy = true
+			},
 			Option('?', "help", "Display this help and exit") { _, allOptions ->
 				Option.printLaunchHelp(allOptions)
 				exitProcess(0)
@@ -116,7 +121,11 @@ fun main(args: Array<String>) {
 
 	createSchemaTables()
 
-	val undertow = Undertow.builder().addHttpListener(port, host).setHandler(wrapRootHandler(routingHandler)).build()
+	var rootHandler = wrapRootHandler(routingHandler)
+	if (behindReverseProxy) {
+		rootHandler = Handlers.proxyPeerAddress(rootHandler)
+	}
+	val undertow = Undertow.builder().addHttpListener(port, host).setHandler(rootHandler).build()
 	undertow.start()
 
 	// Start CLI
