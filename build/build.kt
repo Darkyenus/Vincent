@@ -1,6 +1,5 @@
 @file:Suppress("unused")
 
-import wemi.Configurations.debug
 import wemi.compile.KotlinCompilerVersion
 import wemi.configuration
 import wemi.dependency.JCenter
@@ -13,8 +12,7 @@ val deployment by configuration("Temporary deployment config") {
 			"--database=${cacheDirectory.get() / "-database/vincent" }",
 			"--host=localhost",
 			"--port=8071",
-			"--behind-reverse-proxy",
-			"--log=trace") }
+			"--behind-reverse-proxy") }
 }
 
 val continuousDebug by configuration("") {
@@ -35,7 +33,6 @@ val Vincent by project {
 	runArguments add { "--unsafe-mode" }
 	runArguments add { "--database=${cacheDirectory.get() / "-database/vincent" }" }
 	runArguments add { "--host=localhost" }
-	runArguments add { "--log=trace" }
 
 	repositories add { Jitpack }
 	repositories add { JCenter }

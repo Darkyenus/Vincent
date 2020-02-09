@@ -13,7 +13,15 @@ private val secureRandom: SecureRandom = try {
 	SecureRandom()
 }.apply {
 	// The only strong instance ever, because they are extremely slow on some systems (like Debian)
-	val ms = measureTimeMillis { setSeed(SecureRandom.getInstanceStrong().generateSeed(32)) }
+	val ms = measureTimeMillis {
+		val secureNativeRandom = try {
+			// Strong secure random is often slow, try the non-blocking version first
+			SecureRandom.getInstance("NativePRNGNonBlocking")
+		} catch (e:NoSuchAlgorithmException) {
+			SecureRandom.getInstanceStrong()
+		}
+		setSeed(secureNativeRandom.generateSeed(32))
+	}
 	if (ms > 100) {
 		LOG.warn("Secure seeding took {} ms", ms)
 	}
