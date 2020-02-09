@@ -9,11 +9,11 @@ import io.undertow.server.handlers.Cookie
 import io.undertow.server.handlers.CookieImpl
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.pages.hasUserFilledDemographyInfoSufficiently
+import it.unibz.vincent.util.secureRandomBytes
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -30,8 +30,6 @@ private val activeSessions = CacheBuilder.newBuilder()
 		.expireAfterWrite(SESSION_VALIDITY)
 		.build<String, Session>()
 
-private val csrfRandom = SecureRandom.getInstanceStrong()
-
 const val CSRF_FORM_TOKEN_NAME = "csrf"
 const val IDEMPOTENCY_FORM_TOKEN_NAME = "idmp"
 
@@ -45,11 +43,7 @@ class Session(val sessionId:String, val userId:Long, val timeZone:ZoneId) {
 	 * Server automatically checks for the token to be set on each POST when the user is authenticated
 	 * in [it.unibz.vincent.util.wrapRootHandler]. */
 	val csrfToken:String = run {
-		val bytes = ByteArray(16)
-		synchronized(csrfRandom) {
-			csrfRandom.nextBytes(bytes)
-		}
-		Base64.getUrlEncoder().encodeToString(bytes)
+		Base64.getUrlEncoder().encodeToString(secureRandomBytes(16))
 	}
 
 	/** Each form contains an idempotency token, which is used to prevent doing something twice. */
@@ -164,13 +158,8 @@ fun HttpServerExchange.session():Session? {
 	return session
 }
 
-private val sessionRandom = SecureRandom.getInstanceStrong()
 private fun randomSessionId():String {
-	val bytes = ByteArray(16)
-	synchronized(sessionRandom) {
-		sessionRandom.nextBytes(bytes)
-	}
-	return Base64.getUrlEncoder().encodeToString(bytes)
+	return Base64.getUrlEncoder().encodeToString(secureRandomBytes(16))
 }
 
 /** Long, long time ago, in a cookie far away. */

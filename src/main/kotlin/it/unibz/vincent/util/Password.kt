@@ -1,7 +1,6 @@
 package it.unibz.vincent.util
 
 import com.lambdaworks.crypto.SCrypt
-import java.security.SecureRandom
 import java.text.Normalizer
 import kotlin.experimental.or
 import kotlin.experimental.xor
@@ -47,14 +46,9 @@ private const val DEFAULT_KEY_SIZE:Byte = 32
 
 const val HASHED_PASSWORD_SIZE = 5 + DEFAULT_SALT_SIZE + DEFAULT_KEY_SIZE
 
-private val saltRandom = SecureRandom.getInstanceStrong()
-
 /** Hash given password and return hashed+salted result, including metadata. */
 fun hashPassword(password:RawPassword):ByteArray {
-	val salt = ByteArray(DEFAULT_SALT_SIZE.toInt())
-	synchronized(saltRandom) {
-		saltRandom.nextBytes(salt)
-	}
+	val salt = secureRandomBytes(DEFAULT_SALT_SIZE.toInt())
 
 	val derived = SCrypt.scrypt(password, salt, 1 shl DEFAULT_N_POW.toInt(), DEFAULT_R.toInt(), DEFAULT_P.toInt(), DEFAULT_KEY_SIZE.toInt())
 
