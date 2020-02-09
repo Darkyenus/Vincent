@@ -17,6 +17,10 @@ val deployment by configuration("Temporary deployment config") {
 			"--log=trace") }
 }
 
+val continuousDebug by configuration("") {
+	runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
+}
+
 val Vincent by project {
 
 	projectGroup set { "it.unibz.inf" }
@@ -26,9 +30,6 @@ val Vincent by project {
 	kotlinVersion set { KotlinCompilerVersion.Version1_3_41 }
 
 	mainClass set { "it.unibz.vincent.Main" }
-	extend(debug) {
-		runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
-	}
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources"}" }
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }
