@@ -3,6 +3,7 @@ package it.unibz.vincent.util
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.IColumnType
 import org.jetbrains.exposed.sql.QueryBuilder
+import org.jetbrains.exposed.sql.StringColumnType
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.statements.StatementType
@@ -83,3 +84,14 @@ fun <T:Table> T.merge(keys:List<Column<*>> = emptyList(), body: T.(MergeStatemen
 	body(query)
 	return query.execute(TransactionManager.current())!!
 }
+
+open class VarCharIgnoreCaseColumnType(val colLength: Int?) : StringColumnType()  {
+	override fun sqlType(): String = buildString {
+		append("VARCHAR_IGNORECASE")
+		if (colLength != null) {
+			append('(').append(colLength).append(')')
+		}
+	}
+}
+
+fun Table.varcharIgnoreCase(name: String, length: Int? = null): Column<String> = registerColumn(name, VarCharIgnoreCaseColumnType(length))

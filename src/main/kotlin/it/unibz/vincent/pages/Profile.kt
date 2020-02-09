@@ -78,7 +78,7 @@ private fun showProfilePage(exchange: HttpServerExchange) {
 }
 
 fun RoutingHandler.setupProfileRoutes() {
-	GET(PROFILE_PATH, AccountType.NORMAL) { exchange ->
+	GET(PROFILE_PATH, AccountType.NORMAL, requireCompletedDemography = false) { exchange ->
 		showProfilePage(exchange)
 	}
 

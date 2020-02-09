@@ -117,21 +117,6 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 // From https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#Validation
 private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
-private fun logoutMessage(sessionsDestroyed:Int):String? {
-	return when {
-		sessionsDestroyed == 1 -> {
-			"Logged out successfully"
-		}
-		sessionsDestroyed == 2 -> {
-			"Logged out successfully from this and 1 more browser"
-		}
-		sessionsDestroyed > 2 -> {
-			"Logged out successfully from this and ${sessionsDestroyed - 1} more browsers"
-		}
-		else -> null
-	}
-}
-
 private val defaultTimeZone = ZoneId.systemDefault()
 private fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
 	val minuteOffset = exchange.formString(HIDDEN_TIMEZONE_INPUT_NAME)?.toIntOrNull() ?: return defaultTimeZone
@@ -144,12 +129,12 @@ private fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
 
 fun RoutingHandler.setupWelcomeRoutes() {
 	POST(HOME_PATH, routeAction = "logout", accessLevel=null) { exchange ->
-		exchange.messageInfo(logoutMessage(exchange.destroySession(false)))
+		exchange.destroySession(false)
 		exchange.redirect(HOME_PATH)
 	}
 
 	POST(HOME_PATH, routeAction = "logout-fully", accessLevel=null) { exchange ->
-		exchange.messageInfo(logoutMessage(exchange.destroySession(true)))
+		exchange.destroySession(true)
 		exchange.redirect(HOME_PATH)
 	}
 

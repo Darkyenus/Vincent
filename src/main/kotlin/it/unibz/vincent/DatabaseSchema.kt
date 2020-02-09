@@ -10,6 +10,7 @@ import it.unibz.vincent.util.appendHex
 import it.unibz.vincent.util.getLong
 import it.unibz.vincent.util.parseHex
 import it.unibz.vincent.util.putLong
+import it.unibz.vincent.util.varcharIgnoreCase
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -100,7 +101,7 @@ object Accounts : LongIdTable() {
 	const val MAX_NAME_LENGTH = 128
 	val name = varchar("name", MAX_NAME_LENGTH)
 	const val MAX_EMAIL_LENGTH = 128
-	val email = varchar("email", MAX_EMAIL_LENGTH).uniqueIndex()
+	val email = varcharIgnoreCase("email", MAX_EMAIL_LENGTH).uniqueIndex()
 	val password = binary("password", HASHED_PASSWORD_SIZE)
 	val accountType = enumeration("account_type", AccountType::class)
 	val code = integer("code").autoIncrement().uniqueIndex().nullable()
