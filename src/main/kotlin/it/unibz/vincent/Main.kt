@@ -43,6 +43,8 @@ var VINCENT_UNSAFE_MODE = false
 
 /** Entry point */
 fun main(args: Array<String>) {
+	System.setProperty("org.jboss.logging.provider", "slf4j")
+
 	val staticFileDirectories = ArrayList<Path>()
 	var host = "0.0.0.0"
 	var port = 7000

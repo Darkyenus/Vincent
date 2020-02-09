@@ -13,7 +13,8 @@ val deployment by configuration("Temporary deployment config") {
 			"--database=${cacheDirectory.get() / "-database/vincent" }",
 			"--host=localhost",
 			"--port=8071",
-			"--behind-reverse-proxy") }
+			"--behind-reverse-proxy",
+			"--log=trace") }
 }
 
 val Vincent by project {
@@ -33,6 +34,7 @@ val Vincent by project {
 	runArguments add { "--unsafe-mode" }
 	runArguments add { "--database=${cacheDirectory.get() / "-database/vincent" }" }
 	runArguments add { "--host=localhost" }
+	runArguments add { "--log=trace" }
 
 	repositories add { Jitpack }
 	repositories add { JCenter }
