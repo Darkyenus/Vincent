@@ -13,6 +13,7 @@ import it.unibz.vincent.pages.setupHomeRoutes
 import it.unibz.vincent.pages.setupProfileRoutes
 import it.unibz.vincent.pages.setupQuestionnaireAnswerRoutes
 import it.unibz.vincent.pages.setupQuestionnaireEditRoutes
+import it.unibz.vincent.pages.setupTemplateInfoRoutes
 import it.unibz.vincent.pages.setupWelcomeRoutes
 import it.unibz.vincent.util.Option
 import it.unibz.vincent.util.closeDatabase
@@ -104,6 +105,7 @@ fun main(args: Array<String>) {
 	routingHandler.setupDemographyRoutes()
 	routingHandler.setupAccountListRoutes()
 	routingHandler.setupProfileRoutes()
+	routingHandler.setupTemplateInfoRoutes()
 
 	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
 	onShutdown {

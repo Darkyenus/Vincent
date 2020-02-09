@@ -27,6 +27,7 @@ import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
+import kotlinx.html.a
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
@@ -41,6 +42,7 @@ import kotlinx.html.tbody
 import kotlinx.html.td
 import kotlinx.html.th
 import kotlinx.html.thead
+import kotlinx.html.title
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.and
@@ -261,7 +263,15 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 		session(session)
 		routeAction(ACTION_TEMPLATE_NEW)
 		label("main") {
-			span("label") { +"Template file" }
+			span("label") {
+				+"Template file"
+				span {
+					this.style = "margin-left: 1rem; display: inline-block; vertical-align: middle;"
+					a(href = TEMPLATE_INFO_PATH, target = "_blank", classes = Icons.INFO.cssClass) {
+						this.title = "Template language info"
+					}
+				}
+			}
 			fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) {
 				style = "font-weight: normal;"
 				required = true

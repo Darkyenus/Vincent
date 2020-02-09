@@ -121,7 +121,6 @@
             </scale>
         </question>
 
-        <!-- TODO Replace with optional aroma tree -->
         <question id="aromas">
             <title>Aromas</title>
             <free-text/>

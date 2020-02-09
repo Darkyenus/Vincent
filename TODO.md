@@ -3,7 +3,6 @@
 # Implement
 
 # Backlog
-- Add some sort of online template guide/manual
 
 # Low priority
 - Localization

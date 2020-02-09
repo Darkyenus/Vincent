@@ -45,7 +45,6 @@ import kotlinx.html.meta
 import kotlinx.html.passwordInput
 import kotlinx.html.script
 import kotlinx.html.span
-import kotlinx.html.style
 import kotlinx.html.submitInput
 import kotlinx.html.tabIndex
 import kotlinx.html.textInput
@@ -342,6 +341,7 @@ fun FORM.superCompactSaveButton() {
 
 enum class Icons(val cssClass:String) {
 	TRASH("gg-trash"),
+	INFO("gg-info"),
 	EYE("gg-eye"),
 	EYE_CLOSED("gg-eye-closed")
 }

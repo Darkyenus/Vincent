@@ -1,0 +1,77 @@
+<!--
+All elements that present user-facing text are written in HTML, which means that it is possible to use formatting tags,
+such as <i>italics</i>, <b>bold</b>, etc.
+-->
+
+<!ELEMENT questionnaire (title+, section+)>
+
+<!ATTLIST questionnaire
+        default-lang CDATA "en"
+        >
+
+<!ELEMENT title ANY>
+<!ATTLIST title
+        lang CDATA #IMPLIED
+        always (true|false|yes|no) "false"
+        >
+
+<!ELEMENT section (title*, (info | question)*)>
+<!ATTLIST section
+        min-time CDATA "0"
+        stage (always|only-first|except-first|only-last|except-last) "always"
+        shown-wine (none|all|current) "current"
+        >
+
+<!ELEMENT info (title*, text*)>
+
+<!ELEMENT text ANY>
+<!ATTLIST text
+        lang CDATA #IMPLIED
+        >
+
+<!ELEMENT question (title*, text*, (one-of, free-text, scale, time-progression))>
+<!ATTLIST question
+        id ID #REQUIRED
+        required (true|false|yes|no) "true"
+        >
+
+<!ELEMENT one-of (category+ | option+)>
+<!ELEMENT category (title*, option+)>
+
+<!-- Actual constraint: (#PCDATA | (title+, detail*)) (not supported by DTD) -->
+<!ELEMENT option (#PCDATA | title | detail)*>
+<!ATTLIST option
+        value CDATA #IMPLIED
+        detail (true|false|yes|no) "false"
+        detail-type (sentence|paragraph|number) "sentence"
+        >
+
+<!ELEMENT detail ANY>
+<!ATTLIST detail
+        lang CDATA #IMPLIED
+        >
+
+<!ELEMENT free-text (placeholder*)>
+<!ATTLIST free-text
+        type (sentence|paragraph|number) "sentence"
+        >
+
+<!ELEMENT placeholder ANY>
+<!ATTLIST placeholder
+        lang CDATA #IMPLIED
+        >
+
+<!ELEMENT scale (min, max)?>
+<!ATTLIST scale
+        min CDATA "1"
+        max CDATA "7">
+
+<!-- Actual constraint: (#PCDATA | title+) (not supported by DTD) -->
+<!ELEMENT min (#PCDATA | title)*>
+<!ELEMENT max (#PCDATA | title)*>
+
+<!ELEMENT time-progression (one-of | scale)>
+<!ATTLIST time-progression
+        interval CDATA #REQUIRED
+        repeats CDATA #REQUIRED
+        >

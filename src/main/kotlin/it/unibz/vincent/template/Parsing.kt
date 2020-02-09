@@ -20,7 +20,7 @@ const val QUESTIONNAIRE_FPI = "-//UNIBZ//Vincent Questionnaire Template 1.0//EN"
 const val QUESTIONNAIRE_FPI_URL = "vincent://questionnaire.dtd"
 
 fun questionnaireDTDSource(): InputSource {
-	val source = InputSource(QuestionnaireTemplate::class.java.classLoader.getResourceAsStream("questionnaire.dtd")!!)
+	val source = InputSource(QuestionnaireTemplate::class.java.classLoader.getResourceAsStream("public/questionnaire.dtd")!!)
 	source.encoding = Charsets.UTF_8.name()
 	source.publicId = QUESTIONNAIRE_FPI
 	source.systemId = QUESTIONNAIRE_FPI_URL
