@@ -1,7 +1,6 @@
 # Test
 
 # Implement
-- Ability to create guest accounts
 
 # Backlog
 - Forgot password

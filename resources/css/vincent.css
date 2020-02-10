@@ -478,6 +478,21 @@ hr {
     flex-grow: 1;
 }
 
+.compact-forms {
+	display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    align-items: baseline;
+}
+.compact-forms .compact-form {
+	margin-right: 2rem;
+	flex-grow: 1;
+}
+.compact-forms .compact-form:last-child {
+	margin-right: 0rem;
+	flex-grow: 0;
+}
+
 /* Super-compact form */
 .super-compact-form {
 	position: relative;
@@ -708,6 +723,12 @@ input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
 .al-cell-ok {
 	color: #006000;
 	text-align: center;
+}
+
+/* Copy url */
+.copy-url {
+	user-select: all;
+	font-size: smaller;
 }
 
 /* Page header */

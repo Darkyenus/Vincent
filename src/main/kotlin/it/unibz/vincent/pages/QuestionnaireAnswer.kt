@@ -16,10 +16,12 @@ import it.unibz.vincent.session
 import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.QuestionnaireTemplate.Section
 import it.unibz.vincent.template.TemplateLang
+import it.unibz.vincent.template.mainTitle
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.formStrings
+import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.merge
 import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
@@ -280,10 +282,12 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 		LOG.error("Failed to retrieve existing responses for {}", participation, e)
 	}
 
-	exchange.sendBase(participation.questionnaireName) { _, locale ->
-		val section = participation.template.sections[participation.currentSection]
-		val lang = TemplateLang(participation.template.defaultLanguage, locale)
+	val locale = exchange.languages()
+	val section = participation.template.sections[participation.currentSection]
+	val lang = TemplateLang(participation.template.defaultLanguage, locale)
+	val mainTitle = section.title.mainTitle(lang)
 
+	exchange.sendBase(if (mainTitle == null) participation.questionnaireName else "$mainTitle - ${participation.questionnaireName}") { _, _ ->
 		div("page-container") {
 
 			// Render title
@@ -375,13 +379,13 @@ private fun handleQuestionnaireShow(exchange:HttpServerExchange, participation:Q
 
 fun RoutingHandler.setupQuestionnaireAnswerRoutes() {
 
-	GET(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.NORMAL) { exchange ->
+	GET(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.GUEST) { exchange ->
 		val participation = exchange.questionnaireParticipation() ?: return@GET
 		handleQuestionnaireShow(exchange, participation)
 	}
 
 	// Sent on next section button press
-	POST(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.NORMAL, ACTION_SUBMIT_SECTION) { exchange ->
+	POST(QUESTIONNAIRE_ANSWER_PATH_TEMPLATE, AccountType.GUEST, ACTION_SUBMIT_SECTION) { exchange ->
 		val participation = exchange.questionnaireParticipation() ?: return@POST
 
 		// Check that the answer belongs to a correct assignment

@@ -3,6 +3,7 @@ package it.unibz.vincent.pages
 import io.undertow.server.ExchangeCompletionListener
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
+import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
@@ -143,8 +144,12 @@ fun HttpServerExchange.sendBase(title:String, showHeader:Boolean = true, createB
 					}
 
 					if (session != null) {
-						a(href = PROFILE_PATH, classes = "header-button page-header-profile") {
-							+session.userName
+						if (session.accountType > AccountType.GUEST) {
+							a(href = PROFILE_PATH, classes = "header-button page-header-profile") {
+								+session.userName
+							}
+						} else {
+							postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT, classes = "header-button") { +"Logout" }
 						}
 					}
 				}

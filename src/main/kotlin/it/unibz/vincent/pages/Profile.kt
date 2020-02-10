@@ -49,11 +49,11 @@ private fun showProfilePage(exchange: HttpServerExchange) {
 			div("page-section button-container") {
 				getButton(DEMOGRAPHY_PATH) { +"Personal info" }
 
-				postButton(session, HOME_PATH, routeAction = "logout", classes = "dangerous") { +"Logout" }
+				postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT, classes = "dangerous") { +"Logout" }
 
 				if (session.accountType >= AccountType.STAFF) {
 					// Let's not confuse ordinary users with this
-					postButton(session, HOME_PATH, routeAction = "logout-fully", classes = "dangerous") { +"Logout from all browsers" }
+					postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT_FULLY, classes = "dangerous") { +"Logout from all devices" }
 				}
 			}
 

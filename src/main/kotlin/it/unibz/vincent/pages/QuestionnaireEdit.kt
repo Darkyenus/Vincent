@@ -34,9 +34,11 @@ import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
+import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
+import kotlinx.html.h3
 import kotlinx.html.hiddenInput
 import kotlinx.html.label
 import kotlinx.html.numberInput
@@ -93,89 +95,158 @@ private val intoleranceQuestionList = listOf(QID_SULFITE_INTOLERANCE, QID_FOOD_I
  * Standalone actions:
  * - Add new
  */
-private fun FlowContent.questionnaireParticipants(session: Session, locale:LocaleStack, questionnaire: Questionnaire) {
-	h2 { +"Participants" }
+private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, session: Session, locale:LocaleStack, questionnaire: Questionnaire) {
+	val guests = ArrayList<GuestAccountCredentials>()
 
-	var empty = true
-	table {
-		thead {
-			tr {
-				th {+"#"}
-				th { +"Name" }
-				th { +"E-mail" }
-				th { +"Code" }
-				th { +"State" }
-				th { +"Sulfite Intolerance" }
-				th { +"Food Intolerance" }
-				// if editable: Kick
+	div("page-section") {
+		h2 { +"Participants" }
+
+		var empty = true
+		table {
+			thead {
+				tr {
+					th { +"#" }
+					th { +"Name" }
+					th { +"E-mail" }
+					th { +"Code" }
+					th { +"State" }
+					th { +"Sulfite Intolerance" }
+					th { +"Food Intolerance" }
+					// if editable: Kick
+				}
 			}
-		}
 
-		tbody {
-			transaction {
-				var index = 1
-				for (row in QuestionnaireParticipants
-						.leftJoin(Accounts, { participant }, { id })
-						.slice(Accounts.id, Accounts.name, Accounts.email, Accounts.code, QuestionnaireParticipants.state)
-						.select { QuestionnaireParticipants.questionnaire eq questionnaire.id }
-						.orderBy(Accounts.name)
-						.orderBy(Accounts.id)) {
-					empty = false
-					tr {
+			tbody {
+				transaction {
+					var index = 1
+					for (row in QuestionnaireParticipants
+							.leftJoin(Accounts, { participant }, { id })
+							.slice(Accounts.id, Accounts.name, Accounts.email, Accounts.code, Accounts.accountType, Accounts.guestLoginCode, QuestionnaireParticipants.state)
+							.select { QuestionnaireParticipants.questionnaire eq questionnaire.id }
+							.orderBy(Accounts.name)
+							.orderBy(Accounts.id)) {
 						val accountId = row[Accounts.id].value
-						td { +(index++).toString() }
-						td { +(row[Accounts.name] ?: "?") }
-						td { +(row[Accounts.email] ?: "?") }
-						td { +(row[Accounts.code]?.toString() ?: accountIdToGuestCode(accountId)) }
-						td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
-
-						// Intolerances
-						var sulfiteIntolerance:Boolean? = null
-						var foodIntolerance:Boolean? = null
-						var foodIntoleranceDetail:String? = null
-						for (intoleranceRow in DemographyInfo
-								.slice(DemographyInfo.questionId, DemographyInfo.response)
-								.select { (DemographyInfo.user eq accountId) and (DemographyInfo.questionId inList intoleranceQuestionList) }) {
-							val response = intoleranceRow[DemographyInfo.response]
-							when (intoleranceRow[DemographyInfo.questionId]) {
-								QID_SULFITE_INTOLERANCE -> sulfiteIntolerance = demographicYesNoToBool(response)
-								QID_FOOD_INTOLERANCE -> foodIntolerance = demographicYesNoToBool(response)
-								QID_FOOD_INTOLERANCE_DETAIL -> foodIntoleranceDetail = response
+						val type = row[Accounts.accountType]
+						if (type == AccountType.GUEST) {
+							val loginCode = row[Accounts.guestLoginCode]
+							if (loginCode == null) {
+								LOG.warn("Guest account has no login code")
+							} else {
+								guests.add(GuestAccountCredentials(accountId, loginCode))
 							}
+							continue
 						}
 
-						if (sulfiteIntolerance == false) {
-							td("al-cell-ok") { +"No" }
-						} else {
-							td("al-cell-bad") {
-								if (sulfiteIntolerance == null) {
-									+"?"
-								} else {
-									+"Yes"
+						empty = false
+						tr {
+							td { +(index++).toString() }
+							td { +(row[Accounts.name] ?: "?") }
+							td { +(row[Accounts.email] ?: "?") }
+							td { +(row[Accounts.code]?.toString() ?: "?") }
+							td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
+
+							// Intolerances
+							var sulfiteIntolerance: Boolean? = null
+							var foodIntolerance: Boolean? = null
+							var foodIntoleranceDetail: String? = null
+							for (intoleranceRow in DemographyInfo
+									.slice(DemographyInfo.questionId, DemographyInfo.response)
+									.select { (DemographyInfo.user eq accountId) and (DemographyInfo.questionId inList intoleranceQuestionList) }) {
+								val response = intoleranceRow[DemographyInfo.response]
+								when (intoleranceRow[DemographyInfo.questionId]) {
+									QID_SULFITE_INTOLERANCE -> sulfiteIntolerance = demographicYesNoToBool(response)
+									QID_FOOD_INTOLERANCE -> foodIntolerance = demographicYesNoToBool(response)
+									QID_FOOD_INTOLERANCE_DETAIL -> foodIntoleranceDetail = response
 								}
 							}
-						}
 
-						if (foodIntolerance == false) {
-							td("al-cell-ok") { +"No" }
-						} else {
-							td("al-cell-bad") {
-								if (foodIntolerance == null) {
-									+"?"
-								} else {
-									if (foodIntoleranceDetail == null || foodIntoleranceDetail.isBlank()) {
-										+"Yes"
+							if (sulfiteIntolerance == false) {
+								td("al-cell-ok") { +"No" }
+							} else {
+								td("al-cell-bad") {
+									if (sulfiteIntolerance == null) {
+										+"?"
 									} else {
-										+foodIntoleranceDetail
+										+"Yes"
+									}
+								}
+							}
+
+							if (foodIntolerance == false) {
+								td("al-cell-ok") { +"No" }
+							} else {
+								td("al-cell-bad") {
+									if (foodIntolerance == null) {
+										+"?"
+									} else {
+										if (foodIntoleranceDetail == null || foodIntoleranceDetail.isBlank()) {
+											+"Yes"
+										} else {
+											+foodIntoleranceDetail
+										}
+									}
+								}
+							}
+
+							if (questionnaire.state != QuestionnaireState.CLOSED) {
+								td {
+									postButton(session, questionnaireEditPath(questionnaire.id),
+											PARAM_USER_ID to accountId.toString(),
+											routeAction = ACTION_UNINVITE, confirmation = "Are you sure? This will delete all responses from this participant as well!") {
+										+"Uninvite"
 									}
 								}
 							}
 						}
+					}
+				}
+			}
+		}
 
+		if (empty) {
+			div("table-no-elements") {
+				+"No participants"
+			}
+		}
+
+		if (questionnaire.state != QuestionnaireState.CLOSED) {
+			postForm(questionnaireEditPath(questionnaire.id), classes = "compact-form") {
+				session(session)
+				routeAction(ACTION_INVITE)
+				label("main") {
+					span("label") { +"Invitees" }
+					textInput(name = PARAM_USERS) { required = true; placeholder = "ex@mp.le, 123, ..." }
+				}
+				submitInput { value = "Invite" }
+			}
+		}
+	}
+
+	div("page-section") {
+		h3 { +"Guest Participants" }
+		table {
+			thead {
+				tr {
+					th { +"#" }
+					th { +"Guest Code" }
+					th { +"Login URL" }
+					// if editable: Kick
+				}
+			}
+
+			val guestUrlScheme = exchange.requestScheme
+			val guestUrlHost = exchange.hostAndPort
+
+			tbody {
+				for ((index, guest) in guests.withIndex()) {
+					tr {
+						td { +(index + 1).toString() }
+						td { +accountIdToGuestCode(guest.accountId) }
+						td("copy-url") { +guest.createLoginUrl(guestUrlScheme, guestUrlHost).toString() }
 						if (questionnaire.state != QuestionnaireState.CLOSED) {
 							td {
 								postButton(session, questionnaireEditPath(questionnaire.id),
-										PARAM_USER_ID to accountId.toString(),
+										PARAM_USER_ID to guest.accountId.toString(),
 										routeAction = ACTION_UNINVITE, confirmation = "Are you sure? This will delete all responses from this participant as well!") {
 									+"Uninvite"
 								}
@@ -185,23 +256,28 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 				}
 			}
 		}
-	}
 
-	if (empty) {
-		div("table-no-elements") {
-			+"Add participants"
-		}
-	}
-
-	if (questionnaire.state != QuestionnaireState.CLOSED) {
-		postForm(questionnaireEditPath(questionnaire.id), classes = "compact-form") {
-			session(session)
-			routeAction(ACTION_INVITE)
-			label("main") {
-				span("label") { +"Invitees" }
-				textInput(name = PARAM_USERS) { required = true; placeholder = "ex@mp.le, 123, ..." }
+		if (guests.isEmpty()) {
+			div("table-no-elements") {
+				+"No guest participants"
 			}
-			submitInput { value = "Invite" }
+		}
+
+		if (questionnaire.state != QuestionnaireState.CLOSED) {
+			div("compact-forms") {
+				postForm(questionnaireEditPath(questionnaire.id), classes = "compact-form") {
+					session(session)
+					routeAction(ACTION_INVITE_GUESTS)
+					label("main") {
+						span("label") { +"Amount" }
+						numberInput(name = PARAM_GUEST_COUNT) { required = true; placeholder = "1" }
+					}
+					submitInput { value = "Invite guests" }
+				}
+				getButton(questionnaireEditPath(questionnaire.id), routeAction=ACTION_DOWNLOAD_GUEST_IDS, parentClasses = "compact-form") {
+					+"Download links"
+				}
+			}
 		}
 	}
 }
@@ -532,9 +608,7 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 			renderMessages(this@showEditQuestionnairePage)
 
 			// Participants
-			div("page-section") {
-				questionnaireParticipants(session, locale, questionnaire)
-			}
+			questionnaireParticipants(this@showEditQuestionnairePage, session, locale, questionnaire)
 
 			// Wines
 			div("page-section") {
@@ -555,6 +629,8 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 }
 
 private const val ACTION_INVITE = "invite"
+private const val ACTION_INVITE_GUESTS = "invite-guests"
+private const val ACTION_DOWNLOAD_GUEST_IDS = "download-guest-ids"
 private const val ACTION_UNINVITE = "uninvite"
 private const val ACTION_WINE_UPDATE_CODE = "update-code"
 private const val ACTION_REMOVE_WINE = "remove-wine"
@@ -566,6 +642,7 @@ private const val ACTION_QUESTIONNAIRE_CLOSE = "questionnaire-close"
 
 private const val PARAM_USER_ID = "user"
 private const val PARAM_USERS = "users"
+private const val PARAM_GUEST_COUNT = "guest-count"
 private const val PARAM_WINE_ID = "wine"
 private const val PARAM_WINE_CODE = "wine-code"
 private const val PARAM_WINE_NAME = "wine-name"
@@ -790,6 +867,69 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			}
 		}
 
+		exchange.redirect(questionnaireEditPath(questionnaire.id))
+	}
+
+	GET(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_DOWNLOAD_GUEST_IDS) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@GET
+
+		// Download text file of paths
+		val guestUrlScheme = exchange.requestScheme
+		val guestUrlHost = exchange.hostAndPort
+		val fileContent = StringBuilder()
+
+		transaction {
+			for (row in QuestionnaireParticipants
+					.leftJoin(Accounts, { participant }, { id })
+					.slice(Accounts.id, Accounts.guestLoginCode)
+					.select { (QuestionnaireParticipants.questionnaire eq questionnaire.id) and (Accounts.accountType eq AccountType.GUEST) }
+					.orderBy(Accounts.id)) {
+				val accountId = row[Accounts.id].value
+				val loginCode = row[Accounts.guestLoginCode]
+				if (loginCode == null) {
+					LOG.warn("Guest account has no login code")
+				} else {
+					fileContent.append(GuestAccountCredentials(accountId, loginCode).createLoginUrl(guestUrlScheme, guestUrlHost)).append("\r\n")
+				}
+			}
+		}
+
+		exchange.statusCode = StatusCodes.OK
+		exchange.responseHeaders.put(Headers.CONTENT_DISPOSITION, contentDispositionAttachment("${questionnaire.name}-guest-links.txt"))
+		exchange.responseSender.send(fileContent.toString(), Charsets.UTF_8)
+	}
+
+	POST(QUESTIONNAIRE_EDIT_PATH_TEMPLATE, AccountType.STAFF, ACTION_INVITE_GUESTS) { exchange ->
+		val questionnaire = exchange.questionnaire() ?: return@POST
+
+		val amount = exchange.formString(PARAM_GUEST_COUNT)?.toIntOrNull() ?: 1
+		if (amount < 1) {
+			exchange.messageWarning("Specify a positive amount of guests")
+			exchange.showEditQuestionnairePage()
+			return@POST
+		}
+
+		val guests = createGuestAccounts(amount)
+
+		transaction {
+			for (guest in guests) {
+				QuestionnaireParticipants.insert {
+					it[participant] = guest.accountId
+					it[QuestionnaireParticipants.questionnaire] = questionnaire.id
+				}
+			}
+
+			val wineIds = questionnaireWineIds(questionnaire.id)
+			for (guest in guests) {
+				regenerateParticipantWineAssignment(questionnaire.id, guest.accountId, providedWineIds = wineIds)
+			}
+		}
+
+		if (guests.size == 1) {
+			exchange.messageInfo("Guest invited")
+		} else {
+			exchange.messageInfo("${guests.size} guests invited")
+		}
 		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
 

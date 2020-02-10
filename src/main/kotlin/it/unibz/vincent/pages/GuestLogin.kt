@@ -52,9 +52,9 @@ const val GUEST_LOGIN_PATH = "/guest"
 const val FORM_GUEST_ID = "g"
 const val FORM_GUEST_LOGIN_CODE = "auth"
 
-fun GuestAccountCredentials.createLoginUrl(schema:String, host:String):CharSequence {
+fun GuestAccountCredentials.createLoginUrl(scheme:String, host:String):CharSequence {
 	val sb = StringBuilder()
-	sb.append(schema).append("://").append(host).append(GUEST_LOGIN_PATH)
+	sb.append(scheme).append("://").append(host).append(GUEST_LOGIN_PATH)
 			.append("?").append(FORM_GUEST_ID).append('=').append(URLEncoder.encode(accountIdToGuestCode(accountId), Charsets.UTF_8.name()))
 			.append('&').append(FORM_GUEST_LOGIN_CODE).append('=').append(Base64.getUrlEncoder().encodeToString(this.loginCode))
 	return sb

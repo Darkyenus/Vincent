@@ -60,6 +60,8 @@ fun HttpServerExchange.handlePostLoginRedirect():Boolean {
 
 private const val ACTION_LOGIN = "login"
 private const val ACTION_REGISTER = "register"
+const val ACTION_LOGOUT = "logout"
+const val ACTION_LOGOUT_FULLY = "logout-fully"
 
 private const val FORM_EMAIL = "e"
 private const val FORM_PASSWORD = "p"
@@ -128,12 +130,12 @@ fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
 }
 
 fun RoutingHandler.setupWelcomeRoutes() {
-	POST(HOME_PATH, routeAction = "logout", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = ACTION_LOGOUT, accessLevel=null) { exchange ->
 		exchange.destroySession(false)
 		exchange.redirect(HOME_PATH)
 	}
 
-	POST(HOME_PATH, routeAction = "logout-fully", accessLevel=null) { exchange ->
+	POST(HOME_PATH, routeAction = ACTION_LOGOUT_FULLY, accessLevel=null) { exchange ->
 		exchange.destroySession(true)
 		exchange.redirect(HOME_PATH)
 	}
