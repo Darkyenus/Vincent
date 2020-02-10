@@ -269,7 +269,7 @@ object QuestionnaireResponses : Table() {
 
 fun createSchemaTables() {
 	transaction {
-		SchemaUtils.createMissingTablesAndColumns(
+		SchemaUtils.create(
 				Accounts,
 				DemographyInfo,
 				QuestionnaireTemplates,
