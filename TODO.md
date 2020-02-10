@@ -1,12 +1,13 @@
 # Test
 
 # Implement
-
-# Backlog
 - Forgot password
 
-# Low priority
-- Localization
-- Allow to invite everyone from some other questionnaire, creating a dependency
+# Backlog
 - Aroma tree
-- Logo
+
+# Low priority
+
+# Zero priority
+- Allow to invite everyone from some other questionnaire, creating a dependency
+- Localization

@@ -760,6 +760,22 @@ input:checked ~ .password-mask-toggle-icon-pass { display: block !important; }
 }
 .page-header-profile {}
 
+
+.unibz-logo {
+	float: right;
+	width: 10rem;
+	margin: 3rem;
+}
+.unibz-logo.absolute {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+.unibz-logo path {
+	fill: #0972ba;
+}
+
+
 /* Media Queries
 Larger than mobile
 	@media (min-width: 400px) {}
