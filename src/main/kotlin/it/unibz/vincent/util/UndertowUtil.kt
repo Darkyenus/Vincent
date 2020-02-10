@@ -333,7 +333,7 @@ fun RoutingHandler.GET(template:String, accessLevel: AccountType? = null, routeA
 	val demographyHandler = if (requireCompletedDemography) {
 		HttpHandler { exchange ->
 			val session = exchange.session()
-			if (session != null && session.accountType > AccountType.GUEST && !session.hasDemographyFilledOut) {
+			if (session != null && session.accountType == AccountType.NORMAL && !session.hasDemographyFilledOut) {
 				exchange.redirect(DEMOGRAPHY_PATH)
 			} else {
 				authHandler.handleRequest(exchange)
