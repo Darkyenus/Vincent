@@ -130,7 +130,7 @@ fun main(args: Array<String>) {
 	routingHandler.setupTemplateInfoRoutes()
 	routingHandler.setupGuestLoginRoutes()
 
-	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
+	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it;MODE=MySQL" } ?: "jdbc:h2:mem:")
 	onShutdown {
 		closeDatabase(db)
 		LOG.info("Database closed")
