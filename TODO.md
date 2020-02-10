@@ -1,7 +1,6 @@
 # Test
 
 # Implement
-- Forgot password
 
 # Backlog
 - Aroma tree

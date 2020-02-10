@@ -11,8 +11,13 @@ import it.unibz.vincent.accountIdToGuestCode
 import it.unibz.vincent.session
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.util.GET
+import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.formString
+import it.unibz.vincent.util.generateRandomPassword
+import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
+import it.unibz.vincent.util.redirect
+import it.unibz.vincent.util.toRawPassword
 import kotlinx.html.TR
 import kotlinx.html.div
 import kotlinx.html.h1
@@ -26,8 +31,13 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
+import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+
+
+private val LOG = LoggerFactory.getLogger("AccountList")
 
 const val ACCOUNT_LIST_PATH = "/account-list"
 const val ACCOUNT_LIST_FILTER_PARAM = "filter"
@@ -175,6 +185,8 @@ private fun showAccountList(exchange: HttpServerExchange) {
 		div("page-container-wide") {
 			h1 { +filter.title }
 
+			renderMessages(exchange)
+
 			table {
 				thead {
 					tr {
@@ -253,6 +265,17 @@ private fun showAccountList(exchange: HttpServerExchange) {
 									problemWithDetailTd(info.smoking, info.smokingDetail, false)
 								}
 							}
+
+							if (info.accountType >= AccountType.NORMAL && info.accountType < AccountType.STAFF && ownAccountType >= AccountType.ADMIN) {
+								td {
+									postButton(session,
+											ACCOUNT_LIST_PATH, PARAM_ACCOUNT_ID to info.id.toString(),
+											routeAction = ACTION_RESET_ACCOUNT_PASSWORD, classes = "dangerous",
+											confirmation = "Password of this account will be reset to a randomly generated password, which you then should provide back to them. Are you sure you want to do that?") {
+										+"Reset lost password"
+									}
+								}
+							}
 						}
 					}
 				}
@@ -267,9 +290,39 @@ private fun showAccountList(exchange: HttpServerExchange) {
 	}
 }
 
+private const val ACTION_RESET_ACCOUNT_PASSWORD = "reset-password"
+private const val PARAM_ACCOUNT_ID = "account-id"
 
 fun RoutingHandler.setupAccountListRoutes() {
 	GET(ACCOUNT_LIST_PATH, accessLevel=AccountType.STAFF) { exchange ->
 		showAccountList(exchange)
+	}
+
+	POST(ACCOUNT_LIST_PATH, accessLevel=AccountType.ADMIN) { exchange ->
+		val accountId = exchange.formString(PARAM_ACCOUNT_ID)?.toLongOrNull()
+		if (accountId != null) {
+			val newPassword = generateRandomPassword()
+			val hashedPassword = hashPassword(newPassword.toString().toRawPassword())
+
+			val updated = transaction {
+				val updated = Accounts.update(where = { (Accounts.id eq accountId) and (Accounts.accountType greaterEq AccountType.NORMAL) and (Accounts.accountType less AccountType.STAFF) }, limit=1) {
+					it[Accounts.password] = hashedPassword
+				}
+				if (updated != 1) {
+					rollback()
+				}
+				updated
+			}
+
+			if (updated == 1) {
+				LOG.info("Account {} password has been reset", accountId)
+				exchange.messageInfo("Password has been reset to: $newPassword")
+				exchange.redirect(ACCOUNT_LIST_PATH)
+				return@POST
+			}
+		}
+
+		exchange.messageWarning("Password could not be reset")
+		exchange.redirect(ACCOUNT_LIST_PATH)
 	}
 }

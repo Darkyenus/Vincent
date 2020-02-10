@@ -21,7 +21,9 @@ import it.unibz.vincent.pages.setupWelcomeRoutes
 import it.unibz.vincent.util.Option
 import it.unibz.vincent.util.closeDatabase
 import it.unibz.vincent.util.createDatabase
+import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.onShutdown
+import it.unibz.vincent.util.toRawPassword
 import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
@@ -229,6 +231,20 @@ fun main(args: Array<String>) {
 						}
 					}
 				}
+				"change-password" -> {
+					val email = cliArgs.getOrNull(1)
+					val newPassword = cliArgs.drop(2).joinToString(" ")
+					if (email == null || newPassword.isEmpty()) {
+						println("usage: change-password <email> <new-password>")
+					} else {
+						val updated = transaction { Accounts.update(where={ Accounts.email eq email }, limit=1) { it[password] = hashPassword(newPassword.toRawPassword()) } }
+						if (updated == 0) {
+							println("No such user")
+						} else {
+							LOG.info("CLI: Password of {} changed", email)
+						}
+					}
+				}
 				else -> {
 					println("stop")
 					println("\tStop the server")
@@ -236,6 +252,8 @@ fun main(args: Array<String>) {
 					println("\tChange account type")
 					println("reserve-code <email> <code>")
 					println("\tReserve given code for account with given e-mail")
+					println("change-password <email> <new password>")
+					println("\tChange the password of the account of given email")
 				}
 			}
 		}

@@ -34,3 +34,20 @@ fun secureRandomBytes(amount:Int):ByteArray {
 	secureRandom.nextBytes(bytes)
 	return bytes
 }
+
+/** A set of characters which are reasonably easy to distinguish from each other and can be used in passwords. */
+private const val PASSWORD_CHARS = "qwertzuiopasdfghjkyxcvbnm1234567890.:_?!QWERTZUPASDFGHJKLYXCVBNM"
+
+/** Generate a random, reasonably strong password. */
+fun generateRandomPassword():CharSequence {
+	val sb = StringBuilder()
+	for (i in 0 until 4) {
+		if (i != 0) {
+			sb.append('-')
+		}
+		for (j in 0 until 3) {
+			sb.append(PASSWORD_CHARS[secureRandom.nextInt(PASSWORD_CHARS.length)])
+		}
+	}
+	return sb
+}
