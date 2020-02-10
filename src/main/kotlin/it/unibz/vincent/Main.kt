@@ -39,6 +39,9 @@ import kotlin.system.exitProcess
 
 private val LOG = LoggerFactory.getLogger("Main")
 
+/** The brand name for the app, shown to users. It will always be Vincent in my heart. */
+const val BRAND_NAME = "SENSY" //"Vincent"
+
 var VINCENT_UNSAFE_MODE = false
 	private set
 
@@ -88,7 +91,7 @@ fun main(args: Array<String>) {
 				LOG.warn("Enabling unsafe mode - I hope I'm not in production!")
 				VINCENT_UNSAFE_MODE = true
 			},
-			Option(Option.NO_SHORT_NAME, "behind-reverse-proxy", "Makes Vincent aware that it is behind a reverse proxy and will handle X-Forwarded headers correctly") { _, _ ->
+			Option(Option.NO_SHORT_NAME, "behind-reverse-proxy", "Makes the program aware that it is behind a reverse proxy and will handle X-Forwarded headers correctly") { _, _ ->
 				behindReverseProxy = true
 			},
 			Option('l', "log", "Set the log level", true, "trace|debug|info|warn|error") { arg, _ ->

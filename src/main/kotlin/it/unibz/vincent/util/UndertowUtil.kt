@@ -20,6 +20,7 @@ import io.undertow.util.Methods
 import io.undertow.util.PathTemplateMatch
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
+import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.pages.DEMOGRAPHY_PATH
@@ -198,7 +199,7 @@ fun HttpServerExchange.sendHtml(generateHtml: HTML.() -> Unit) {
 private fun HttpServerExchange.sendPageOfDisapproval(code:Int, title:String, message: FlowContent.() -> Unit) {
 	statusCode = code
 	sendHtml {
-		base(title="Vincent - $title") {
+		base(title="$BRAND_NAME - $title") {
 			div("page-container") {
 				style = "padding: 5%"
 

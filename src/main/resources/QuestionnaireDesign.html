@@ -46,7 +46,7 @@
 </tbody>
 </table>
 <p>See <a href="https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references">here</a> for a full list of XML/HTML entities.</p>
-<p>If you want to keep some notes or comments in the XML document which should not be processed by Vincent, wrap your text in comment tags, like so:</p>
+<p>If you want to keep some notes or comments in the XML document which should not be processed by the application, wrap your text in comment tags, like so:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode xml"><code class="sourceCode xml"><a class="sourceLine" id="cb4-1" title="1"><span class="co">&lt;!-- This is a comment --&gt;</span></a></code></pre></div>
 <p>Comment may contain any text, except for <code>--&gt;</code>, because that ends the comment.</p>
 <p>XML elements may also contain some attributes, which appear in the opening tag, after the element name:</p>
@@ -60,7 +60,7 @@
 <li>Apple macOS: <a href="https://www.barebones.com/products/bbedit/">BBEdit</a> (while a paid version exists, free mode is sufficient) The built-in <a href="https://en.wikipedia.org/wiki/TextEdit">TextEdit</a> is not recommended.</li>
 <li>Linux: You may use any of the built-in command line editors (<a href="https://www.nano-editor.org/">nano</a>, <a href="https://www.vim.org/">vim</a>, <a href="https://www.gnu.org/software/emacs/">emacs</a>), or any GUI editor, such as <a href="https://wiki.gnome.org/Apps/Gedit">Gedit</a> or any other plain text editor that is pre-installed on your system.</li>
 </ul>
-<p>When editing the XML files for Vincent, use <a href="https://en.wikipedia.org/wiki/UTF-8">UTF-8 encoding</a>. The recommended text editors should do so by default. UNIX-style line endings (<em>LF</em>) are recommended, but either should work.</p>
+<p>When editing the XML files for this application, use <a href="https://en.wikipedia.org/wiki/UTF-8">UTF-8 encoding</a>. The recommended text editors should do so by default. UNIX-style line endings (<em>LF</em>) are recommended, but either should work.</p>
 <h2 id="general-template-file-structure">General template file structure</h2>
 <p>Minimal questionnaire template file will look as follows:</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode xml"><code class="sourceCode xml"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">&lt;?xml</span> version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;<span class="kw">?&gt;</span></a>
@@ -80,7 +80,7 @@
 <h3 id="language-format">Language format</h3>
 <p>When an attribute calls for a language specification, the format is an <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes">ISO 639-1</a> code optionally followed by a hyphen-separated <a href="https://en.wikipedia.org/wiki/ISO_3166-1">ISO 3166-1</a> alpha 2 code. For example: <code>it</code>, <code>en-US</code>, <code>cs-CZ</code>.</p>
 <p>A <a href="https://en.wikipedia.org/wiki/Boolean_data_type">boolean value</a> may only be <code>true</code> or <code>false</code>.</p>
-<p><a href="https://en.wikipedia.org/wiki/HTML">HTML</a> formatted text refers to a normal text, which may contain HTML formatting elements, which work very similarly to XML elements (and look the same as well), but denote how the text will look, among other things. For example <code>Some &lt;b&gt;text&lt;/b&gt; with &lt;i&gt;tags&lt;/i&gt;</code> will appear to the questionnaire participants as "Some <strong>text</strong> with <em>tags</em>". There are many HTML tags and there is a large amount of web resources which describe them. Vincent does not limit which tags may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality, or in rare cases even its security. When in doubt, consult with any good web developer.</p>
+<p><a href="https://en.wikipedia.org/wiki/HTML">HTML</a> formatted text refers to a normal text, which may contain HTML formatting elements, which work very similarly to XML elements (and look the same as well), but denote how the text will look, among other things. For example <code>Some &lt;b&gt;text&lt;/b&gt; with &lt;i&gt;tags&lt;/i&gt;</code> will appear to the questionnaire participants as "Some <strong>text</strong> with <em>tags</em>". There are many HTML tags and there is a large amount of web resources which describe them. There is no limit which tags you may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality, or in rare cases even its security. When in doubt, consult with any good web developer.</p>
 <h3 id="questionnaire">&lt;questionnaire&gt;</h3>
 <p>The root element.</p>
 <ul>

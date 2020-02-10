@@ -5,6 +5,7 @@ import io.undertow.server.RoutingHandler
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.createSession
 import it.unibz.vincent.destroySession
 import it.unibz.vincent.failedLoginAttemptLog
@@ -76,8 +77,11 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 	sendBase("", showHeader = false) { exchange, _ ->
 		div("page-container") {
 			div("page-section") {
-				h1 { +"Vincent" }
-				p("sub") { +"Patron of wine tasting" }
+				h1 { +BRAND_NAME }
+				@Suppress("ConstantConditionIf")
+				if (BRAND_NAME == "Vincent") {
+					p("sub") { +"Patron of wine tasting" }
+				}
 			}
 
 			renderMessages(exchange)

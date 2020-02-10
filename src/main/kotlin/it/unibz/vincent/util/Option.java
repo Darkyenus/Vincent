@@ -3,11 +3,13 @@ package it.unibz.vincent.util;
 import java.io.PrintStream;
 import java.util.Arrays;
 
+import static it.unibz.vincent.Main.BRAND_NAME;
+
 /** Lightweight, GNU compatible (to some extent) command line option parsing.
  * @author Jan Polák (from the Wemi project) */
 public final class Option {
 
-	private static final String APP_NAME = "vincent";
+	private static final String APP_NAME = BRAND_NAME;
 
 	public static final char NO_SHORT_NAME = '\0';
 

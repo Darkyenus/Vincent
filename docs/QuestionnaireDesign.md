@@ -50,7 +50,7 @@ Similar restrictions apply to a few other characters. Use the replacements from 
 
 See [here](https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references) for a full list of XML/HTML entities.
 
-If you want to keep some notes or comments in the XML document which should not be processed by Vincent,
+If you want to keep some notes or comments in the XML document which should not be processed by the application,
 wrap your text in comment tags, like so:
 ```xml
 <!-- This is a comment -->
@@ -74,7 +74,7 @@ Here are some recommended free editors by operating system:
 - Apple macOS: [BBEdit](https://www.barebones.com/products/bbedit/) (while a paid version exists, free mode is sufficient) The built-in [TextEdit](https://en.wikipedia.org/wiki/TextEdit) is not recommended.
 - Linux: You may use any of the built-in command line editors ([nano](https://www.nano-editor.org/), [vim](https://www.vim.org/), [emacs](https://www.gnu.org/software/emacs/)), or any GUI editor, such as [Gedit](https://wiki.gnome.org/Apps/Gedit) or any other plain text editor that is pre-installed on your system.
 
-When editing the XML files for Vincent, use [UTF-8 encoding](https://en.wikipedia.org/wiki/UTF-8).
+When editing the XML files for this application, use [UTF-8 encoding](https://en.wikipedia.org/wiki/UTF-8).
 The recommended text editors should do so by default. UNIX-style line endings (*LF*) are recommended, but either should work.
 
 ## General template file structure
@@ -109,8 +109,8 @@ A [boolean value](https://en.wikipedia.org/wiki/Boolean_data_type) may only be `
 [HTML](https://en.wikipedia.org/wiki/HTML) formatted text refers to a normal text, which may contain HTML formatting elements,
 which work very similarly to XML elements (and look the same as well), but denote how the text will look, among other things.
 For example `Some <b>text</b> with <i>tags</i>` will appear to the questionnaire participants as "Some **text** with *tags*".
-There are many HTML tags and there is a large amount of web resources which describe them. Vincent does not limit which tags
-may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality,
+There are many HTML tags and there is a large amount of web resources which describe them. There is no limit on which tags
+you may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality,
 or in rare cases even its security. When in doubt, consult with any good web developer.
 
 ### \<questionnaire>

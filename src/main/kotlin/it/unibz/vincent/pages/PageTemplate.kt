@@ -5,6 +5,7 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
 import it.unibz.vincent.Session
@@ -57,7 +58,7 @@ import org.slf4j.LoggerFactory
 private val LOG = LoggerFactory.getLogger("PageTemplate")
 
 /** Build head and body. */
-fun HTML.base(lang:String = "en", title:String = "Vincent", description:String = "", createBody: BODY.() -> Unit) {
+fun HTML.base(lang:String = "en", title:String = BRAND_NAME, description:String = "", createBody: BODY.() -> Unit) {
 	this.lang = lang
 	head {
 		meta(charset = "UTF-8")
@@ -135,12 +136,13 @@ fun HttpServerExchange.sendBase(title:String, showHeader:Boolean = true, createB
 	val session = session()
 	// TODO(jp): Localize!
 	sendHtml {
-		base("en", if (title.isEmpty()) "Vincent" else "$title - Vincent", "Wine evaluation questionnaires") {
+		base("en", if (title.isEmpty()) BRAND_NAME else "$title - $BRAND_NAME", "Wine evaluation questionnaires") {
+			comment("Vincent - Copyright (c) 2019-2020 Jan Polák")
 			if (showHeader) {
 				// Header
 				div("page-header") {
 					a(href = HOME_PATH, classes = "header-button page-header-logo") {
-						+"Vincent"
+						+BRAND_NAME
 					}
 
 					if (session != null) {
