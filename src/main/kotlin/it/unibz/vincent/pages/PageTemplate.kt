@@ -313,12 +313,12 @@ fun FlowOrInteractiveOrPhrasingContent.passwordField(fieldId:String, autoComplet
 
 fun FlowOrInteractiveOrPhrasingContent.fullNameField(fieldId:String, autoComplete:String, preFillValue:String?) {
 	label {
-		+"Name"
+		+"Personal Name"
 		textInput(classes = "u-full-width") {
 			name = fieldId
 			minLength = "1"
 			maxLength = Accounts.MAX_NAME_LENGTH.toString()
-			placeholder = "John Doe"
+			placeholder = if (System.currentTimeMillis() and 1L == 0L) "John Doe" else "Jane Doe"
 			required = true
 			if (preFillValue != null) {
 				value = preFillValue

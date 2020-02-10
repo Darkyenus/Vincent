@@ -27,7 +27,6 @@ import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 const val ACCOUNT_LIST_PATH = "/account-list"
@@ -122,8 +121,8 @@ private fun showAccountList(exchange: HttpServerExchange) {
 			val accountInfo = accounts.get(userId) ?: run {
 				val info = AccountInfo(
 						row[Accounts.id].value,
-						row[Accounts.name],
-						row[Accounts.email],
+						(row[Accounts.name] ?: "?"),
+						(row[Accounts.email] ?: "?"),
 						row[Accounts.accountType],
 						row[Accounts.code],
 						row[Accounts.timeRegistered].takeUnless { it == Instant.EPOCH },

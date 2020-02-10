@@ -34,7 +34,6 @@ import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
-import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
@@ -125,8 +124,8 @@ private fun FlowContent.questionnaireParticipants(session: Session, locale:Local
 					tr {
 						val accountId = row[Accounts.id].value
 						td { +(index++).toString() }
-						td { +row[Accounts.name] }
-						td { +row[Accounts.email] }
+						td { +(row[Accounts.name] ?: "?") }
+						td { +(row[Accounts.email] ?: "?") }
 						td { +(row[Accounts.code]?.toString() ?: accountIdToGuestCode(accountId)) }
 						td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
 
@@ -336,7 +335,7 @@ private fun FlowContent.questionnaireWines(session: Session, locale: LocaleStack
  * - Up/column: Participant
  * - Content: Code of the wine + Name of the wine
  */
-private fun FlowContent.questionnaireWineParticipantAssociations(session: Session, locale: LocaleStack, questionnaire: Questionnaire) {
+private fun FlowContent.questionnaireWineParticipantAssociations(locale: LocaleStack, questionnaire: Questionnaire) {
 	data class Entry(val participantName:String, val panelistCode:Int?, val accountId:Long, val wineName:String, val wineCode:Int)
 
 	if (!questionnaire.hasWines) {
@@ -369,7 +368,7 @@ private fun FlowContent.questionnaireWineParticipantAssociations(session: Sessio
 			}
 			lastParticipantId = participantId
 
-			participantEntry.add(Entry(row[Accounts.name], row[Accounts.code], row[Accounts.id].value, row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
+			participantEntry.add(Entry(row[Accounts.name] ?: "", row[Accounts.code], row[Accounts.id].value, row[QuestionnaireWines.name], row[QuestionnaireWines.code]))
 		}
 	}
 
@@ -544,7 +543,7 @@ private fun HttpServerExchange.showEditQuestionnairePage() {
 
 			// Wine-participant association
 			div("page-section") {
-				questionnaireWineParticipantAssociations(session, locale, questionnaire)
+				questionnaireWineParticipantAssociations(locale, questionnaire)
 			}
 
 			// Actions

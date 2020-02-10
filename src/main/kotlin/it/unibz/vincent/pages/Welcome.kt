@@ -118,7 +118,7 @@ fun HttpServerExchange.loginRegister(/* Pre-filled values */
 private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 private val defaultTimeZone = ZoneId.systemDefault()
-private fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
+fun getTimeZoneOffset(exchange:HttpServerExchange): ZoneId {
 	val minuteOffset = exchange.formString(HIDDEN_TIMEZONE_INPUT_NAME)?.toIntOrNull() ?: return defaultTimeZone
 	return try {
 		ZoneOffset.ofTotalSeconds(minuteOffset * 60)

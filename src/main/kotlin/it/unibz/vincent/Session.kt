@@ -77,7 +77,7 @@ class Session(val sessionId:String, val userId:Long, val timeZone:ZoneId) {
 				transaction {
 					Accounts.slice(Accounts.name, Accounts.accountType)
 							.select { Accounts.id eq userId }.single().let {
-								userName = it[Accounts.name]
+								userName = it[Accounts.name] ?: ""
 								accountType = it[Accounts.accountType]
 							}
 

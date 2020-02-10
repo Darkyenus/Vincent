@@ -99,15 +99,21 @@ fun guestCodeToAccountId(guestCode:String):Long? {
 /** Table of registered users. */
 object Accounts : LongIdTable() {
 	const val MAX_NAME_LENGTH = 128
-	val name = varchar("name", MAX_NAME_LENGTH)
+	val name = varchar("name", MAX_NAME_LENGTH).nullable()
 	const val MAX_EMAIL_LENGTH = 128
-	val email = varcharIgnoreCase("email", MAX_EMAIL_LENGTH).uniqueIndex()
+	val email = varcharIgnoreCase("email", MAX_EMAIL_LENGTH).uniqueIndex().nullable()
 	val password = binary("password", HASHED_PASSWORD_SIZE)
 	val accountType = enumeration("account_type", AccountType::class)
 	val code = integer("code").autoIncrement().uniqueIndex().nullable()
 
 	val timeRegistered = timestamp("time_registered")
 	val timeLastLogin = timestamp("time_last_login")
+
+	const val GUEST_LOGIN_CODE_SIZE = 16
+	val guestLoginCode = binary("guest_login_code", GUEST_LOGIN_CODE_SIZE).nullable()
+	const val PASSWORD_RESET_CODE_SIZE = 16
+	val passwordResetCode = binary("password_reset_code", PASSWORD_RESET_CODE_SIZE).nullable()
+	val passwordResetCodeValidUntil = timestamp("time_password_reset_code_valid_until").default(Instant.EPOCH)
 }
 
 object DemographyInfo : Table() {

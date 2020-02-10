@@ -48,9 +48,10 @@ const val QID_FOOD_INTOLERANCE_DETAIL = "$QID_FOOD_INTOLERANCE-detail-$YES"
 const val QID_SULFITE_INTOLERANCE = "sulfite-intolerance"
 
 private val demographyQuestions = listOf(
+		SectionContent.Info(emptyList(), listOf(Text("All information collected will be kept as sensitive and protected data"))),
 		Question(QID_PHONE_NUMBER, false,
 				listOf(Title("Phone number")),
-				listOf(Text("Only for emergencies")),
+				listOf(Text("Use only for sensory analysis session")),
 				FreeText(InputType.TELEPHONE, emptyList())),
 		Question(QID_GENDER, true,
 				listOf(Title("Gender")),
@@ -71,7 +72,7 @@ private val demographyQuestions = listOf(
 		Question(QID_HOME_REGION, false,
 				listOf(Title("Home country region")),
 				listOf(Text("If commonly used.")),
-				FreeText(InputType.SENTENCE, listOf(Text("Alto Adige")))),
+				FreeText(InputType.SENTENCE, listOf(Text("Alto Adige - Südtirol")))),
 		Question(QID_EDUCATION, true,
 				listOf(Title("Highest completed education")),
 				listOf(Text("See <a href=\"https://en.wikipedia.org/wiki/International_Standard_Classification_of_Education#2011_version\">Wikipedia</a> for more information about ISCED 2011 education levels.")),
@@ -110,11 +111,13 @@ private val demographyQuestions = listOf(
 )
 
 private val oneOfDemographyQuestions: Map<String, OneOf> = demographyQuestions.mapNotNull { q ->
-	if (q.type !is OneOf) {
-		null
-	} else {
-		q.id to q.type
-	}
+	if (q is Question) {
+		if (q.type !is OneOf) {
+			null
+		} else {
+			q.id to q.type
+		}
+	} else null
 }.toMap()
 
 fun demographicOneOfResponseToHumanReadableLabel(questionId:String, result:String, lang:TemplateLang):String? {

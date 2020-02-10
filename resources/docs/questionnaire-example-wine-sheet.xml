@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE questionnaire PUBLIC "-//UNIBZ//Vincent Questionnaire Template 1.0//EN" "vincent://questionnaire.dtd">
+<questionnaire>
+    <title>Wine Questionnaire</title>
+
+    <section stage="except-first" min-time="60" shown-wine="all">
+        <info>
+            <text>Cleanse your palate before continuing to the next wine.</text>
+        </info>
+        <question id="feedback" required="false">
+            <title>Feedback</title>
+            <text>While you are waiting, feel free to share any feedback you might have.</text>
+            <free-text type="paragraph"/>
+        </question>
+    </section>
+
+    <section>
+        <title>Visual evaluation</title>
+
+        <question id="clarity">
+            <title>Clarity</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="color-tonality">
+            <title>Color tonality</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="effervescence">
+            <title>Effervescence</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+    </section>
+
+    <section>
+        <title>Olfactory evaluation</title>
+        <question id="overall-intensity">
+            <title>Overall intensity</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-floral">
+            <title><i>Floral</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-tree-fruit-apple">
+            <title><i>Tree fruit (apple)</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-tree-fruit-pear">
+            <title><i>Tree fruit (pear)</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-tropical-fruit">
+            <title><i>Tropical fruit</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-dried-fruit">
+            <title><i>Dried fruit</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-fresh-vegetative">
+            <title><i>Fresh vegetative</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-spicy">
+            <title><i>Spicy</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="olfactory-cleanness">
+            <title>Cleanness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="unpleasant-odors">
+            <title>Unpleasant odors</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+    </section>
+
+    <section>
+        <title>Gustatory evaluation</title>
+        <question id="warmness">
+            <title>Warmness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="sweetness">
+            <title>Sweetness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="sourness">
+            <title>Sourness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="salty-sapidity">
+            <title>Salty/Sapidity</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="bitterness">
+            <title>Bitterness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="tannicity-astringency">
+            <title>Tannicity/Astringency</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+        <question id="gustatory-floral">
+            <title><i>Floral</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-tree-fruit-apple">
+            <title><i>Tree fruit (apple)</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-tree-fruit-pear">
+            <title><i>Tree fruit (pear)</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-tropical-fruit">
+            <title><i>Tropical fruit</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-dried-fruit">
+            <title><i>Dried fruit</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-fresh-vegetative">
+            <title><i>Fresh vegetative</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-spicy">
+            <title><i>Spicy</i></title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="gustatory-cleanness">
+            <title>Cleanness</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+
+        <question id="unpleasant-flavors">
+            <title>Unpleasant flavors</title>
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+    </section>
+
+    <section>
+        <title>Overall quality judgement</title>
+
+        <question id="overall-quality">
+            <scale max="9"><min>Weak</min><max>Strong</max></scale>
+        </question>
+    </section>
+
+    <section stage="only-last" shown-wine="none">
+        <title>Goodbye</title>
+        <info>
+            <text>Thank you for your participation.</text>
+        </info>
+    </section>
+</questionnaire>

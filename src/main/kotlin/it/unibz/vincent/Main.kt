@@ -11,6 +11,7 @@ import io.undertow.server.handlers.resource.PathResourceManager
 import io.undertow.server.handlers.resource.ResourceHandler
 import it.unibz.vincent.pages.setupAccountListRoutes
 import it.unibz.vincent.pages.setupDemographyRoutes
+import it.unibz.vincent.pages.setupGuestLoginRoutes
 import it.unibz.vincent.pages.setupHomeRoutes
 import it.unibz.vincent.pages.setupProfileRoutes
 import it.unibz.vincent.pages.setupQuestionnaireAnswerRoutes
@@ -124,6 +125,7 @@ fun main(args: Array<String>) {
 	routingHandler.setupAccountListRoutes()
 	routingHandler.setupProfileRoutes()
 	routingHandler.setupTemplateInfoRoutes()
+	routingHandler.setupGuestLoginRoutes()
 
 	val db = createDatabase(databaseFile?.let { "jdbc:h2:file:$it" } ?: "jdbc:h2:mem:")
 	onShutdown {

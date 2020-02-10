@@ -240,7 +240,7 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 					noTemplates = false
 					tr {
 						td { +row[QuestionnaireTemplates.name] }
-						td { +row[Accounts.name] }
+						td { +(row[Accounts.name] ?: "?") }
 						td { +row[QuestionnaireTemplates.timeCreated].toHumanReadableTime(locale, session.timeZone) }
 						val templateId = row[QuestionnaireTemplates.id].toString()
 						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_QUESTIONNAIRE_NEW) { +"Use" } }

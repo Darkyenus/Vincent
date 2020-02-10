@@ -71,6 +71,9 @@ fun hashPassword(password:RawPassword):ByteArray {
 
 /** Check previous result of [hashPassword], [stored], against a new [passwordToCheck]. */
 fun checkPassword(passwordToCheck:RawPassword, stored:HashedPassword):Boolean {
+	if (stored.size < 5) {
+		return false
+	}
 	val version = stored[0]
 	if (version != CURRENT_VERSION) {
 		throw IllegalArgumentException("Could not check password - version ($version) is not supported")
