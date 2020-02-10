@@ -111,9 +111,6 @@ object Accounts : LongIdTable() {
 
 	const val GUEST_LOGIN_CODE_SIZE = 16
 	val guestLoginCode = binary("guest_login_code", GUEST_LOGIN_CODE_SIZE).nullable()
-	const val PASSWORD_RESET_CODE_SIZE = 16
-	val passwordResetCode = binary("password_reset_code", PASSWORD_RESET_CODE_SIZE).nullable()
-	val passwordResetCodeValidUntil = timestamp("time_password_reset_code_valid_until").default(Instant.EPOCH)
 }
 
 object DemographyInfo : Table() {
@@ -272,7 +269,7 @@ object QuestionnaireResponses : Table() {
 
 fun createSchemaTables() {
 	transaction {
-		SchemaUtils.create(
+		SchemaUtils.createMissingTablesAndColumns(
 				Accounts,
 				DemographyInfo,
 				QuestionnaireTemplates,
