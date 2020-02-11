@@ -2,23 +2,27 @@ package it.unibz.vincent.pages
 
 import com.carrotsearch.hppc.LongObjectHashMap
 import com.ibm.icu.util.ULocale
-import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
+import io.undertow.util.Headers
+import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.DemographyInfo
 import it.unibz.vincent.accountIdToGuestCode
 import it.unibz.vincent.session
 import it.unibz.vincent.template.TemplateLang
+import it.unibz.vincent.util.CSVWriter
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.POST
+import it.unibz.vincent.util.Utf8ByteBufferWriter
+import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.generateRandomPassword
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toRawPassword
-import kotlinx.html.TR
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.table
@@ -34,6 +38,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 
@@ -41,6 +46,9 @@ private val LOG = LoggerFactory.getLogger("AccountList")
 
 const val ACCOUNT_LIST_PATH = "/account-list"
 const val ACCOUNT_LIST_FILTER_PARAM = "filter"
+
+const val ACCOUNT_LIST_DOWNLOAD_PATH = "/account-list-download"
+
 enum class AccountListFilter(
 		val title:String,
 		val hasQuestionnaire:Boolean,
@@ -89,39 +97,49 @@ private class AccountInfo(
 	}
 }
 
-private fun TR.problemWithDetailTd(value:Boolean?, detail:String?, goodIs:Boolean) {
-	val valueStr = when (value) {
-		true -> "Yes"
-		false -> "No"
-		null -> "?"
+private class AccountListRow(val accountInfo:AccountInfo, columnCount:Int) {
+	val values = ArrayList<String>(columnCount)
+	val valueTypes = ArrayList<Boolean?>(columnCount)
+
+	fun add(value:String) {
+		values.add(value)
+		valueTypes.add(null)
 	}
 
-	val text = if (detail == null || value == goodIs) valueStr else "$valueStr - $detail"
+	fun addWithDetail(value:Boolean?, detail:String?, goodIs:Boolean) {
+		val valueStr = when (value) {
+			true -> "Yes"
+			false -> "No"
+			null -> "?"
+		}
 
-	td(classes=if (value != goodIs) "al-cell-bad" else "al-cell-ok") {
-		+text
+		val text = if (detail == null || value == goodIs) valueStr else "$valueStr - $detail"
+
+		values.add(text)
+		valueTypes.add(value == goodIs)
+	}
+
+	inline fun forEach(action:(String, good:Boolean?) -> Unit) {
+		val values = values
+		val valueTypes = valueTypes
+		for (i in 0 until values.size) {
+			action(values[i], valueTypes[i])
+		}
 	}
 }
+private class AccountList(val headers:List<String>, val rows:List<AccountListRow>)
 
-private fun showAccountList(exchange: HttpServerExchange) {
-	val session = exchange.session()!!
-	val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(session.timeZone)
-	val ownAccountType = session.accountType
-	val lang = TemplateLang(ULocale.ENGLISH, exchange.languages())
-
-	val filter = exchange.formString(ACCOUNT_LIST_FILTER_PARAM)
-			?.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
-			?: AccountListFilter.ALL
-
+private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType, timeZone: ZoneId, lang:TemplateLang):AccountList {
 	val accounts = LongObjectHashMap<AccountInfo>()
+	val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE.withZone(timeZone)
 
 	transaction {
 		for (row in Accounts
 				.let { if (filter.hasQuestionnaire) it.leftJoin(DemographyInfo, { id }, { user }) else it }
 				.select {
 					when (filter) {
-						AccountListFilter.ALL -> Accounts.accountType lessEq ownAccountType
-						AccountListFilter.REGULAR -> (Accounts.accountType greaterEq AccountType.NORMAL) and (Accounts.accountType lessEq ownAccountType)
+						AccountListFilter.ALL -> Accounts.accountType lessEq permissionLevel
+						AccountListFilter.REGULAR -> (Accounts.accountType greaterEq AccountType.NORMAL) and (Accounts.accountType lessEq permissionLevel)
 						AccountListFilter.GUEST -> Accounts.accountType eq AccountType.GUEST
 						AccountListFilter.RESERVED -> Accounts.accountType eq AccountType.RESERVED
 					}
@@ -155,7 +173,7 @@ private fun showAccountList(exchange: HttpServerExchange) {
 			}
 
 			// Only admins have access to what comes next
-			if (ownAccountType < AccountType.ADMIN) {
+			if (permissionLevel < AccountType.ADMIN) {
 				continue
 			}
 
@@ -181,113 +199,81 @@ private fun showAccountList(exchange: HttpServerExchange) {
 		result
 	}
 
-	exchange.sendBase(filter.title) { _, locale ->
-		div("page-container-wide") {
-			h1 { +filter.title }
+	val headers = ArrayList<String>()
+	val rows = ArrayList<AccountListRow>(sortedAccounts.size)
 
-			renderMessages(exchange)
+	if (filter.hasName) {
+		headers.add("Name")
+	}
+	headers.add("E-mail")
+	if (filter.hasAccountType) {
+		headers.add("Account type")
+	}
+	headers.add("Code")
+	if (filter == AccountListFilter.RESERVED) {
+		headers.add("Reserved at")
+	} else {
+		headers.add("Registered at")
+	}
+	if (filter.hasLoginTime) {
+		headers.add("Last login at")
+	}
 
-			table {
-				thead {
-					tr {
-						if (filter.hasName) {
-							th { +"Name" }
-						}
-						th { +"E-mail" }
-						if (filter.hasAccountType) {
-							th { +"Account type" }
-						}
-						th { +"Code" }
-						if (filter == AccountListFilter.RESERVED) {
-							th { +"Reserved at" }
-						} else {
-							th { +"Registered at" }
-						}
-						if (filter.hasLoginTime) {
-							th { +"Last login at" }
-						}
+	if (filter.hasQuestionnaire) {
+		headers.add("Food intolerant")
+		headers.add("Sulfite intolerant")
 
-						if (filter.hasQuestionnaire) {
-							th { +"Food intolerant" }
-							th { +"Sulfite intolerant" }
-
-							if (ownAccountType >= AccountType.ADMIN) {
-								th { +"Phone number" }
-								th { +"Gender" }
-								th { +"Year of birth" }
-								th { +"Home country/region" }
-								th { +"Education" }
-								th { +"Smoking" }
-							}
-						}
-					}
-				}
-
-				tbody {
-					for (info in sortedAccounts) {
-						tr {
-							if (filter.hasName) {
-								td { +info.name }
-							}
-							td { +info.email }
-							if (filter.hasAccountType) {
-								td { +info.accountType.toString().toLowerCase().capitalize() }
-							}
-							td {
-								if (info.accountType == AccountType.GUEST) {
-									+accountIdToGuestCode(info.id)
-								} else {
-									+(info.code?.toString() ?: "?")
-								}
-							}
-							td { +(info.timeRegistered?.let { dateFormatter.format(it) } ?: "?") }
-							if (filter.hasLoginTime) {
-								td { +(info.timeLastLogin?.let { dateFormatter.format(it) } ?: "?") }
-							}
-							if (filter.hasQuestionnaire) {
-								problemWithDetailTd(info.foodIntolerance, info.foodIntoleranceDetail, false)
-								problemWithDetailTd(info.sulfiteIntolerance, null, false)
-
-								if (ownAccountType >= AccountType.ADMIN) {
-									td { +(info.phoneNumber ?: "?") }
-									td { +(info.gender ?: "?") }
-									td { +(info.yearOfBirth ?: "?") }
-									td {
-										val base = info.homeCountry ?: "?"
-										val homeRegion = info.homeRegion
-										+if (homeRegion != null) {
-											"$base - $homeRegion"
-										} else {
-											base
-										}
-									}
-									td { +(info.education ?: "?") }
-									problemWithDetailTd(info.smoking, info.smokingDetail, false)
-								}
-							}
-
-							if (info.accountType >= AccountType.NORMAL && info.accountType < AccountType.STAFF && ownAccountType >= AccountType.ADMIN) {
-								td {
-									postButton(session,
-											ACCOUNT_LIST_PATH, PARAM_ACCOUNT_ID to info.id.toString(),
-											routeAction = ACTION_RESET_ACCOUNT_PASSWORD, classes = "dangerous",
-											confirmation = "Password of this account will be reset to a randomly generated password, which you then should provide back to them. Are you sure you want to do that?") {
-										+"Reset lost password"
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if (sortedAccounts.isEmpty()) {
-				div("table-no-elements") {
-					+"No accounts fit this criteria"
-				}
-			}
+		if (permissionLevel >= AccountType.ADMIN) {
+			headers.add("Phone number")
+			headers.add("Gender")
+			headers.add("Year of birth")
+			headers.add("Home country/region")
+			headers.add("Education")
+			headers.add("Smoking")
 		}
 	}
+
+	for (info in sortedAccounts) {
+		val row = AccountListRow(info, headers.size)
+		if (filter.hasName) {
+			row.add(info.name)
+		}
+		row.add(info.email)
+		if (filter.hasAccountType) {
+			row.add(info.accountType.toString().toLowerCase().capitalize())
+		}
+		if (info.accountType == AccountType.GUEST) {
+			row.add(accountIdToGuestCode(info.id))
+		} else {
+			row.add((info.code?.toString() ?: "?"))
+		}
+		row.add((info.timeRegistered?.let { dateFormatter.format(it) } ?: "?"))
+		if (filter.hasLoginTime) {
+			row.add((info.timeLastLogin?.let { dateFormatter.format(it) } ?: "?"))
+		}
+		if (filter.hasQuestionnaire) {
+			row.addWithDetail(info.foodIntolerance, info.foodIntoleranceDetail, false)
+			row.addWithDetail(info.sulfiteIntolerance, null, false)
+
+			if (permissionLevel >= AccountType.ADMIN) {
+				row.add(info.phoneNumber ?: "?")
+				row.add(info.gender ?: "?")
+				row.add(info.yearOfBirth ?: "?")
+				val base = info.homeCountry ?: "?"
+				val homeRegion = info.homeRegion
+				if (homeRegion != null) {
+					row.add("$base - $homeRegion")
+				} else {
+					row.add(base)
+				}
+				row.add(info.education ?: "?")
+				row.addWithDetail(info.smoking, info.smokingDetail, false)
+			}
+		}
+		rows.add(row)
+	}
+
+	return AccountList(headers, rows)
 }
 
 private const val ACTION_RESET_ACCOUNT_PASSWORD = "reset-password"
@@ -295,7 +281,65 @@ private const val PARAM_ACCOUNT_ID = "account-id"
 
 fun RoutingHandler.setupAccountListRoutes() {
 	GET(ACCOUNT_LIST_PATH, accessLevel=AccountType.STAFF) { exchange ->
-		showAccountList(exchange)
+		val session = exchange.session()!!
+		val ownAccountType = session.accountType
+		val filter = exchange.formString(ACCOUNT_LIST_FILTER_PARAM)
+				?.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+		val accountList = getAccountList(filter, ownAccountType, session.timeZone, TemplateLang(ULocale.ENGLISH, exchange.languages()))
+
+		exchange.sendBase(filter.title) { _, _ ->
+			div("page-container-wide") {
+				h1 { +filter.title }
+
+				renderMessages(exchange)
+
+				table {
+					thead {
+						tr {
+							for (header in accountList.headers) {
+								th { +header }
+							}
+						}
+					}
+
+					tbody {
+						for (row in accountList.rows) {
+							tr {
+								row.forEach { value, good ->
+									if (good == null) {
+										td { +value }
+									} else {
+										td(if (good) "al-cell-ok" else "al-cell-bad") { +value }
+									}
+								}
+
+								if (row.accountInfo.accountType >= AccountType.NORMAL && row.accountInfo.accountType < AccountType.STAFF && ownAccountType >= AccountType.ADMIN) {
+									td {
+										postButton(session,
+												ACCOUNT_LIST_PATH, PARAM_ACCOUNT_ID to row.accountInfo.id.toString(),
+												routeAction = ACTION_RESET_ACCOUNT_PASSWORD, classes = "dangerous",
+												confirmation = "Password of this account will be reset to a randomly generated password, which you then should provide back to them. Are you sure you want to do that?") {
+											+"Reset lost password"
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if (accountList.rows.isEmpty()) {
+					div("table-no-elements") {
+						+"No accounts fit this criteria"
+					}
+				}
+
+				div {
+					getButton(ACCOUNT_LIST_DOWNLOAD_PATH, ACCOUNT_LIST_FILTER_PARAM to filter.toString()) { +"Download as CSV" }
+				}
+			}
+		}
 	}
 
 	POST(ACCOUNT_LIST_PATH, accessLevel=AccountType.ADMIN) { exchange ->
@@ -324,5 +368,33 @@ fun RoutingHandler.setupAccountListRoutes() {
 
 		exchange.messageWarning("Password could not be reset")
 		exchange.redirect(ACCOUNT_LIST_PATH)
+	}
+
+	GET(ACCOUNT_LIST_DOWNLOAD_PATH, accessLevel=AccountType.STAFF) { exchange ->
+		val session = exchange.session()!!
+		val ownAccountType = session.accountType
+		val filter = exchange.formString(ACCOUNT_LIST_FILTER_PARAM)
+				?.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+		val accountList = getAccountList(filter, ownAccountType, session.timeZone, TemplateLang(ULocale.ENGLISH, exchange.languages()))
+
+		val writer = Utf8ByteBufferWriter()
+		CSVWriter(writer).use { csv ->
+			for (header in accountList.headers) {
+				csv.item(header)
+			}
+			csv.row()
+
+			for (row in accountList.rows) {
+				row.forEach { value, _ ->
+					csv.item(value)
+				}
+				csv.row()
+			}
+		}
+
+		exchange.statusCode = StatusCodes.OK
+		exchange.responseHeaders.put(Headers.CONTENT_DISPOSITION, contentDispositionAttachment("$BRAND_NAME-$filter-accounts.csv"))
+		exchange.responseSender.send(writer.utf8Bytes())
 	}
 }

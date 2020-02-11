@@ -27,6 +27,7 @@ import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.LocaleStack
 import it.unibz.vincent.util.POST
 import it.unibz.vincent.util.SQLErrorType
+import it.unibz.vincent.util.Utf8ByteBufferWriter
 import it.unibz.vincent.util.contentDispositionAttachment
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.languages
@@ -34,7 +35,6 @@ import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.type
 import kotlinx.html.FlowContent
-import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.h1
 import kotlinx.html.h2
@@ -64,9 +64,6 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
-import java.io.CharArrayWriter
-import java.nio.ByteBuffer
-import java.nio.CharBuffer
 import java.sql.SQLException
 
 private val LOG = LoggerFactory.getLogger("QuestionnaireEdit")
@@ -708,11 +705,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 			}
 		}
 
-		val writer = object : CharArrayWriter(1_000_000) {
-			fun utf8Bytes(): ByteBuffer {
-				return Charsets.UTF_8.encode(CharBuffer.wrap(buf, 0, count))
-			}
-		}
+		val writer = Utf8ByteBufferWriter()
 
 		val hasWines = questionnaire.hasWines
 		CSVWriter(writer).use { csv ->
