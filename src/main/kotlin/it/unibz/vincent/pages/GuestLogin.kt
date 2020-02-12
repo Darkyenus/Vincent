@@ -4,6 +4,8 @@ import io.undertow.server.RoutingHandler
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.AllTables
+import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.accountIdToGuestCode
 import it.unibz.vincent.createSession
 import it.unibz.vincent.guestCodeToAccountId
@@ -12,8 +14,11 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.secureRandomBytes
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.not
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
@@ -48,15 +53,24 @@ fun createGuestAccounts(amount:Int):List<GuestAccountCredentials> {
 	return result
 }
 
+fun deleteUnusedGuestAccounts():Int {
+	return transaction {
+		Accounts.deleteWhere {
+			(Accounts.accountType eq AccountType.GUEST) and
+					(not (Accounts.id inSubQuery (QuestionnaireParticipants.slice(QuestionnaireParticipants.participant).selectAll())))
+		}
+	}
+}
+
 const val GUEST_LOGIN_PATH = "/guest"
 const val FORM_GUEST_ID = "g"
 const val FORM_GUEST_LOGIN_CODE = "auth"
 
-fun GuestAccountCredentials.createLoginUrl(scheme:String, host:String):CharSequence {
+fun createGuestLoginUrl(accountId:Long, loginCode:ByteArray, scheme:String, host:String):CharSequence {
 	val sb = StringBuilder()
 	sb.append(scheme).append("://").append(host).append(GUEST_LOGIN_PATH)
 			.append("?").append(FORM_GUEST_ID).append('=').append(URLEncoder.encode(accountIdToGuestCode(accountId), Charsets.UTF_8.name()))
-			.append('&').append(FORM_GUEST_LOGIN_CODE).append('=').append(Base64.getUrlEncoder().encodeToString(this.loginCode))
+			.append('&').append(FORM_GUEST_LOGIN_CODE).append('=').append(Base64.getUrlEncoder().encodeToString(loginCode))
 	return sb
 }
 

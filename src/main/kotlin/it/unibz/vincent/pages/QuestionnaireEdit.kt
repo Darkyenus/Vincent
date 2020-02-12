@@ -12,6 +12,7 @@ import it.unibz.vincent.Accounts
 import it.unibz.vincent.DemographyInfo
 import it.unibz.vincent.GUEST_CODE_PREFIX
 import it.unibz.vincent.QuestionnaireParticipants
+import it.unibz.vincent.QuestionnaireParticipationState
 import it.unibz.vincent.QuestionnaireResponses
 import it.unibz.vincent.QuestionnaireState
 import it.unibz.vincent.QuestionnaireTemplates
@@ -93,7 +94,8 @@ private val intoleranceQuestionList = listOf(QID_SULFITE_INTOLERANCE, QID_FOOD_I
  * - Add new
  */
 private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, session: Session, locale:LocaleStack, questionnaire: Questionnaire) {
-	val guests = ArrayList<GuestAccountCredentials>()
+	class GuestInfo(val accountId:Long, val loginCode:ByteArray, val state: QuestionnaireParticipationState)
+	val guests = ArrayList<GuestInfo>()
 
 	div("page-section") {
 		h2 { +"Participants" }
@@ -129,7 +131,7 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 							if (loginCode == null) {
 								LOG.warn("Guest account has no login code")
 							} else {
-								guests.add(GuestAccountCredentials(accountId, loginCode))
+								guests.add(GuestInfo(accountId, loginCode, row[QuestionnaireParticipants.state]))
 							}
 							continue
 						}
@@ -227,6 +229,7 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 					th { +"#" }
 					th { +"Guest Code" }
 					th { +"Login URL" }
+					th { +"State" }
 					// if editable: Kick
 				}
 			}
@@ -239,7 +242,8 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 					tr {
 						td { +(index + 1).toString() }
 						td { +accountIdToGuestCode(guest.accountId) }
-						td("copy-url") { +guest.createLoginUrl(guestUrlScheme, guestUrlHost).toString() }
+						td("copy-url") { +createGuestLoginUrl(guest.accountId, guest.loginCode, guestUrlScheme, guestUrlHost).toString() }
+						td { +guest.state.toString().toLowerCase().capitalize() /* TODO Localize */ }
 						if (questionnaire.state != QuestionnaireState.CLOSED) {
 							td {
 								postButton(session, questionnaireEditPath(questionnaire.id),
@@ -882,7 +886,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 				if (loginCode == null) {
 					LOG.warn("Guest account has no login code")
 				} else {
-					fileContent.append(GuestAccountCredentials(accountId, loginCode).createLoginUrl(guestUrlScheme, guestUrlHost)).append("\r\n")
+					fileContent.append(createGuestLoginUrl(accountId, loginCode, guestUrlScheme, guestUrlHost)).append("\r\n")
 				}
 			}
 		}

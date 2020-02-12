@@ -316,10 +316,10 @@ fun HttpServerExchange.home(session: Session) {
 				div("page-section") {
 					h1 { +"Accounts" }
 					div("button-container") {
-						getButton(ACCOUNT_LIST_PATH, parentClasses = "column") { +"All accounts" }
-						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.REGULAR.toString(), parentClasses = "column") { +"Regular accounts" }
-						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.GUEST.toString(), parentClasses = "column") { +"Guest accounts" }
-						getButton(ACCOUNT_LIST_PATH, ACCOUNT_LIST_FILTER_PARAM to AccountListFilter.RESERVED.toString(), parentClasses = "column") { +"Reserved accounts" }
+						getButton(accountListPath(AccountListFilter.ALL), parentClasses = "column") { +"All accounts" }
+						getButton(accountListPath(AccountListFilter.REGULAR), parentClasses = "column") { +"Regular accounts" }
+						getButton(accountListPath(AccountListFilter.GUEST), parentClasses = "column") { +"Guest accounts" }
+						getButton(accountListPath(AccountListFilter.RESERVED), parentClasses = "column") { +"Reserved accounts" }
 					}
 				}
 			}

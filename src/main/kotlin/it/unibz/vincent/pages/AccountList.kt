@@ -21,6 +21,7 @@ import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.generateRandomPassword
 import it.unibz.vincent.util.hashPassword
 import it.unibz.vincent.util.languages
+import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toRawPassword
 import kotlinx.html.div
@@ -44,10 +45,13 @@ import java.time.format.DateTimeFormatter
 
 private val LOG = LoggerFactory.getLogger("AccountList")
 
-const val ACCOUNT_LIST_PATH = "/account-list"
-const val ACCOUNT_LIST_FILTER_PARAM = "filter"
+const val ACCOUNT_LIST_FILTER_PATH_PARAM = "filter"
+const val ACCOUNT_LIST_PATH_TEMPLATE = "/account-list/{$ACCOUNT_LIST_FILTER_PATH_PARAM}"
+fun accountListPath(filter:AccountListFilter):String = "/account-list/$filter"
+const val ACCOUNT_LIST_DOWNLOAD_PATH_TEMPLATE = "/account-list/{$ACCOUNT_LIST_FILTER_PATH_PARAM}/download"
+fun accountListDownloadPath(filter:AccountListFilter):String = "/account-list/$filter/download"
 
-const val ACCOUNT_LIST_DOWNLOAD_PATH = "/account-list-download"
+const val ACTION_DELETE_UNUSED_GUEST_ACCOUNTS = "delete-unused-guest-accounts"
 
 enum class AccountListFilter(
 		val title:String,
@@ -280,11 +284,11 @@ private const val ACTION_RESET_ACCOUNT_PASSWORD = "reset-password"
 private const val PARAM_ACCOUNT_ID = "account-id"
 
 fun RoutingHandler.setupAccountListRoutes() {
-	GET(ACCOUNT_LIST_PATH, accessLevel=AccountType.STAFF) { exchange ->
+	GET(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.STAFF) { exchange ->
 		val session = exchange.session()!!
 		val ownAccountType = session.accountType
-		val filter = exchange.formString(ACCOUNT_LIST_FILTER_PARAM)
-				?.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
 				?: AccountListFilter.ALL
 		val accountList = getAccountList(filter, ownAccountType, session.timeZone, TemplateLang(ULocale.ENGLISH, exchange.languages()))
 
@@ -317,7 +321,7 @@ fun RoutingHandler.setupAccountListRoutes() {
 								if (row.accountInfo.accountType >= AccountType.NORMAL && row.accountInfo.accountType < AccountType.STAFF && ownAccountType >= AccountType.ADMIN) {
 									td {
 										postButton(session,
-												ACCOUNT_LIST_PATH, PARAM_ACCOUNT_ID to row.accountInfo.id.toString(),
+												accountListPath(filter), PARAM_ACCOUNT_ID to row.accountInfo.id.toString(),
 												routeAction = ACTION_RESET_ACCOUNT_PASSWORD, classes = "dangerous",
 												confirmation = "Password of this account will be reset to a randomly generated password, which you then should provide back to them. Are you sure you want to do that?") {
 											+"Reset lost password"
@@ -335,14 +339,24 @@ fun RoutingHandler.setupAccountListRoutes() {
 					}
 				}
 
-				div {
-					getButton(ACCOUNT_LIST_DOWNLOAD_PATH, ACCOUNT_LIST_FILTER_PARAM to filter.toString()) { +"Download as CSV" }
+				div("button-container") {
+					getButton(accountListDownloadPath(filter), parentClasses = "column") { +"Download as CSV" }
+
+					if (filter == AccountListFilter.ALL || filter == AccountListFilter.GUEST) {
+						postButton(session, accountListPath(filter), routeAction = ACTION_DELETE_UNUSED_GUEST_ACCOUNTS, parentClasses = "column", classes = "dangerous", confirmation="Do you really want to delete all guest accounts which are currently not invited to any questionnaire?") {
+							+"Delete unused guest accounts"
+						}
+					}
 				}
 			}
 		}
 	}
 
-	POST(ACCOUNT_LIST_PATH, accessLevel=AccountType.ADMIN) { exchange ->
+	POST(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.ADMIN, routeAction = ACTION_RESET_ACCOUNT_PASSWORD) { exchange ->
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+
 		val accountId = exchange.formString(PARAM_ACCOUNT_ID)?.toLongOrNull()
 		if (accountId != null) {
 			val newPassword = generateRandomPassword()
@@ -361,20 +375,30 @@ fun RoutingHandler.setupAccountListRoutes() {
 			if (updated == 1) {
 				LOG.info("Account {} password has been reset", accountId)
 				exchange.messageInfo("Password has been reset to: $newPassword")
-				exchange.redirect(ACCOUNT_LIST_PATH)
+				exchange.redirect(accountListPath(filter))
 				return@POST
 			}
 		}
 
 		exchange.messageWarning("Password could not be reset")
-		exchange.redirect(ACCOUNT_LIST_PATH)
+		exchange.redirect(accountListPath(filter))
 	}
 
-	GET(ACCOUNT_LIST_DOWNLOAD_PATH, accessLevel=AccountType.STAFF) { exchange ->
+	POST(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.STAFF, routeAction = ACTION_DELETE_UNUSED_GUEST_ACCOUNTS) { exchange ->
+		val deleted = deleteUnusedGuestAccounts()
+
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+		exchange.messageInfo("Deleted $deleted guest account(s)")
+		exchange.redirect(accountListPath(filter))
+	}
+
+	GET(ACCOUNT_LIST_DOWNLOAD_PATH_TEMPLATE, accessLevel=AccountType.STAFF) { exchange ->
 		val session = exchange.session()!!
 		val ownAccountType = session.accountType
-		val filter = exchange.formString(ACCOUNT_LIST_FILTER_PARAM)
-				?.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
 				?: AccountListFilter.ALL
 		val accountList = getAccountList(filter, ownAccountType, session.timeZone, TemplateLang(ULocale.ENGLISH, exchange.languages()))
 

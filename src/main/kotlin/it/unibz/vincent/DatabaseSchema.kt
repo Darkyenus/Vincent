@@ -267,17 +267,19 @@ object QuestionnaireResponses : Table() {
 	override val primaryKey: PrimaryKey = PrimaryKey(participant, questionnaire, wine, questionId)
 }
 
+val AllTables = arrayOf(
+		Accounts,
+		DemographyInfo,
+		QuestionnaireTemplates,
+		Questionnaires,
+		QuestionnaireParticipants,
+		QuestionnaireWines,
+		WineParticipantAssignment,
+		QuestionnaireResponses
+)
+
 fun createSchemaTables() {
 	transaction {
-		SchemaUtils.create(
-				Accounts,
-				DemographyInfo,
-				QuestionnaireTemplates,
-				Questionnaires,
-				QuestionnaireParticipants,
-				QuestionnaireWines,
-				WineParticipantAssignment,
-				QuestionnaireResponses
-		)
+		SchemaUtils.create(*AllTables)
 	}
 }
