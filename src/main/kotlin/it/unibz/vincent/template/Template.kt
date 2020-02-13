@@ -54,7 +54,9 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 
 	sealed class SectionContent(val title:List<Title>, val text:List<Text>) {
 		class Info(title:List<Title>, text:List<Text>) : SectionContent(title, text)
-		class Question(val id:String, val required:Boolean, title:List<Title>, text:List<Text>, val type:QuestionType) : SectionContent(title, text)
+		class Question(id:String, val required:Boolean, title:List<Title>, text:List<Text>, val type:QuestionType) : SectionContent(title, text) {
+			val id = if (id.length > MAX_BASE_QUESTION_ID_LENGTH) id.substring(0, MAX_BASE_QUESTION_ID_LENGTH) else id
+		}
 	}
 
 	class Text(val text:String, val language:ULocale? = null)
@@ -137,6 +139,8 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		}
 	}
 }
+
+private const val MAX_BASE_QUESTION_ID_LENGTH = 48
 
 private val SANITIZE_WHITESPACE = Regex("\\s")
 private val SANITIZE_FOREIGN = Regex("[\"\']")
