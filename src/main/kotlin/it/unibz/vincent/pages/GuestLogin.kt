@@ -42,6 +42,7 @@ fun createGuestAccounts(amount:Int):List<GuestAccountCredentials> {
 				it[Accounts.name] = null
 				it[Accounts.email] = null
 				it[Accounts.password] = NO_PASSWORD
+				it[Accounts.code] = null
 				it[accountType] = AccountType.GUEST
 				it[timeRegistered] = Instant.now()
 				it[timeLastLogin] = Instant.EPOCH

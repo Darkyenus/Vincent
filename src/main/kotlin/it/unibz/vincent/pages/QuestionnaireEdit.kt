@@ -670,7 +670,7 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		val questionIds = template.questionIds
 		val questionIdToIndex = questionIds.mapIndexed { index: Int, qId: String -> qId to index }.toMap()
 
-		class WineParticipant(val wineId:Long?, val wineName:String, val participantId:Long, val participantCode:String)
+		class WineParticipant(val wineId:Long?, val wineName:String, val participantId:Long, val participantCode:String?)
 
 		val responses = LinkedHashMap<WineParticipant, Array<String?>>()
 
@@ -690,10 +690,12 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 				val participantId = row[QuestionnaireResponses.participant]
 				if (lastParticipant == null) {
-					lastParticipant = WineParticipant(wineId, wineName, participantId, row[Accounts.code].toString())
+					val type = row[Accounts.accountType]
+					lastParticipant = WineParticipant(wineId, wineName, participantId, if (type >= AccountType.NORMAL) row[Accounts.code]?.toString() ?: "#$participantId" else null)
 					responses[lastParticipant] = lastParticipantResponses
 				} else if (lastParticipant.wineId != wineId || lastParticipant.participantId != participantId) {
-					lastParticipant = WineParticipant(wineId, wineName, participantId, row[Accounts.code].toString())
+					val type = row[Accounts.accountType]
+					lastParticipant = WineParticipant(wineId, wineName, participantId, if (type >= AccountType.NORMAL) row[Accounts.code]?.toString() ?: "#$participantId" else null)
 					lastParticipantResponses = arrayOfNulls(questionIds.size)
 					responses[lastParticipant] = lastParticipantResponses
 				}
@@ -725,7 +727,11 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 
 			// Body
 			for ((key, value) in responses) {
-				csv.item(key.participantCode)
+				if (key.participantCode == null) {
+					csv.item(accountIdToGuestCode(key.participantId))
+				} else {
+					csv.item(key.participantCode)
+				}
 				if (hasWines) {
 					csv.item(key.wineName)
 				}
