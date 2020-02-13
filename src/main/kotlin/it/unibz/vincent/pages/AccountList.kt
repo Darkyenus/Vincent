@@ -314,7 +314,7 @@ fun RoutingHandler.setupAccountListRoutes() {
 							tr {
 								row.forEach { value, good ->
 									if (good == null) {
-										td { +value }
+										td("copy") { +value }
 									} else {
 										td(if (good) "al-cell-ok" else "al-cell-bad") { +value }
 									}

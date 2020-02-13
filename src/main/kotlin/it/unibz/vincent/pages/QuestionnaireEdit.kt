@@ -139,9 +139,9 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 						empty = false
 						tr {
 							td { +(index++).toString() }
-							td { +(row[Accounts.name] ?: "?") }
-							td { +(row[Accounts.email] ?: "?") }
-							td { +(row[Accounts.code]?.toString() ?: "?") }
+							td("copy") { +(row[Accounts.name] ?: "?") }
+							td("copy") { +(row[Accounts.email] ?: "?") }
+							td("copy") { +(row[Accounts.code]?.toString() ?: "?") }
 							td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
 
 							// Intolerances
@@ -241,7 +241,7 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 				for ((index, guest) in guests.withIndex()) {
 					tr {
 						td { +(index + 1).toString() }
-						td { +accountIdToGuestCode(guest.accountId) }
+						td("copy") { +accountIdToGuestCode(guest.accountId) }
 						td("copy-url") { +createGuestLoginUrl(guest.accountId, guest.loginCode, guestUrlScheme, guestUrlHost).toString() }
 						td { +guest.state.toString().toLowerCase().capitalize() /* TODO Localize */ }
 						if (questionnaire.state != QuestionnaireState.CLOSED) {
