@@ -5,6 +5,7 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.AttachmentKey
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
+import it.unibz.vincent.BRAND_LOGO
 import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.CSRF_FORM_TOKEN_NAME
 import it.unibz.vincent.IDEMPOTENCY_FORM_TOKEN_NAME
@@ -162,9 +163,13 @@ fun HttpServerExchange.sendBase(title:String, showHeader:Boolean = true, createB
 						}
 					}
 				}
-				unibzLogo("unibz-logo")
+				if (BRAND_LOGO) {
+					unibzLogo("unibz-logo")
+				}
 			} else {
-				unibzLogo("unibz-logo absolute")
+				if (BRAND_LOGO) {
+					unibzLogo("unibz-logo absolute")
+				}
 			}
 
 			createBody(this@sendBase, languages)

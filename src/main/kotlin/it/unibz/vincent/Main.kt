@@ -43,6 +43,7 @@ private val LOG = LoggerFactory.getLogger("Main")
 
 /** The brand name for the app, shown to users. It will always be Vincent in my heart. */
 const val BRAND_NAME = "SENSY" //"Vincent"
+const val BRAND_LOGO = true
 
 var VINCENT_UNSAFE_MODE = false
 	private set

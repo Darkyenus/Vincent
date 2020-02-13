@@ -318,6 +318,7 @@ fun HttpServerExchange.home(session: Session) {
 					div("button-container") {
 						getButton(accountListPath(AccountListFilter.ALL), parentClasses = "column") { +"All accounts" }
 						getButton(accountListPath(AccountListFilter.REGULAR), parentClasses = "column") { +"Regular accounts" }
+						getButton(accountListPath(AccountListFilter.STAFF), parentClasses = "column") { +"Staff accounts" }
 						getButton(accountListPath(AccountListFilter.GUEST), parentClasses = "column") { +"Guest accounts" }
 						getButton(accountListPath(AccountListFilter.RESERVED), parentClasses = "column") { +"Reserved accounts" }
 					}

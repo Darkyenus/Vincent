@@ -60,7 +60,8 @@ enum class AccountListFilter(
 		val hasAccountType:Boolean,
 		val hasLoginTime:Boolean) {
 	ALL("All accounts", true, true, true, true),
-	REGULAR("Regular accounts", true, true, true, true),
+	REGULAR("Regular accounts", true, true, false, true),
+	STAFF("Staff accounts", true, true, true, true),
 	GUEST("Guest accounts", false, false, false, true),
 	RESERVED("Reserved codes", false, false, false, false);
 
@@ -143,7 +144,8 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 				.select {
 					when (filter) {
 						AccountListFilter.ALL -> Accounts.accountType lessEq permissionLevel
-						AccountListFilter.REGULAR -> (Accounts.accountType greaterEq AccountType.NORMAL) and (Accounts.accountType lessEq permissionLevel)
+						AccountListFilter.REGULAR -> Accounts.accountType eq AccountType.NORMAL
+						AccountListFilter.STAFF -> (Accounts.accountType greater AccountType.NORMAL) and (Accounts.accountType lessEq permissionLevel)
 						AccountListFilter.GUEST -> Accounts.accountType eq AccountType.GUEST
 						AccountListFilter.RESERVED -> Accounts.accountType eq AccountType.RESERVED
 					}
