@@ -76,7 +76,6 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 		thead {
 			tr {
 				th(classes = "grow") { +"Name" }
-				th { +"State" }
 				// Open detail page
 			}
 		}
@@ -93,11 +92,9 @@ private fun FlowContent.questionnairesToAnswer(session:Session) {
 					noInvitations = false
 					tr {
 						td { +row[Questionnaires.name] }
-						val state = row[QuestionnaireParticipants.state]
-						td { +state.toString() /* TODO: Localize */ }
-						val id = row[Questionnaires.id].value
 						td {
-							getButton(questionnaireAnswerPath(id)) {
+							val state = row[QuestionnaireParticipants.state]
+							getButton(questionnaireAnswerPath(row[Questionnaires.id].value)) {
 								+if (state == QuestionnaireParticipationState.INVITED) {
 									"Start"
 								} else {
@@ -137,12 +134,12 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack, session:Sess
 	table {
 		thead {
 			tr {
-				th { +"State" }
 				th { +"Name" }
 				th { +"Author" }
 				th { +"Template" }
 				th { +"Created" }
 				th { +"Participants" }
+				th { +"State" }
 				// Open detail page
 			}
 		}
@@ -157,7 +154,6 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack, session:Sess
 						.orderBy(Questionnaires.timeCreated)) {
 					noQuestionnaires = false
 					tr {
-						td { +row[Questionnaires.state].toString() /* TODO: Localize */ }
 						td { +row[Questionnaires.name] }
 						td {
 							val creator = row.getOrNull(Accounts.name)
@@ -175,6 +171,7 @@ private fun FlowContent.questionnairesToManage(locale: LocaleStack, session:Sess
 							val participantCount = QuestionnaireParticipants.select { QuestionnaireParticipants.questionnaire eq questionnaireId }.count()
 							+(participantCount.toString())
 						}
+						td { +row[Questionnaires.state].toString().toLowerCase().capitalize() /* TODO: Localize */ }
 						td { getButton(questionnaireEditPath(questionnaireId)) { +"Detail" } }
 					}
 				}

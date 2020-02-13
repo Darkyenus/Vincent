@@ -108,9 +108,9 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 					th { +"Name" }
 					th { +"E-mail" }
 					th { +"Code" }
-					th { +"State" }
 					th { +"Sulfite Intolerance" }
 					th { +"Food Intolerance" }
+					th { +"State" }
 					// if editable: Kick
 				}
 			}
@@ -142,7 +142,6 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 							td("copy") { +(row[Accounts.name] ?: "?") }
 							td("copy") { +(row[Accounts.email] ?: "?") }
 							td("copy") { +(row[Accounts.code]?.toString() ?: "?") }
-							td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
 
 							// Intolerances
 							var sulfiteIntolerance: Boolean? = null
@@ -186,6 +185,8 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 									}
 								}
 							}
+
+							td { +row[QuestionnaireParticipants.state].toString().toLowerCase().capitalize() /* TODO Localize */ }
 
 							if (questionnaire.state != QuestionnaireState.CLOSED) {
 								td {
