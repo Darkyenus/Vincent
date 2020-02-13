@@ -272,7 +272,11 @@ private fun FlowContent.questionnaireParticipants(exchange:HttpServerExchange, s
 					routeAction(ACTION_INVITE_GUESTS)
 					label("main") {
 						span("label") { +"Amount" }
-						numberInput(name = PARAM_GUEST_COUNT) { required = true; placeholder = "1" }
+						numberInput(name = PARAM_GUEST_COUNT) {
+							required = true
+							min = "1"
+							placeholder = "1"
+						}
 					}
 					submitInput { value = "Invite guests" }
 				}

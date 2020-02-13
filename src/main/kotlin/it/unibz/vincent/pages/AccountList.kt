@@ -169,6 +169,11 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 				continue
 			}
 
+			// Only admins have access to what comes next
+			if (permissionLevel < AccountType.ADMIN) {
+				continue
+			}
+
 			val questionId = row.getOrNull(DemographyInfo.questionId) ?: continue
 			val response = row.getOrNull(DemographyInfo.response) ?: continue
 
@@ -176,14 +181,6 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 				QID_FOOD_INTOLERANCE -> accountInfo.foodIntolerance = demographicYesNoToBool(response)
 				QID_FOOD_INTOLERANCE_DETAIL -> accountInfo.foodIntoleranceDetail = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
 				QID_SULFITE_INTOLERANCE -> accountInfo.sulfiteIntolerance = demographicYesNoToBool(response)
-			}
-
-			// Only admins have access to what comes next
-			if (permissionLevel < AccountType.ADMIN) {
-				continue
-			}
-
-			when (questionId) {
 				QID_PHONE_NUMBER -> accountInfo.phoneNumber = response
 				QID_GENDER -> accountInfo.gender = demographicOneOfResponseToHumanReadableLabel(questionId, response, lang) ?: response
 				QID_YEAR_OF_BIRTH -> accountInfo.yearOfBirth = response
@@ -216,20 +213,19 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 		headers.add("Account type")
 	}
 	headers.add("Code")
-	if (filter == AccountListFilter.RESERVED) {
-		headers.add("Reserved at")
-	} else {
-		headers.add("Registered at")
-	}
-	if (filter.hasLoginTime) {
-		headers.add("Last login at")
-	}
+	if (permissionLevel >= AccountType.ADMIN) {
+		if (filter == AccountListFilter.RESERVED) {
+			headers.add("Reserved at")
+		} else {
+			headers.add("Registered at")
+		}
+		if (filter.hasLoginTime) {
+			headers.add("Last login at")
+		}
 
-	if (filter.hasQuestionnaire) {
-		headers.add("Food intolerant")
-		headers.add("Sulfite intolerant")
-
-		if (permissionLevel >= AccountType.ADMIN) {
+		if (filter.hasQuestionnaire) {
+			headers.add("Food intolerant")
+			headers.add("Sulfite intolerant")
 			headers.add("Phone number")
 			headers.add("Gender")
 			headers.add("Year of birth")
@@ -253,15 +249,14 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 		} else {
 			row.add((info.code?.toString() ?: "?"))
 		}
-		row.add((info.timeRegistered?.let { dateFormatter.format(it) } ?: "?"))
-		if (filter.hasLoginTime) {
-			row.add((info.timeLastLogin?.let { dateFormatter.format(it) } ?: "?"))
-		}
-		if (filter.hasQuestionnaire) {
-			row.addWithDetail(info.foodIntolerance, info.foodIntoleranceDetail, false)
-			row.addWithDetail(info.sulfiteIntolerance, null, false)
-
-			if (permissionLevel >= AccountType.ADMIN) {
+		if (permissionLevel >= AccountType.ADMIN) {
+			row.add((info.timeRegistered?.let { dateFormatter.format(it) } ?: "?"))
+			if (filter.hasLoginTime) {
+				row.add((info.timeLastLogin?.let { dateFormatter.format(it) } ?: "?"))
+			}
+			if (filter.hasQuestionnaire) {
+				row.addWithDetail(info.foodIntolerance, info.foodIntoleranceDetail, false)
+				row.addWithDetail(info.sulfiteIntolerance, null, false)
 				row.add(info.phoneNumber ?: "?")
 				row.add(info.gender ?: "?")
 				row.add(info.yearOfBirth ?: "?")
