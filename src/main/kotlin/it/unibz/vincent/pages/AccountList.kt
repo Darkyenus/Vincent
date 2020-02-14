@@ -9,7 +9,9 @@ import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.DemographyInfo
+import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.accountIdToGuestCode
+import it.unibz.vincent.destroySessionsOf
 import it.unibz.vincent.session
 import it.unibz.vincent.template.TemplateLang
 import it.unibz.vincent.util.CSVWriter
@@ -39,9 +41,12 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.leftJoin
+import org.jetbrains.exposed.sql.not
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
@@ -57,8 +62,6 @@ const val ACCOUNT_LIST_PATH_TEMPLATE = "/account-list/{$ACCOUNT_LIST_FILTER_PATH
 fun accountListPath(filter:AccountListFilter):String = "/account-list/$filter"
 const val ACCOUNT_LIST_DOWNLOAD_PATH_TEMPLATE = "/account-list/{$ACCOUNT_LIST_FILTER_PATH_PARAM}/download"
 fun accountListDownloadPath(filter:AccountListFilter):String = "/account-list/$filter/download"
-
-const val ACTION_DELETE_UNUSED_GUEST_ACCOUNTS = "delete-unused-guest-accounts"
 
 enum class AccountListFilter(
 		val title:String,
@@ -284,11 +287,15 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 	return AccountList(headers, rows)
 }
 
+private const val ACTION_DELETE_UNUSED_GUEST_ACCOUNTS = "delete-unused-guest-accounts"
+
+private const val ACTION_DELETE_ACCOUNT = "delete-account"
 private const val ACTION_RESET_ACCOUNT_PASSWORD = "reset-password"
 private const val PARAM_ACCOUNT_ID = "account-id"
 
 private const val ACTION_RESERVE_CODE = "reserve-code"
 private const val PARAM_RESERVE_EMAIL = "email"
+
 private const val PARAM_RESERVE_CODE = "code"
 
 fun RoutingHandler.setupAccountListRoutes() {
@@ -333,6 +340,17 @@ fun RoutingHandler.setupAccountListRoutes() {
 												routeAction = ACTION_RESET_ACCOUNT_PASSWORD, classes = "dangerous",
 												confirmation = "Password of this account will be reset to a randomly generated password, which you then should provide back to them. Are you sure you want to do that?") {
 											+"Reset lost password"
+										}
+									}
+								}
+
+								if (ownAccountType >= AccountType.ADMIN && (row.accountInfo.id != session.userId)) {
+									td {
+										postButton(session,
+												accountListPath(filter), PARAM_ACCOUNT_ID to row.accountInfo.id.toString(),
+												routeAction = ACTION_DELETE_ACCOUNT, classes = "dangerous",
+												confirmation = "Do you really want to delete this account? The account can be deleted only if it does not participate in any questionnaires. All related account information (such as demographic data) will be lost forever!") {
+											+"Delete account"
 										}
 									}
 								}
@@ -424,6 +442,36 @@ fun RoutingHandler.setupAccountListRoutes() {
 				?: AccountListFilter.ALL
 		exchange.messageInfo("Deleted $deleted guest account(s)")
 		exchange.redirect(accountListPath(filter))
+	}
+
+	POST(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.ADMIN, routeAction = ACTION_DELETE_ACCOUNT) { exchange ->
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+
+		val accountId = exchange.formString(PARAM_ACCOUNT_ID)?.toLongOrNull()
+
+		if (accountId == null) {
+			exchange.messageWarning("User must be specified")
+			exchange.redirect(accountListPath(filter))
+			return@POST
+		}
+
+		val deletions = transaction {
+			Accounts.deleteWhere(limit=1) {
+				(Accounts.id eq accountId) and
+						(not (Accounts.id inSubQuery (QuestionnaireParticipants.slice(QuestionnaireParticipants.participant).selectAll())))
+			}
+		}
+
+		if (deletions >= 1) {
+			destroySessionsOf(accountId)
+			exchange.messageInfo("User permanently deleted")
+			exchange.redirect(accountListPath(filter))
+		} else {
+			exchange.messageWarning("User could not be deleted - perhaps it is still participating in a questionnaire?")
+			exchange.redirect(accountListPath(filter))
+		}
 	}
 
 	GET(ACCOUNT_LIST_DOWNLOAD_PATH_TEMPLATE, accessLevel=AccountType.STAFF) { exchange ->

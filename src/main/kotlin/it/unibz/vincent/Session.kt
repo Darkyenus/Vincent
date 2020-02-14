@@ -204,23 +204,22 @@ fun HttpServerExchange.destroySession(logoutFully:Boolean):Int {
 	activeSessions.invalidate(session.sessionId)
 	setResponseCookie(createSessionCookie(null))
 
-	if (logoutFully) {
-		val userId = session.userId
-		var loggedOutFrom = 1
+	return 1 + (if (logoutFully) destroySessionsOf(session.userId) else 0)
+}
 
-		val iterator = activeSessions.asMap().values.iterator()
-		while (iterator.hasNext()) {
-			val otherSession = iterator.next()
-			if (otherSession.userId == userId) {
-				iterator.remove()
-				loggedOutFrom++
-			}
+fun destroySessionsOf(accountId:Long):Int {
+	var loggedOutFrom = 0
+
+	val iterator = activeSessions.asMap().values.iterator()
+	while (iterator.hasNext()) {
+		val otherSession = iterator.next()
+		if (otherSession.userId == accountId) {
+			iterator.remove()
+			loggedOutFrom++
 		}
-
-		return loggedOutFrom
-	} else {
-		return 1
 	}
+
+	return loggedOutFrom
 }
 
 

@@ -3,7 +3,6 @@
 # Implement
 
 # Backlog
-- ability to delete single unused account with lower level
 - file upload/download
 - html tutorial
     - paragraphs/break
