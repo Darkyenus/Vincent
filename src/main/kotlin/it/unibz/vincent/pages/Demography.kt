@@ -224,7 +224,7 @@ fun RoutingHandler.setupDemographyRoutes() {
 				DemographyInfo.merge {
 					it[DemographyInfo.user] = session.userId
 					it[DemographyInfo.questionId] = questionId
-					it[DemographyInfo.response] = response
+					it[DemographyInfo.response] = response.take(MAX_RESPONSE_LENGTH)
 				}
 			}
 
