@@ -4,7 +4,6 @@
 
 # Backlog
 - ability to delete single unused account with lower level
-- expose code reservations through the web
 - file upload/download
 - html tutorial
     - paragraphs/break

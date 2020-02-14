@@ -25,7 +25,13 @@ import it.unibz.vincent.util.pathString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toRawPassword
 import kotlinx.html.div
+import kotlinx.html.emailInput
 import kotlinx.html.h1
+import kotlinx.html.label
+import kotlinx.html.numberInput
+import kotlinx.html.postForm
+import kotlinx.html.span
+import kotlinx.html.submitInput
 import kotlinx.html.table
 import kotlinx.html.tbody
 import kotlinx.html.td
@@ -33,6 +39,7 @@ import kotlinx.html.th
 import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -280,6 +287,10 @@ private fun getAccountList(filter:AccountListFilter, permissionLevel:AccountType
 private const val ACTION_RESET_ACCOUNT_PASSWORD = "reset-password"
 private const val PARAM_ACCOUNT_ID = "account-id"
 
+private const val ACTION_RESERVE_CODE = "reserve-code"
+private const val PARAM_RESERVE_EMAIL = "email"
+private const val PARAM_RESERVE_CODE = "code"
+
 fun RoutingHandler.setupAccountListRoutes() {
 	GET(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.STAFF) { exchange ->
 		val session = exchange.session()!!
@@ -336,6 +347,9 @@ fun RoutingHandler.setupAccountListRoutes() {
 					}
 				}
 
+			}
+
+			div("page-container") {
 				div("button-container") {
 					getButton(accountListDownloadPath(filter), parentClasses = "column") { +"Download as CSV" }
 
@@ -344,6 +358,27 @@ fun RoutingHandler.setupAccountListRoutes() {
 							+"Delete unused guest accounts"
 						}
 					}
+				}
+
+				postForm(accountListPath(filter), classes = "compact-form") {
+					session(session)
+					routeAction(ACTION_RESERVE_CODE)
+					label("main") {
+						span("label") { +"E-mail" }
+						emailInput(name = PARAM_RESERVE_EMAIL) {
+							required = true
+							placeholder = "mail@example.com"
+						}
+					}
+					label {
+						span("label") { +"Code" }
+						numberInput(name = PARAM_RESERVE_CODE) {
+							required = true
+							min = "1"
+							placeholder = "000"
+						}
+					}
+					submitInput { value = "Assign code" }
 				}
 			}
 		}
@@ -417,5 +452,62 @@ fun RoutingHandler.setupAccountListRoutes() {
 		exchange.statusCode = StatusCodes.OK
 		exchange.responseHeaders.put(Headers.CONTENT_DISPOSITION, contentDispositionAttachment("$BRAND_NAME-$filter-accounts.csv"))
 		exchange.responseSender.send(writer.utf8Bytes())
+	}
+
+	POST(ACCOUNT_LIST_PATH_TEMPLATE, accessLevel=AccountType.ADMIN, routeAction = ACTION_RESERVE_CODE) { exchange ->
+		val filter = exchange.pathString(ACCOUNT_LIST_FILTER_PATH_PARAM)
+				.let { try { AccountListFilter.valueOf(it.toUpperCase()) } catch (e:IllegalArgumentException){ null } }
+				?: AccountListFilter.ALL
+
+		val email = exchange.formString(PARAM_RESERVE_EMAIL)
+		val code = exchange.formString(PARAM_RESERVE_CODE)?.toIntOrNull()
+
+		if (email == null || code == null) {
+			exchange.messageWarning("Specify both email and code for the registration")
+			exchange.redirect(accountListPath(filter))
+			return@POST
+		}
+
+		transaction {
+			val alreadyGivenTo = Accounts.slice(Accounts.email).select { Accounts.code eq code }.firstOrNull()?.let { it[Accounts.email] }
+			if (alreadyGivenTo == email) {
+				exchange.messageInfo("User '$email' already has that code")
+			} else if (alreadyGivenTo != null) {
+				exchange.messageWarning("Code already assigned to a user '$alreadyGivenTo'")
+			} else {
+				var idWithThatEmail = 0L
+				var codeWithThatEmail:Int? = null
+				var emailExists = false
+
+				Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq email }.firstOrNull()?.let {
+					idWithThatEmail = it[Accounts.id].value
+					codeWithThatEmail = it[Accounts.code]
+					emailExists = true
+				}
+
+				if (emailExists) {
+					val success = Accounts.update(where = { Accounts.id eq idWithThatEmail }, limit=1) { it[Accounts.code] = code } > 0
+					if (success) {
+						LOG.info("Code of user '$email' changed from $codeWithThatEmail to $code")
+						exchange.messageInfo("Code of user '$email' changed from $codeWithThatEmail to $code")
+					} else {
+						exchange.messageWarning("Failed to change code of user '$email' from $codeWithThatEmail to $code")
+					}
+				} else {
+					Accounts.insert {
+						it[Accounts.name] = "RESERVED"
+						it[Accounts.email] = email
+						it[Accounts.password] = ByteArray(0)
+						it[accountType] = AccountType.RESERVED
+						it[timeRegistered] = Instant.now()
+						it[timeLastLogin] = Instant.EPOCH
+						it[Accounts.code] = code
+					}
+					LOG.info("Reserved code $code for user with e-mail '$email'")
+					exchange.messageInfo("Reserved code $code for user with e-mail '$email'")
+				}
+			}
+		}
+		exchange.redirect(accountListPath(filter))
 	}
 }
