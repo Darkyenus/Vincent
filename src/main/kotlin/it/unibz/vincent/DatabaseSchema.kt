@@ -152,6 +152,10 @@ object QuestionnaireTemplates : LongIdTable() {
 				}
 			})
 
+	fun invalidateParsedCache(templateId:Long) {
+		CACHE.invalidate(templateId)
+	}
+
 	fun parsed(templateId:Long):QuestionnaireTemplate? {
 		try {
 			return CACHE.get(templateId)

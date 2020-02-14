@@ -25,12 +25,15 @@ import it.unibz.vincent.util.formFile
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
+import kotlinx.html.ButtonType
 import kotlinx.html.FlowContent
 import kotlinx.html.FormEncType
 import kotlinx.html.a
+import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.fileInput
 import kotlinx.html.h1
+import kotlinx.html.hiddenInput
 import kotlinx.html.label
 import kotlinx.html.p
 import kotlinx.html.postForm
@@ -52,6 +55,7 @@ import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.time.Instant
@@ -191,6 +195,7 @@ const val ACTION_QUESTIONNAIRE_DELETE = "questionnaire-delete"
 const val ACTION_TEMPLATE_DOWNLOAD = "template-download"
 const val ACTION_TEMPLATE_DELETE = "template-delete"
 const val ACTION_TEMPLATE_NEW = "template-new"
+const val ACTION_TEMPLATE_XML_REPLACE = "template-xml-replace"
 
 const val PARAM_QUESTIONNAIRE_ID = "questionnaire-id"
 
@@ -243,6 +248,24 @@ private fun FlowContent.questionnaireTemplates(locale:LocaleStack, session:Sessi
 						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_QUESTIONNAIRE_NEW) { +"Use" } }
 						td { getButton(HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_TEMPLATE_DOWNLOAD) { +"Download" } }
 						td { postButton(session, HOME_PATH, PARAM_TEMPLATE_ID to templateId, routeAction = ACTION_TEMPLATE_DELETE, classes="dangerous", confirmation = "Are you sure? This will also delete all questionnaires that used this template!") { +"Delete" } }
+						if (session.accountType >= AccountType.ADMIN) {
+							td {
+								postForm(HOME_PATH, classes=CONFIRMATION_CLASS) {
+									encType = FormEncType.multipartFormData
+									attributes[CONFIRMATION_MESSAGE] = "Do you really want to replace the template XML? If the template has a different question structure, it could severely corrupt any questionnaires using it!"
+									routeAction(ACTION_TEMPLATE_XML_REPLACE)
+									session(session)
+									hiddenInput(name=PARAM_TEMPLATE_ID) { this.value = templateId }
+									fileInput(name = TEMPLATE_NEW_TEMPLATE_XML) {
+										style = "font-weight: normal;"
+										required = true
+										accept = ".xml,application/xml,text/xml"
+										multiple = false
+									}
+									button(type= ButtonType.submit, classes="dangerous"){ +"Replace XML" }
+								}
+							}
+						}
 					}
 				}
 			}
@@ -419,6 +442,65 @@ fun RoutingHandler.setupHomeRoutes() {
 			exchange.messageWarning("Template no longer exists")
 		} else {
 			exchange.messageInfo("Template deleted")
+		}
+		exchange.redirect(HOME_PATH)
+	}
+
+	POST(HOME_PATH, AccountType.ADMIN, ACTION_TEMPLATE_XML_REPLACE) { exchange ->
+		val session = exchange.session()!!
+
+		val template = exchange.formString(PARAM_TEMPLATE_ID)?.toLongOrNull()
+		if (template == null) {
+			exchange.statusCode = StatusCodes.BAD_REQUEST
+			exchange.messageWarning("No template specified")
+			exchange.redirect(HOME_PATH)
+			return@POST
+		}
+
+		val formFile = exchange.formFile(TEMPLATE_NEW_TEMPLATE_XML)
+		val parsed = formFile?.let {
+			parseTemplate(it.inputStream)
+		}
+
+		if (parsed == null) {
+			exchange.messageWarning("No template xml specified")
+			exchange.redirect(HOME_PATH)
+			return@POST
+		}
+
+		if (parsed.errors.isNotEmpty()) {
+			for (error in parsed.errors) {
+				exchange.messageWarning(error)
+			}
+			exchange.redirect(HOME_PATH)
+			return@POST
+		}
+
+		for (warning in parsed.warnings) {
+			exchange.messageWarning(warning)
+		}
+
+		val databaseName = parsed.result.run {
+			title.mainTitle(TemplateLang(this.defaultLanguage, listOf(ULocale.ENGLISH))) ?: "Without a name (${DateTimeFormatter.ISO_INSTANT.format(Instant.now())})"
+		}
+
+		val updated = transaction {
+			QuestionnaireTemplates.update(where = { QuestionnaireTemplates.id eq template }, limit=1) {
+				/* This is magic, but should work. Maybe. */
+				@Suppress("UNCHECKED_CAST")
+				it[QuestionnaireTemplates.templateXml as Column<InputStream>] = formFile.inputStream
+				it[QuestionnaireTemplates.name] = databaseName
+				it[QuestionnaireTemplates.createdBy] = session.userId
+				it[QuestionnaireTemplates.timeCreated] = Instant.now()
+			}
+		}
+
+		if (updated >= 1) {
+			// Flush cache
+			QuestionnaireTemplates.invalidateParsedCache(template)
+			exchange.messageInfo("Questionnaire template replaced")
+		} else {
+			exchange.messageWarning("No such questionnaire template")
 		}
 		exchange.redirect(HOME_PATH)
 	}

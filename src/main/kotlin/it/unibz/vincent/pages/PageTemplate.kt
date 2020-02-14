@@ -118,8 +118,8 @@ fun FlowContent.getButton(url:String, vararg extraParams:Pair<String, String>, r
 	}
 }
 
-private const val CONFIRMATION_CLASS = "confirmed-submit"
-private const val CONFIRMATION_MESSAGE = "confirmation-message"
+const val CONFIRMATION_CLASS = "confirmed-submit"
+const val CONFIRMATION_MESSAGE = "confirmation-message"
 
 fun FlowContent.postButton(session:Session, url:String, vararg extraParams:Pair<String, String>, routeAction:String? = null, classes:String? = null, parentClasses:String? = null, confirmation:String? = null, block : BUTTON.() -> Unit) {
 	form(url, method=FormMethod.post, classes=confirmation?.let { CONFIRMATION_CLASS } plusClass parentClasses) {
