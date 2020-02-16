@@ -27,11 +27,7 @@ www.getskeleton.com - Free to use under the MIT license.
 
 
 /* Base Styles */
-/* NOTE
-html is set to 62.5% so that all the REM measurements throughout Skeleton
-are based on 10px sizing. So basically 1.5rem = 15px :) */
-html {
-  font-size: 62.5%; }
+html { font-size: 62.5%; /* 1rem = 10px */ }
 body {
   font-size: 1.5em; /* currently ems cause chrome bug misinterpreting rems on body element */
   line-height: 1.6;
@@ -39,8 +35,8 @@ body {
   font-family: Merriweather, Georgia, serif;
   color: #222;
   background: #F5F5F5;
+  padding-bottom: 7rem;
 }
-
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
