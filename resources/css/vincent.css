@@ -24,6 +24,9 @@ www.getskeleton.com - Free to use under the MIT license.
 .button-container > * {
 	margin: 1rem;
 }
+.button-container .column > * {
+	width: 100%;
+}
 
 
 /* Base Styles */

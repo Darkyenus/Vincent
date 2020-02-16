@@ -47,13 +47,13 @@ private fun showProfilePage(exchange: HttpServerExchange) {
 
 			// Demography & Logout
 			div("page-section button-container") {
-				getButton(DEMOGRAPHY_PATH) { +"Personal info" }
+				getButton(DEMOGRAPHY_PATH, parentClasses = "column") { +"Personal info" }
 
-				postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT, classes = "dangerous") { +"Logout" }
+				postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT, classes = "dangerous", parentClasses = "column") { +"Logout" }
 
 				if (session.accountType >= AccountType.STAFF) {
 					// Let's not confuse ordinary users with this
-					postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT_FULLY, classes = "dangerous") { +"Logout from all devices" }
+					postButton(session, HOME_PATH, routeAction = ACTION_LOGOUT_FULLY, classes = "dangerous", parentClasses = "column") { +"Logout from all devices" }
 				}
 			}
 

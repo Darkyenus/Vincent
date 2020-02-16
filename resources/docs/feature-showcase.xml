@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE questionnaire PUBLIC "-//UNIBZ//Vincent Questionnaire Template 1.0//EN" "vincent://questionnaire.dtd">
+<questionnaire default-lang="en">
+    <title>Feature showcase</title>
+
+    <section stage="only-first" shown-wine="all">
+        <title>Welcome</title>
+
+        <info>
+            <text>
+                <p>This page is visible only for the first wine.</p>
+            </text>
+        </info>
+    </section>
+
+    <section stage="except-first" min-time="60" shown-wine="all">
+        <info>
+            <text>This page is not visible for the first wine, and you have to wait on it. This is well suited for palate cleansing.</text>
+        </info>
+        <question id="feedback" required="false">
+            <title>Feedback</title>
+            <text>While you are waiting, feel free to share any feedback you might have.</text>
+            <free-text type="paragraph"/>
+        </question>
+    </section>
+
+    <section>
+        <title>Showcase</title>
+
+        <question id="one-of">
+            <title>One of (single category)</title>
+            <text>One-of question type options can have extra detail fields.</text>
+            <one-of>
+                <option value="0">
+                    <title>Option without detail</title>
+                </option>
+                <option value="1" detail="yes" detail-type="sentence">
+                    <title>Option with detail (sentence)</title>
+                </option>
+                <option value="2" detail="yes" detail-type="paragraph">
+                    <title>Option with detail (paragraph)</title>
+                </option>
+                <option value="3" detail="yes" detail-type="number">
+                    <title>Option with detail (number)</title>
+                </option>
+            </one-of>
+        </question>
+
+        <question id="one-of-categories">
+            <title>One of (multiple categories)</title>
+            <text>One-of question type options can have extra detail fields.</text>
+            <one-of>
+                <category>
+                    <option value="0">
+                        <title>Option without detail</title>
+                    </option>
+                    <option value="1" detail="yes" detail-type="sentence">
+                        <title>Option with detail (sentence)</title>
+                    </option>
+                    <option value="2" detail="yes" detail-type="paragraph">
+                        <title>Option with detail (paragraph)</title>
+                    </option>
+                    <option value="3" detail="yes" detail-type="number">
+                        <title>Option with detail (number)</title>
+                    </option>
+                </category>
+
+                <category>
+                    <title>Categories can have titles</title>
+                    <option value="4">
+                        <title>Option without detail</title>
+                    </option>
+                    <option value="5" detail="yes" detail-type="sentence">
+                        <title>Option with detail (sentence)</title>
+                    </option>
+                    <option value="6" detail="yes" detail-type="paragraph">
+                        <title>Option with detail (paragraph)</title>
+                    </option>
+                    <option value="7" detail="yes" detail-type="number">
+                        <title>Option with detail (number)</title>
+                    </option>
+                </category>
+            </one-of>
+        </question>
+
+        <question id="scale">
+            <title>Default scale, without labels</title>
+            <scale>
+            </scale>
+        </question>
+
+        <question id="scale-with-labels">
+            <title>Default scale, with labels and custom range</title>
+            <scale min="-10" max="4">
+                <min>
+                    <title>smol</title>
+                </min>
+                <max>BIG</max>
+            </scale>
+        </question>
+
+        <question id="free-text-sentence">
+            <title>Free text (sentence)</title>
+            <free-text />
+        </question>
+
+        <question id="free-text-paragraph">
+            <title>Free text (paragraph)</title>
+            <free-text type="paragraph"/>
+        </question>
+
+        <question id="free-text-number">
+            <title>Free text (number)</title>
+            <free-text type="number"/>
+        </question>
+    </section>
+
+    <section>
+        <title>Time progressions</title>
+
+        <question id="time-progression-one-of">
+            <title>Time progression (one-of)</title>
+            <text>Interval of 10 seconds, 5 repeats.</text>
+            <time-progression interval="10" repeats="5">
+                <one-of>
+                    <option>First option</option>
+                    <option>Second option</option>
+                </one-of>
+            </time-progression>
+        </question>
+
+        <question id="time-progression-scale">
+            <title>Time progression (scale)</title>
+            <text>Interval of 3 seconds, 20 repeats.</text>
+            <time-progression interval="3" repeats="20">
+                <scale min="-3" max="3">
+                    <min>Low end</min>
+                    <max>High end</max>
+                </scale>
+            </time-progression>
+        </question>
+    </section>
+
+    <section>
+        <title>HTML showcase</title>
+
+        <info>
+            <title>Paragraphs</title>
+            <text>
+                <p>Two paragraphs of text. Voluptas fugit minus ex sunt dicta hic. Sed esse non hic voluptates. Sint enim rerum fugiat ducimus fugit illum. Delectus veritatis est et. Et et similique aut aut et qui rem. Aut est et sit cum et ducimus error.</p>
+                <p>Vel debitis occaecati voluptas laudantium optio ut. In velit ut aut unde voluptatem aliquid unde rerum. Et ut aspernatur nam eligendi. Aliquid delectus repellendus dolorem quasi voluptatum occaecati non. Similique doloremque reiciendis placeat repellendus soluta. Quibusdam sed cumque pariatur in.</p>
+            </text>
+            <text>
+                THIS IS A MISTAKE! IT WILL NEVER BE SHOWN! MULTIPLE text TAGS ARE NOT ALLOWED!
+            </text>
+        </info>
+
+        <info>
+            <title>Breaks</title>
+            <text>
+                When you don't need paragraphs, but just to start on a new line...
+                <br/>
+                Do this!
+            </text>
+        </info>
+
+        <info>
+            <title>Text formatting</title>
+            <text>
+                You can easily make text <i>italic</i>, <b>bold</b>, <u>underlined</u>, <font size="+2">bigger</font>, <font size="-2">smaller</font>, or even a <font color="red"> different color</font>.
+            </text>
+        </info>
+
+        <info>
+            <title>Images</title>
+            <text>
+                <p>Adding images is easy:</p>
+                <img src="/internal/vincent.jpg"/>
+
+                <p>If you want to center them, it is a bit more tricky, but still not hard:</p>
+                <div style="text-align: center;"> <img src="/internal/vincent.jpg"/> </div>
+
+                <p>It may also be nice to add some margins:</p>
+                <div style="text-align: center; margin: 1.5rem;"> <img src="/internal/vincent.jpg"/> </div>
+            </text>
+        </info>
+
+        <info>
+            <title>Lists</title>
+            <text>
+                You can easily make unordered lists:
+                <ul>
+                    <li>Item 1</li>
+                    <li>Item 2</li>
+                    <li>Item 3</li>
+                    <li>Item 4</li>
+                </ul>
+                And ordered lists:
+                <ol>
+                    <li>Item 1</li>
+                    <li>Item 2</li>
+                    <li>Item 3</li>
+                    <li>Item 4</li>
+                </ol>
+            </text>
+        </info>
+
+        <info>
+            <title>Tables</title>
+            <text>
+                Tables are a bit verbose, but not hard:
+                <table>
+                    <tr>
+                        <th>Column 1</th>
+                        <th>Column 2</th>
+                    </tr>
+                    <tr>
+                        <td>Column 1 data 1</td>
+                        <td>Column 2 data 1</td>
+                    </tr>
+                    <tr>
+                        <td>Column 1 data 2</td>
+                        <td>Column 2 data 2</td>
+                    </tr>
+                </table>
+
+                <p>
+                    &lt;tr&gt; stands for table row, &lt;th&gt; for table header (= not data but label) and &lt;td&gt; for table data.
+                </p>
+            </text>
+        </info>
+    </section>
+
+    <section stage="only-last" shown-wine="none">
+        <title>Goodbye</title>
+        <info>
+            <text>Thank you for checking out the feature showcase!</text>
+        </info>
+    </section>
+</questionnaire>
