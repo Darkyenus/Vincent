@@ -26,7 +26,6 @@ import it.unibz.vincent.util.onShutdown
 import it.unibz.vincent.util.toRawPassword
 import it.unibz.vincent.util.wrapRootHandler
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -35,16 +34,15 @@ import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.time.Instant
 import java.util.*
 import kotlin.system.exitProcess
 
 private val LOG = LoggerFactory.getLogger("Main")
 
 /** The brand name for the app, shown to users. It will always be Vincent in my heart. */
-const val BRAND_NAME = "SENSY"
-//const val BRAND_NAME = "Vincent"
-const val BRAND_LOGO = true
+//const val BRAND_NAME = "SENSY"
+const val BRAND_NAME = "Vincent"
+const val BRAND_LOGO = false
 
 var VINCENT_UNSAFE_MODE = false
 	private set
@@ -193,43 +191,12 @@ fun main(args: Array<String>) {
 					if (userEmail == null || newCode == null) {
 						println("usage: reserve-code <email> <code>")
 					} else {
-						transaction {
-							val alreadyGivenTo = Accounts.slice(Accounts.email).select { Accounts.code eq newCode }.firstOrNull()?.let { it[Accounts.email] }
-							if (alreadyGivenTo == userEmail) {
-								println("User '$userEmail' already has that code")
-							} else if (alreadyGivenTo != null) {
-								println("Code already assigned to a user '$alreadyGivenTo'")
-							} else {
-								var idWithThatEmail = 0L
-								var codeWithThatEmail:Int? = null
-								var emailExists = false
-
-								Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq userEmail }.firstOrNull()?.let {
-									idWithThatEmail = it[Accounts.id].value
-									codeWithThatEmail = it[Accounts.code]
-									emailExists = true
-								}
-
-								if (emailExists) {
-									val success = Accounts.update(where = { Accounts.id eq idWithThatEmail }, limit=1) { it[code] = newCode } > 0
-									if (success) {
-										LOG.info("CLI: Code of user '$userEmail' changed from $codeWithThatEmail to $newCode")
-									} else {
-										println("Failed to change code of user '$userEmail' from $codeWithThatEmail to $newCode")
-									}
-								} else {
-									Accounts.insert {
-										it[Accounts.name] = "RESERVED"
-										it[Accounts.email] = userEmail
-										it[Accounts.password] = ByteArray(0)
-										it[accountType] = AccountType.RESERVED
-										it[timeRegistered] = Instant.now()
-										it[timeLastLogin] = Instant.EPOCH
-										it[code] = newCode
-									}
-									LOG.info("CLI: Reserved code $newCode for user with e-mail '$userEmail'")
-								}
-							}
+						when (val result = transaction { Accounts.assignCodeToEmail(userEmail, newCode) }) {
+							Accounts.CodeAssignResult.AlreadyHasThatCode -> println("User '$userEmail' already has that code")
+							is Accounts.CodeAssignResult.CodeNotFree -> println("Code already assigned to a user '${result.occupiedByEmail}'")
+							Accounts.CodeAssignResult.SuccessChanged -> {} // Already logged
+							is Accounts.CodeAssignResult.FailureToChange -> println("Failed to change code of user '$userEmail' from ${result.oldCode} to $newCode")
+							Accounts.CodeAssignResult.SuccessReserved -> {} // Already logged
 						}
 					}
 				}

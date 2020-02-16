@@ -4,7 +4,6 @@ import io.undertow.server.RoutingHandler
 import io.undertow.util.StatusCodes
 import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
-import it.unibz.vincent.AllTables
 import it.unibz.vincent.QuestionnaireParticipants
 import it.unibz.vincent.accountIdToGuestCode
 import it.unibz.vincent.createSession
@@ -15,7 +14,6 @@ import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.secureRandomBytes
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.not
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
@@ -31,23 +29,12 @@ private val LOG = LoggerFactory.getLogger("Guest")
 
 class GuestAccountCredentials(val accountId:Long, val loginCode:ByteArray)
 
-private val NO_PASSWORD = ByteArray(0)
-
 fun createGuestAccounts(amount:Int):List<GuestAccountCredentials> {
 	val result = ArrayList<GuestAccountCredentials>(amount)
 	transaction {
 		for (i in 0 until amount) {
 			val loginCode = secureRandomBytes(Accounts.GUEST_LOGIN_CODE_SIZE)
-			val accountId = Accounts.insertAndGetId {
-				it[Accounts.name] = null
-				it[Accounts.email] = null
-				it[Accounts.password] = NO_PASSWORD
-				it[Accounts.code] = null
-				it[accountType] = AccountType.GUEST
-				it[timeRegistered] = Instant.now()
-				it[timeLastLogin] = Instant.EPOCH
-				it[Accounts.guestLoginCode] = loginCode
-			}.value
+			val accountId = Accounts.createGuestAccount(loginCode)
 			result.add(GuestAccountCredentials(accountId, loginCode))
 		}
 	}

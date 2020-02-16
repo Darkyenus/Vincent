@@ -37,6 +37,8 @@ fun String.toRawPassword():RawPassword {
  */
 typealias HashedPassword = ByteArray
 
+val NO_PASSWORD:HashedPassword = ByteArray(0)
+
 private const val CURRENT_VERSION:Byte = 1
 private const val DEFAULT_N_POW:Byte = 16
 private const val DEFAULT_R:Byte = 8

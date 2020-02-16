@@ -42,7 +42,6 @@ import kotlinx.html.thead
 import kotlinx.html.tr
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.leftJoin
 import org.jetbrains.exposed.sql.not
 import org.jetbrains.exposed.sql.select
@@ -516,45 +515,12 @@ fun RoutingHandler.setupAccountListRoutes() {
 			return@POST
 		}
 
-		transaction {
-			val alreadyGivenTo = Accounts.slice(Accounts.email).select { Accounts.code eq code }.firstOrNull()?.let { it[Accounts.email] }
-			if (alreadyGivenTo == email) {
-				exchange.messageInfo("User '$email' already has that code")
-			} else if (alreadyGivenTo != null) {
-				exchange.messageWarning("Code already assigned to a user '$alreadyGivenTo'")
-			} else {
-				var idWithThatEmail = 0L
-				var codeWithThatEmail:Int? = null
-				var emailExists = false
-
-				Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq email }.firstOrNull()?.let {
-					idWithThatEmail = it[Accounts.id].value
-					codeWithThatEmail = it[Accounts.code]
-					emailExists = true
-				}
-
-				if (emailExists) {
-					val success = Accounts.update(where = { Accounts.id eq idWithThatEmail }, limit=1) { it[Accounts.code] = code } > 0
-					if (success) {
-						LOG.info("Code of user '$email' changed from $codeWithThatEmail to $code")
-						exchange.messageInfo("Code of user '$email' changed from $codeWithThatEmail to $code")
-					} else {
-						exchange.messageWarning("Failed to change code of user '$email' from $codeWithThatEmail to $code")
-					}
-				} else {
-					Accounts.insert {
-						it[Accounts.name] = "RESERVED"
-						it[Accounts.email] = email
-						it[Accounts.password] = ByteArray(0)
-						it[accountType] = AccountType.RESERVED
-						it[timeRegistered] = Instant.now()
-						it[timeLastLogin] = Instant.EPOCH
-						it[Accounts.code] = code
-					}
-					LOG.info("Reserved code $code for user with e-mail '$email'")
-					exchange.messageInfo("Reserved code $code for user with e-mail '$email'")
-				}
-			}
+		when (val result = transaction { Accounts.assignCodeToEmail(email, code) }) {
+			Accounts.CodeAssignResult.AlreadyHasThatCode -> exchange.messageInfo("User '$email' already has that code")
+			is Accounts.CodeAssignResult.CodeNotFree -> exchange.messageWarning("Code already assigned to a user '${result.occupiedByEmail}'")
+			Accounts.CodeAssignResult.SuccessChanged -> exchange.messageInfo("Code of user '$email' changed to $code")
+			is Accounts.CodeAssignResult.FailureToChange -> exchange.messageWarning("Failed to change code of user '$email' from ${result.oldCode} to $code")
+			Accounts.CodeAssignResult.SuccessReserved -> exchange.messageInfo("Reserved code $code for user with e-mail '$email'")
 		}
 		exchange.redirect(accountListPath(filter))
 	}

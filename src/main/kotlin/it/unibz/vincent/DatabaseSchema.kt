@@ -6,22 +6,33 @@ import com.google.common.cache.LoadingCache
 import it.unibz.vincent.template.QuestionnaireTemplate
 import it.unibz.vincent.template.parseTemplate
 import it.unibz.vincent.util.HASHED_PASSWORD_SIZE
+import it.unibz.vincent.util.HashedPassword
+import it.unibz.vincent.util.NO_PASSWORD
+import it.unibz.vincent.util.SQLErrorType
 import it.unibz.vincent.util.appendHex
 import it.unibz.vincent.util.getLong
 import it.unibz.vincent.util.parseHex
 import it.unibz.vincent.util.putLong
+import it.unibz.vincent.util.type
 import it.unibz.vincent.util.varcharIgnoreCase
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.Sequence
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.`java-time`.CurrentTimestamp
 import org.jetbrains.exposed.sql.`java-time`.timestamp
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertAndGetId
+import org.jetbrains.exposed.sql.nextVal
 import org.jetbrains.exposed.sql.select
+import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
+import java.sql.SQLException
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ExecutionException
@@ -29,6 +40,7 @@ import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 import kotlin.math.floor
 import kotlin.math.log10
+import kotlin.math.max
 import kotlin.random.Random
 
 private val LOG = LoggerFactory.getLogger("DatabaseSchema")
@@ -104,13 +116,150 @@ object Accounts : LongIdTable() {
 	val email = varcharIgnoreCase("email", MAX_EMAIL_LENGTH).uniqueIndex().nullable()
 	val password = binary("password", HASHED_PASSWORD_SIZE)
 	val accountType = enumeration("account_type", AccountType::class)
-	val code = integer("code").autoIncrement().uniqueIndex().nullable()
+	val code = integer("code").uniqueIndex().nullable()
 
 	val timeRegistered = timestamp("time_registered")
 	val timeLastLogin = timestamp("time_last_login")
 
 	const val GUEST_LOGIN_CODE_SIZE = 16
 	val guestLoginCode = binary("guest_login_code", GUEST_LOGIN_CODE_SIZE).nullable()
+
+	private const val PanelistCodeSequenceRawName = "panelist_code_sequence"
+	val PanelistCodeSequence = Sequence(PanelistCodeSequenceRawName, startWith = 100)
+
+	fun createRegularAccount(name:String, email:String, password:HashedPassword):AccountCreationResult {
+		val reservedAccountId = try {
+			Accounts.slice(Accounts.id).select { (Accounts.email eq email) and (Accounts.accountType eq AccountType.RESERVED) }.firstOrNull()?.let { it[Accounts.id].value }
+		} catch (e:SQLException) {
+			LOG.error("Failed to check for reservations", e)
+			null
+		}
+
+		if (reservedAccountId != null) {
+			// Update reservations
+			val rows = Accounts.update(where={ (Accounts.id eq reservedAccountId) and (Accounts.accountType eq AccountType.RESERVED) }, limit=1) {
+				it[Accounts.name] = name
+				it[Accounts.password] = password
+				it[accountType] = AccountType.NORMAL
+				val now = Instant.now()
+				it[timeRegistered] = now
+				it[timeLastLogin] = now
+			}
+			if (rows != 1) {
+				throw SQLException("Account id is no longer reserved")
+			}
+
+			return AccountCreationResult.Success(reservedAccountId)
+		}
+
+		try {
+			val id = Accounts.insertAndGetId {
+				it[Accounts.name] = name
+				it[Accounts.email] = email
+				it[Accounts.password] = password
+				it[Accounts.accountType] = AccountType.NORMAL
+				it[Accounts.code] = PanelistCodeSequence.nextVal() // TODO(jp): This will not work right now
+				val now = Instant.now()
+				it[Accounts.timeRegistered] = now
+				it[Accounts.timeLastLogin] = now
+			}.value
+			return AccountCreationResult.Success(id)
+		} catch (e: SQLException) {
+			if (e.type() == SQLErrorType.DUPLICATE_KEY) {
+				return AccountCreationResult.DuplicateEmail
+			} else {
+				throw e
+			}
+		}
+	}
+
+	sealed class AccountCreationResult {
+		class Success(val id:Long):AccountCreationResult()
+		object DuplicateEmail : AccountCreationResult()
+		object Failure : AccountCreationResult()
+	}
+
+	fun createGuestAccount(loginCode: ByteArray):Long {
+		return insertAndGetId {
+			it[Accounts.name] = null
+			it[Accounts.email] = null
+			it[Accounts.password] = NO_PASSWORD
+			it[Accounts.code] = null
+			it[Accounts.accountType] = AccountType.GUEST
+			it[Accounts.timeRegistered] = Instant.now()
+			it[Accounts.timeLastLogin] = Instant.EPOCH
+			it[Accounts.guestLoginCode] = loginCode
+		}.value
+	}
+
+	private fun refreshCodeSequence(newCode:Int) {
+		val transaction = TransactionManager.current()
+		val nextSequenceDefault = transaction.exec("SELECT NEXT VALUE FOR ${PanelistCodeSequence.identifier}") { resultSet ->
+			if (resultSet.next()) {
+				resultSet.getInt(1)
+			} else 0
+		} ?: 0
+		val nextSequenceManual = newCode + 1
+		val newNextSequence = max(nextSequenceDefault, nextSequenceManual)
+
+		for (sql in PanelistCodeSequence.dropStatement()) {
+			transaction.exec(sql)
+		}
+
+		val newModifiedSequence = Sequence(PanelistCodeSequenceRawName, startWith = newNextSequence)
+		for (sql in newModifiedSequence.createStatement()) {
+			transaction.exec(sql)
+		}
+	}
+
+	fun assignCodeToEmail(email:String, code:Int):CodeAssignResult {
+		val alreadyGivenTo = Accounts.slice(Accounts.email).select { Accounts.code eq code }.firstOrNull()?.let { it[Accounts.email] }
+		if (alreadyGivenTo == email) {
+			return CodeAssignResult.AlreadyHasThatCode
+		} else if (alreadyGivenTo != null) {
+			return CodeAssignResult.CodeNotFree(alreadyGivenTo)
+		} else {
+			var idWithThatEmail = 0L
+			val codeWithThatEmail:Int? = Accounts.slice(Accounts.id, Accounts.code).select { Accounts.email eq email }.firstOrNull()?.let {
+				idWithThatEmail = it[Accounts.id].value
+				it[Accounts.code]
+			}
+
+			if (codeWithThatEmail != null) {
+				val success = Accounts.update(where = { Accounts.id eq idWithThatEmail }, limit=1) { it[this.code] = code } > 0
+				return if (success) {
+					LOG.info("Code of user '$email' changed from $codeWithThatEmail to $code")
+					if (code > codeWithThatEmail) {
+						refreshCodeSequence(code)
+					}
+					CodeAssignResult.SuccessChanged
+				} else {
+					CodeAssignResult.FailureToChange(codeWithThatEmail)
+				}
+			} else {
+				Accounts.insert {
+					it[Accounts.name] = "RESERVED"
+					it[Accounts.email] = email
+					it[Accounts.password] = ByteArray(0)
+					it[Accounts.code] = code
+					it[Accounts.accountType] = AccountType.RESERVED
+					it[Accounts.timeRegistered] = Instant.now()
+					it[Accounts.timeLastLogin] = Instant.EPOCH
+				}
+				LOG.info("Reserved code $code for user with e-mail '$email'")
+				refreshCodeSequence(code)
+				return CodeAssignResult.SuccessReserved
+			}
+		}
+	}
+
+	sealed class CodeAssignResult {
+		object AlreadyHasThatCode:CodeAssignResult()
+		class CodeNotFree(val occupiedByEmail:String):CodeAssignResult()
+		object SuccessChanged:CodeAssignResult()
+		class FailureToChange(val oldCode:Int):CodeAssignResult()
+		object SuccessReserved:CodeAssignResult()
+	}
 }
 
 object DemographyInfo : Table() {
@@ -285,5 +434,6 @@ val AllTables = arrayOf(
 fun createSchemaTables() {
 	transaction {
 		SchemaUtils.create(*AllTables)
+		SchemaUtils.createSequence(Accounts.PanelistCodeSequence)
 	}
 }

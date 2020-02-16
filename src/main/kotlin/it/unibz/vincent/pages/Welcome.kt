@@ -3,7 +3,6 @@ package it.unibz.vincent.pages
 import io.undertow.server.HttpServerExchange
 import io.undertow.server.RoutingHandler
 import io.undertow.util.StatusCodes
-import it.unibz.vincent.AccountType
 import it.unibz.vincent.Accounts
 import it.unibz.vincent.BRAND_NAME
 import it.unibz.vincent.createSession
@@ -13,7 +12,6 @@ import it.unibz.vincent.session
 import it.unibz.vincent.util.GET
 import it.unibz.vincent.util.HashedPassword
 import it.unibz.vincent.util.POST
-import it.unibz.vincent.util.SQLErrorType
 import it.unibz.vincent.util.checkPassword
 import it.unibz.vincent.util.formString
 import it.unibz.vincent.util.hashPassword
@@ -21,7 +19,6 @@ import it.unibz.vincent.util.languages
 import it.unibz.vincent.util.redirect
 import it.unibz.vincent.util.toHumanReadableTime
 import it.unibz.vincent.util.toRawPassword
-import it.unibz.vincent.util.type
 import kotlinx.html.FORM
 import kotlinx.html.FormMethod
 import kotlinx.html.div
@@ -31,15 +28,11 @@ import kotlinx.html.h4
 import kotlinx.html.hiddenInput
 import kotlinx.html.p
 import kotlinx.html.submitInput
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insertAndGetId
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import org.slf4j.LoggerFactory
-import java.sql.SQLException
 import java.time.DateTimeException
-import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -269,67 +262,26 @@ fun RoutingHandler.setupWelcomeRoutes() {
 			return@POST
 		}
 
-		var emailAlreadyUsed = false
-		val newAccountId = transaction {
-			emailAlreadyUsed = false
+		val hashedPassword = hashPassword(password.toRawPassword())
 
-			val reservedAccountId = try {
-				Accounts.slice(Accounts.id).select { (Accounts.email eq email) and (Accounts.accountType eq AccountType.RESERVED) }.firstOrNull()?.let { it[Accounts.id].value }
-			} catch (e:SQLException) {
-				LOG.error("Failed to check for reservations", e)
-				null
-			}
-
-			if (reservedAccountId != null) {
-				// Update reservations
-				val rows = Accounts.update(where={ (Accounts.id eq reservedAccountId) and (Accounts.accountType eq AccountType.RESERVED) }, limit=1) {
-					it[Accounts.name] = name
-					it[Accounts.password] = hashPassword(password.toRawPassword())
-					it[accountType] = AccountType.NORMAL
-					val now = Instant.now()
-					it[timeRegistered] = now
-					it[timeLastLogin] = now
-				}
-				if (rows != 1) {
-					throw SQLException("Account id is no longer reserved")
-				}
-				reservedAccountId
-			} else {
-				// Create new
-				try {
-					Accounts.insertAndGetId {
-						it[Accounts.name] = name
-						it[Accounts.email] = email
-						it[Accounts.password] = hashPassword(password.toRawPassword())
-						it[accountType] = AccountType.NORMAL
-						val now = Instant.now()
-						it[timeRegistered] = now
-						it[timeLastLogin] = now
-					}.value
-				} catch (e: SQLException) {
-					if (e.type() == SQLErrorType.DUPLICATE_KEY) {
-						emailAlreadyUsed = true
-						-1L
-					} else {
-						throw e
-					}
+		when (val result = transaction { Accounts.createRegularAccount(name, email, hashedPassword) }) {
+			is Accounts.AccountCreationResult.Success -> {
+				LOG.info("Successful registration of {} (from {})", result.id, exchange.sourceAddress)
+				exchange.createSession(result.id, getTimeZoneOffset(exchange))
+				if (!exchange.handlePostLoginRedirect()) {
+					exchange.redirect(HOME_PATH)
 				}
 			}
-		}
-
-		if (emailAlreadyUsed) {
-			exchange.statusCode = StatusCodes.CONFLICT
-			exchange.messageWarning("Account with this email already exits, log in instead")
-			exchange.loginRegister(loginEmail=email, registerEmail=email, registerName=name)
-			return@POST
-		}
-
-		val timeZone = getTimeZoneOffset(exchange)
-
-		LOG.info("Successful registration of {} (from {})", newAccountId, exchange.sourceAddress)
-		exchange.createSession(newAccountId, timeZone)
-		if (!exchange.handlePostLoginRedirect()) {
-			exchange.redirect(HOME_PATH)
+			Accounts.AccountCreationResult.DuplicateEmail -> {
+				exchange.statusCode = StatusCodes.CONFLICT
+				exchange.messageWarning("Account with this email already exits, log in instead")
+				exchange.loginRegister(loginEmail=email, registerEmail=email, registerName=name)
+			}
+			Accounts.AccountCreationResult.Failure -> {
+				exchange.statusCode = StatusCodes.INTERNAL_SERVER_ERROR
+				exchange.messageWarning("Failed to register, please try again. If the problem persists, contact administrators.")
+				exchange.loginRegister(loginEmail=email, registerEmail=email, registerName=name)
+			}
 		}
 	}
 }

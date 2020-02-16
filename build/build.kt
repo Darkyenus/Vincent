@@ -56,7 +56,7 @@ val Vincent by project {
 	libraryDependencies add { dependency("com.darkyen", "tproll","v1.3.1") }
 
 	// Database access
-	val exposed = "0.20.2"
+	val exposed = "0.21.1"
 	libraryDependencies add { dependency("org.jetbrains.exposed", "exposed-core", exposed) }
 	libraryDependencies add { dependency("org.jetbrains.exposed", "exposed-jdbc", exposed) }
 	libraryDependencies add { dependency("org.jetbrains.exposed", "exposed-java-time", exposed) }
