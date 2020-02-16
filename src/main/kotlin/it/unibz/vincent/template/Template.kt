@@ -109,13 +109,15 @@ class QuestionnaireTemplate(val defaultLanguage: ULocale, val title:List<Title>,
 		}
 	}
 
-	enum class InputType(val inputType:kotlinx.html.InputType?) {
-		SENTENCE(kotlinx.html.InputType.text),
-		NUMBER(kotlinx.html.InputType.number),
-		YEAR(kotlinx.html.InputType.text),
-		TELEPHONE(kotlinx.html.InputType.tel),
-		DATE(kotlinx.html.InputType.date),
-		PARAGRAPH(null)
+	enum class InputType(val inputType:kotlinx.html.InputType?, val autoComplete:String) {
+		SENTENCE(kotlinx.html.InputType.text, "questionnaire-response"),
+		NUMBER(kotlinx.html.InputType.number, "questionnaire-response"),
+		COUNTRY_NAME(kotlinx.html.InputType.text, "country-name"),
+		ADDRESS_LEVEL_1(kotlinx.html.InputType.text, "address-level1"),
+		BDAY_YEAR(kotlinx.html.InputType.text, "bday-year"),
+		TELEPHONE(kotlinx.html.InputType.tel, "tel"),
+		DATE(kotlinx.html.InputType.date, "questionnaire-response"),
+		PARAGRAPH(null, "questionnaire-response")
 	}
 
 	class Category(val title:List<Title>, val options:List<Option>)

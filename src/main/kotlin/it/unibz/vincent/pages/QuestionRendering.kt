@@ -48,6 +48,7 @@ fun renderText(text:List<QuestionnaireTemplate.Text>, lang: TemplateLang, tag: K
 private fun HtmlBlockTag.renderInput(name:String?, type: QuestionnaireTemplate.InputType, required:Boolean, classes:String?, value:String?, placeholder:String?) {
 	if (type.inputType != null) {
 		input(name = name, type = type.inputType, classes=classes) {
+			attributes["autocomplete"] = type.autoComplete
 			if (required) {
 				this.required = true
 			}
@@ -60,7 +61,7 @@ private fun HtmlBlockTag.renderInput(name:String?, type: QuestionnaireTemplate.I
 			if (placeholder != null) {
 				this.placeholder = placeholder
 			}
-			if (type == QuestionnaireTemplate.InputType.YEAR) {
+			if (type == QuestionnaireTemplate.InputType.BDAY_YEAR) {
 				minLength = "4"
 				//maxLength = "4" can be confusing when there is some random whitespace
 				pattern = "\\s*\\d{4}\\s*" // Only digits (possibly surrounded by whitespace)
@@ -72,7 +73,8 @@ private fun HtmlBlockTag.renderInput(name:String?, type: QuestionnaireTemplate.I
 		TEXTAREA(attributesMapOf(
 				"name", name,
 				"placeholder", placeholder,
-				"class", classes), consumer).visit {
+				"class", classes,
+				"autocomplete", type.autoComplete), consumer).visit {
 			if (required) {
 				this.required = true
 			}
