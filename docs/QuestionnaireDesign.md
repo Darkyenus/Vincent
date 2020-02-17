@@ -282,8 +282,131 @@ As a starting point for your own templates, feel free to use one of these exampl
 - Simple template showcasing most question types and localization support - <a href="/docs/questionnaire-example.xml" download>**Download**</a>
 - Showcase of the [`time-progression`](#time-progression) question type - <a href="/docs/questionnaire-example-time-progression.xml" download>**Download**</a>
 
+## Quick HTML formatting guide
+All webpages are made (not only, but most importantly) with HTML. Therefore it is possible to do anything you have seen
+on a webpage also in the questionnaire. This small guide covers only the most basic things, but you can always find
+many resources on the Web.
 
+Note that this guide does not always suggest the modern best practises, because they are often a bit cryptic for
+beginners. There is nothing wrong in following them, and you should follow them if you want to do anything more complex,
+but for the purposes of basic styling and formatting, the content of this guide should be enough.
 
+### Text formatting
+When you write any longer text with paragraphs, you will notice, that your newlines disappear, and you will end up with no paragraphs at all.
+That is because XML (and HTML as well) disregards your newlines as unnecessary whitespace.
+To create a paragraph, wrap it in the `<p>` tag, like so:
+
+<p>This is a paragraph.</p>
+
+```html
+<p>This is a paragraph.</p>
+```
+
+If you don't want a full paragraph but just a new line, use the self-closing `<br>` tag (it stands for "break"):
+
+First line.  
+Second line.
+
+```html
+First line.
+<br>
+Second line.
+```
+
+You can also easily make your text <i>italic</i>, <b>bold</b>, <u>underlined</u>, <font size="+2">bigger</font>, <font size="-2">smaller</font>, or even a <font color="red"> different color</font>:
+
+```html
+You can also easily make your text <i>italic</i>, <b>bold</b>, <u>underlined</u>, <font size="+2">bigger</font>,
+<font size="-2">smaller</font>, or even a <font color="red"> different color</font>.
+```
+
+### Images
+To add an image, link it, like so:
+
+<img src="/internal/vincent.jpg"/>
+
+```html
+<img src="/internal/vincent.jpg"/>
+```
+
+You can also center it horizontally and add a nice padding around it:
+
+<div style="text-align: center; margin: 1.5rem;"> <img src="/internal/vincent.jpg"/> </div>
+
+```html
+<div style="text-align: center; margin: 1.5rem;"> <img src="/internal/vincent.jpg"/> </div>
+```
+
+### Lists
+You can easily make unordered lists:
+<ul>
+    <li>Coffee</li>
+    <li>Donut</li>
+    <li>Cheesecake</li>
+    <li>Pie</li>
+</ul>
+
+```html
+<ul>
+    <li>Coffee</li>
+    <li>Donut</li>
+    <li>Cheesecake</li>
+    <li>Pie</li>
+</ul>
+```
+
+And ordered lists:
+<ol>
+    <li>Potato</li>
+    <li>Tomato</li>
+    <li>Gravy</li>
+    <li>Peas</li>
+</ol>
+
+```html
+<ol>
+    <li>Potato</li>
+    <li>Tomato</li>
+    <li>Gravy</li>
+    <li>Peas</li>
+</ol>
+```
+
+### Tables
+Tables are a bit verbose, but not hard:
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Surname</th>
+    </tr>
+    <tr>
+        <td>Ken</td>
+        <td>Thompson</td>
+    </tr>
+    <tr>
+        <td>Alan</td>
+        <td>Turing</td>
+    </tr>
+</table>
+
+```html
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Surname</th>
+    </tr>
+    <tr>
+        <td>Ken</td>
+        <td>Thompson</td>
+    </tr>
+    <tr>
+        <td>Alan</td>
+        <td>Turing</td>
+    </tr>
+</table>
+```
+
+`<tr>` stands for table row, `<th>` for table header (= not data but label) and `<td>` for table data.
 
 
 <!-- This file is converted to HTML using pandoc: `pandoc -f gfm -t html QuestionnaireDesign.md -o QuestionnaireDesign.html` -->

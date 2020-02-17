@@ -167,7 +167,9 @@ interface ParserContext {
 	fun error(message:String)
 }
 
-private class VerbatimParserState : ParserState<CharSequence> {
+private val HTML_VOID_ELEMENTS = setOf("area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr")
+
+private class VerbatimParserState(val htmlMode:Boolean) : ParserState<CharSequence> {
 
 	private val xmlBuilder = XmlBuilder(false)
 
@@ -186,6 +188,10 @@ private class VerbatimParserState : ParserState<CharSequence> {
 	}
 
 	override fun end(ctx:ParserContext, element: String) {
+		if (htmlMode && element in HTML_VOID_ELEMENTS) {
+			// Do not close HTML void elements - it leads to their duplication.
+			return
+		}
 		xmlBuilder.endTag()
 	}
 
@@ -196,7 +202,7 @@ private class VerbatimParserState : ParserState<CharSequence> {
 	override fun result(): CharSequence = xmlBuilder.characters
 }
 
-private class TitleParserState : SequenceParserState<QuestionnaireTemplate.Title>() {
+private class TitleParserState : SequenceParserState<QuestionnaireTemplate.Title>(true) {
 
 	private val lang:ULocale by langProperty("lang", ULocale.ROOT)
 	private val always by boolProperty("always", false)
@@ -212,7 +218,7 @@ private class TitleParserState : SequenceParserState<QuestionnaireTemplate.Title
 	}
 }
 
-private class TextParserState : SequenceParserState<QuestionnaireTemplate.Text>() {
+private class TextParserState : SequenceParserState<QuestionnaireTemplate.Text>(true) {
 
 	private val lang:ULocale by langProperty("lang", ULocale.ROOT)
 	private val content by fallbackVerbatim(true)
@@ -401,7 +407,7 @@ private abstract class AttributeParserState<R> : ParserState<R> {
 	}
 }
 
-private abstract class SequenceParserState<R> : AttributeParserState<R>() {
+private abstract class SequenceParserState<R>(fallbackHtml:Boolean) : AttributeParserState<R>() {
 
 	private val parts = ArrayList<Part<R, *>>()
 	private var nextPart = 0
@@ -409,7 +415,7 @@ private abstract class SequenceParserState<R> : AttributeParserState<R>() {
 
 	private var fallbackVerbatimEnabled = false
 	private var fallbackVerbatimEnabledExclusively = false
-	private var fallbackVerbatimState = VerbatimParserState()
+	private var fallbackVerbatimState = VerbatimParserState(true)
 
 	private fun newPartState(part: Int, name: String): ParserState<*> {
 		if (partsEmpty) {
@@ -616,7 +622,7 @@ private abstract class SequenceParserState<R> : AttributeParserState<R>() {
 	}
 }
 
-private class InfoParserState : SequenceParserState<QuestionnaireTemplate.SectionContent.Info>() {
+private class InfoParserState : SequenceParserState<QuestionnaireTemplate.SectionContent.Info>(true) {
 
 	private val title by tag("title") { TitleParserState() }
 	private val text by tag("text") { TextParserState() }
@@ -626,7 +632,7 @@ private class InfoParserState : SequenceParserState<QuestionnaireTemplate.Sectio
 	}
 }
 
-private class QuestionParserState : SequenceParserState<QuestionnaireTemplate.SectionContent.Question>() {
+private class QuestionParserState : SequenceParserState<QuestionnaireTemplate.SectionContent.Question>(false) {
 
 	private val id:String by stringProperty("id", "invalid-id", required = true)
 	private val required by boolProperty("required", true)
@@ -646,7 +652,7 @@ private class QuestionParserState : SequenceParserState<QuestionnaireTemplate.Se
 	}
 }
 
-private class OptionParserState : SequenceParserState<QuestionnaireTemplate.Option>() {
+private class OptionParserState : SequenceParserState<QuestionnaireTemplate.Option>(true) {
 	private val value by stringProperty("value", "")
 	private val detailEnabled by boolProperty("detail", false)
 	private val detailTypeProperty = enumProperty("detail-type", QuestionnaireTemplate.InputType.SENTENCE)
@@ -672,7 +678,7 @@ private class OptionParserState : SequenceParserState<QuestionnaireTemplate.Opti
 	}
 }
 
-private class CategoryParserState : SequenceParserState<QuestionnaireTemplate.Category>() {
+private class CategoryParserState : SequenceParserState<QuestionnaireTemplate.Category>(false) {
 	private val title by tag("title") { TitleParserState() }
 	private val option by tag("option", min=1) { OptionParserState() }
 
@@ -681,7 +687,7 @@ private class CategoryParserState : SequenceParserState<QuestionnaireTemplate.Ca
 	}
 }
 
-private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.OneOf>() {
+private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.OneOf>(false) {
 
 	private val categories by group<Any>(min = 1, exclusive = true) {
 		"category" { CategoryParserState() }
@@ -713,7 +719,7 @@ private class OneOfParserState : SequenceParserState<QuestionnaireTemplate.Quest
 	}
 }
 
-private class FreeTextParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.FreeText>() {
+private class FreeTextParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.FreeText>(false) {
 
 	private val type by enumProperty("type", QuestionnaireTemplate.InputType.SENTENCE)
 
@@ -724,7 +730,7 @@ private class FreeTextParserState : SequenceParserState<QuestionnaireTemplate.Qu
 	}
 }
 
-private class MinMaxParserState : SequenceParserState<List<QuestionnaireTemplate.Title>?>() {
+private class MinMaxParserState : SequenceParserState<List<QuestionnaireTemplate.Title>?>(true) {
 
 	private val title by tag("title") { TitleParserState() }
 	private val fallback by fallbackVerbatim(true)
@@ -742,7 +748,7 @@ private class MinMaxParserState : SequenceParserState<List<QuestionnaireTemplate
 	}
 }
 
-private class ScaleParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.Scale>() {
+private class ScaleParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeVariable.Scale>(false) {
 	private val min by intProperty("min", 1)
 	private val max by intProperty("max", 7)
 
@@ -757,7 +763,7 @@ private class ScaleParserState : SequenceParserState<QuestionnaireTemplate.Quest
 private val MIN_INTERVAL = Duration.ofSeconds(1L)
 private val DEFAULT_INTERVAL = Duration.ofSeconds(10L)
 
-private class TimeProgressionParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeProgression>() {
+private class TimeProgressionParserState : SequenceParserState<QuestionnaireTemplate.QuestionType.TimeProgression>(false) {
 	private val interval by durationProperty("interval", MIN_INTERVAL, DEFAULT_INTERVAL, required = true)
 	private val repeats by intProperty("repeats", 10, min = 2, required=true)
 
@@ -772,7 +778,7 @@ private class TimeProgressionParserState : SequenceParserState<QuestionnaireTemp
 	}
 }
 
-private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Section>() {
+private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Section>(false) {
 
 	private val minTime by intProperty("min-time", 0, min=0)
 	private val sectionStage by enumProperty("stage", QuestionnaireTemplate.Section.SectionStage.ALWAYS)
@@ -789,7 +795,7 @@ private class SectionParserState : SequenceParserState<QuestionnaireTemplate.Sec
 	}
 }
 
-private class QuestionnaireParseState : SequenceParserState<QuestionnaireTemplate>() {
+private class QuestionnaireParseState : SequenceParserState<QuestionnaireTemplate>(false) {
 
 	private val defaultLang: ULocale by langProperty("default-lang", ULocale.ENGLISH)
 	private val titles: List<QuestionnaireTemplate.Title> by tag("title", min=1) { TitleParserState() }

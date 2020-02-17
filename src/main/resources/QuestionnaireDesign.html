@@ -16,34 +16,34 @@
 <div class="sourceCode" id="cb3"><pre class="sourceCode xml"><code class="sourceCode xml"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">&lt;option&gt;</span>Yellow<span class="kw">&lt;/option&gt;</span></a></code></pre></div>
 <p>Note that since <code>&lt;</code> characters signifies a start of a next tag, you may not directly use it in your text. Similar restrictions apply to a few other characters. Use the replacements from the following table if you want to write them.</p>
 <table>
-<thead>
-<tr class="header">
-<th style="text-align: center;">If you want to write</th>
-<th style="text-align: center;">Write this instead</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: center;">&lt;</td>
-<td style="text-align: center;"><code>&amp;lt;</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">&gt;</td>
-<td style="text-align: center;"><code>&amp;gt;</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">&amp;</td>
-<td style="text-align: center;"><code>&amp;amp;</code></td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">"</td>
-<td style="text-align: center;"><code>&amp;quot;</code></td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">'</td>
-<td style="text-align: center;"><code>&amp;apos;</code></td>
-</tr>
-</tbody>
+    <thead>
+    <tr class="header">
+        <th style="text-align: center;">If you want to write</th>
+        <th style="text-align: center;">Write this instead</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+        <td style="text-align: center;">&lt;</td>
+        <td style="text-align: center;"><code>&amp;lt;</code></td>
+    </tr>
+    <tr class="even">
+        <td style="text-align: center;">&gt;</td>
+        <td style="text-align: center;"><code>&amp;gt;</code></td>
+    </tr>
+    <tr class="odd">
+        <td style="text-align: center;">&amp;</td>
+        <td style="text-align: center;"><code>&amp;amp;</code></td>
+    </tr>
+    <tr class="even">
+        <td style="text-align: center;">"</td>
+        <td style="text-align: center;"><code>&amp;quot;</code></td>
+    </tr>
+    <tr class="odd">
+        <td style="text-align: center;">'</td>
+        <td style="text-align: center;"><code>&amp;apos;</code></td>
+    </tr>
+    </tbody>
 </table>
 <p>See <a href="https://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references">here</a> for a full list of XML/HTML entities.</p>
 <p>If you want to keep some notes or comments in the XML document which should not be processed by the application, wrap your text in comment tags, like so:</p>
@@ -56,9 +56,9 @@
 <h3 id="writing-and-editing-xml">Writing and editing XML</h3>
 <p>While there are specialized XML editors, you may edit XML in any plain text file editor. Here are some recommended free editors by operating system:</p>
 <ul>
-<li>Microsoft Windows: <a href="https://notepad-plus-plus.org/">Notepad++</a>. The built-in <code>notepad.exe</code> is not recommended. Editing XML in <a href="https://en.wikipedia.org/wiki/WordPad">WordPad</a> or <a href="https://en.wikipedia.org/wiki/Microsoft_Word">Microsoft Word</a> <strong>is not possible</strong>.</li>
-<li>Apple macOS: <a href="https://www.barebones.com/products/bbedit/">BBEdit</a> (while a paid version exists, free mode is sufficient) The built-in <a href="https://en.wikipedia.org/wiki/TextEdit">TextEdit</a> is not recommended.</li>
-<li>Linux: You may use any of the built-in command line editors (<a href="https://www.nano-editor.org/">nano</a>, <a href="https://www.vim.org/">vim</a>, <a href="https://www.gnu.org/software/emacs/">emacs</a>), or any GUI editor, such as <a href="https://wiki.gnome.org/Apps/Gedit">Gedit</a> or any other plain text editor that is pre-installed on your system.</li>
+    <li>Microsoft Windows: <a href="https://notepad-plus-plus.org/">Notepad++</a>. The built-in <code>notepad.exe</code> is not recommended. Editing XML in <a href="https://en.wikipedia.org/wiki/WordPad">WordPad</a> or <a href="https://en.wikipedia.org/wiki/Microsoft_Word">Microsoft Word</a> <strong>is not possible</strong>.</li>
+    <li>Apple macOS: <a href="https://www.barebones.com/products/bbedit/">BBEdit</a> (while a paid version exists, free mode is sufficient) The built-in <a href="https://en.wikipedia.org/wiki/TextEdit">TextEdit</a> is not recommended.</li>
+    <li>Linux: You may use any of the built-in command line editors (<a href="https://www.nano-editor.org/">nano</a>, <a href="https://www.vim.org/">vim</a>, <a href="https://www.gnu.org/software/emacs/">emacs</a>), or any GUI editor, such as <a href="https://wiki.gnome.org/Apps/Gedit">Gedit</a> or any other plain text editor that is pre-installed on your system.</li>
 </ul>
 <p>When editing the XML files for this application, use <a href="https://en.wikipedia.org/wiki/UTF-8">UTF-8 encoding</a>. The recommended text editors should do so by default. UNIX-style line endings (<em>LF</em>) are recommended, but either should work.</p>
 <h2 id="general-template-file-structure">General template file structure</h2>
@@ -80,203 +80,290 @@
 <h3 id="language-format">Language format</h3>
 <p>When an attribute calls for a language specification, the format is an <a href="https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes">ISO 639-1</a> code optionally followed by a hyphen-separated <a href="https://en.wikipedia.org/wiki/ISO_3166-1">ISO 3166-1</a> alpha 2 code. For example: <code>it</code>, <code>en-US</code>, <code>cs-CZ</code>.</p>
 <p>A <a href="https://en.wikipedia.org/wiki/Boolean_data_type">boolean value</a> may only be <code>true</code> or <code>false</code>.</p>
-<p><a href="https://en.wikipedia.org/wiki/HTML">HTML</a> formatted text refers to a normal text, which may contain HTML formatting elements, which work very similarly to XML elements (and look the same as well), but denote how the text will look, among other things. For example <code>Some &lt;b&gt;text&lt;/b&gt; with &lt;i&gt;tags&lt;/i&gt;</code> will appear to the questionnaire participants as "Some <strong>text</strong> with <em>tags</em>". There are many HTML tags and there is a large amount of web resources which describe them. There is no limit which tags you may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality, or in rare cases even its security. When in doubt, consult with any good web developer.</p>
+<p><a href="https://en.wikipedia.org/wiki/HTML">HTML</a> formatted text refers to a normal text, which may contain HTML formatting elements, which work very similarly to XML elements (and look the same as well), but denote how the text will look, among other things. For example <code>Some &lt;b&gt;text&lt;/b&gt; with &lt;i&gt;tags&lt;/i&gt;</code> will appear to the questionnaire participants as "Some <strong>text</strong> with <em>tags</em>". There are many HTML tags and there is a large amount of web resources which describe them. There is no limit on which tags you may use, but note that some tags may negatively impact the visual design of the questionnaire presentation, its functionality, or in rare cases even its security. When in doubt, consult with any good web developer.</p>
 <h3 id="questionnaire">&lt;questionnaire&gt;</h3>
 <p>The root element.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>default-lang</code>: All <a href="#title"><code>title</code></a> elements that do not have explicit <a href="#language-format">language</a> set, will use this one. This <a href="#language-format">language</a> is also used by default when user does not request any compatible <a href="#language-format">language</a>. The default value is <code>en</code> for english.</li>
-</ul></li>
-<li>Content: Nested elements
-<ul>
-<li><a href="#title"><code>title</code></a> at least one. Using HTML tags in these titles is discouraged and not supported.</li>
-<li><a href="#section"><code>section</code></a> at least one</li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>default-lang</code>: All <a href="#title"><code>title</code></a> elements that do not have explicit <a href="#language-format">language</a> set, will use this one. This <a href="#language-format">language</a> is also used by default when user does not request any compatible <a href="#language-format">language</a>. The default value is <code>en</code> for english.</li>
+        </ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a> at least one. Using HTML tags in these titles is discouraged and not supported.</li>
+            <li><a href="#section"><code>section</code></a> at least one</li>
+        </ul></li>
 </ul>
 <h3 id="title">&lt;title&gt;</h3>
 <p>Used as a title of the whole questionnaire, sections, and individual questions. Multiple titles can always appear after each other, as long as their languages are different. Only one title will be shown in that case - the one with the appropriate language (but see the <code>always</code> attribute for exception).</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>lang</code>: <a href="#language-format">Language</a> of this title element.</li>
-<li><code>always</code>: Boolean value. If true, this title will be visible even if a more suitable language mutation has been found.</li>
-</ul></li>
-<li>Content: HTML formatted text</li>
+    <li>Attributes:
+        <ul>
+            <li><code>lang</code>: <a href="#language-format">Language</a> of this title element.</li>
+            <li><code>always</code>: Boolean value. If true, this title will be visible even if a more suitable language mutation has been found.</li>
+        </ul></li>
+    <li>Content: HTML formatted text</li>
 </ul>
 <h3 id="section">&lt;section&gt;</h3>
 <p>Set of questions on one page. After all required questions are answered, user can move to the next section. It is not possible to move back to previous sections.</p>
 <p>Some sections may be only shown for some wine runs (=<em>stages</em>). Any questions in the omitted sections will be presented as if they were optional and were left unanswered, i.e. the column value will be blank. The intended purpose for this feature are "welcome sections" (only-first), "goodbye sections" (only-last), and "wait and cleanse palate sections" (except-first).</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>min-time</code>: Specifies minimum time limit for the section. Time duration is in seconds. Participant will not be allowed to continue to the next section unless a given amount of seconds has elapsed since opening this section. Other requirements to continue still apply.</li>
-<li><code>stage</code>: Specifies the stage (run) in which this section will be shown in relation to the amount of tested wines.
-<ul>
-<li><code>only-first</code> section will be shown only for the first wine of the questionnaire and will be omitted for subsequent runs through the template stages.</li>
-<li><code>except-first</code> will be shown on each questionnaire run, except fo the one with the first assigned wine.</li>
-<li><code>only-last</code> will be shown only for the run of the last wine</li>
-<li><code>except-first</code> will be shown for all runs, except for the one of the first wine</li>
-<li><code>always</code> <strong>default</strong> will be shown on all runs</li>
-</ul></li>
-<li><code>shown-wine</code>: Governs which wine code will be shown to the participant. This can be used to show a full overview of tested wines in welcome or wait sections (all), and to suppress redundant wine code display in goodbye sections (none). The "current" shows only the code of the wine tested in this run. If the questionnaire does not pertain to any wine (was started without any wines assigned), no wine codes will be shown even if this attribute demands it.
-<ul>
-<li><code>current</code>: <strong>default</strong> show the current wine code at the top of the page</li>
-<li><code>none</code>: Don't show any wine codes</li>
-<li><code>all</code>: Show all wine codes at the top of the page</li>
-</ul></li>
-</ul></li>
-<li>Content: Nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: Zero or more</li>
-<li><a href="#info"><code>info</code></a> and <a href="#question"><code>question</code></a>: zero or more, in any order</li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>min-time</code>: Specifies minimum time limit for the section. Time duration is in seconds. Participant will not be allowed to continue to the next section unless a given amount of seconds has elapsed since opening this section. Other requirements to continue still apply.</li>
+            <li><code>stage</code>: Specifies the stage (run) in which this section will be shown in relation to the amount of tested wines.
+                <ul>
+                    <li><code>only-first</code> section will be shown only for the first wine of the questionnaire and will be omitted for subsequent runs through the template stages.</li>
+                    <li><code>except-first</code> will be shown on each questionnaire run, except fo the one with the first assigned wine.</li>
+                    <li><code>only-last</code> will be shown only for the run of the last wine</li>
+                    <li><code>except-first</code> will be shown for all runs, except for the one of the first wine</li>
+                    <li><code>always</code> <strong>default</strong> will be shown on all runs</li>
+                </ul></li>
+            <li><code>shown-wine</code>: Governs which wine code will be shown to the participant. This can be used to show a full overview of tested wines in welcome or wait sections (all), and to suppress redundant wine code display in goodbye sections (none). The "current" shows only the code of the wine tested in this run. If the questionnaire does not pertain to any wine (was started without any wines assigned), no wine codes will be shown even if this attribute demands it.
+                <ul>
+                    <li><code>current</code>: <strong>default</strong> show the current wine code at the top of the page</li>
+                    <li><code>none</code>: Don't show any wine codes</li>
+                    <li><code>all</code>: Show all wine codes at the top of the page</li>
+                </ul></li>
+        </ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: Zero or more</li>
+            <li><a href="#info"><code>info</code></a> and <a href="#question"><code>question</code></a>: zero or more, in any order</li>
+        </ul></li>
 </ul>
 <h3 id="info">&lt;info&gt;</h3>
 <p>Visually similar to a <a href="#question"><code>question</code></a> element, but only presents some textual information. It may start with a <a href="#title"><code>title</code></a> and then it may contain <a href="#text"><code>text</code></a>.</p>
 <ul>
-<li>Content: Nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: zero or more</li>
-<li><a href="#text"><code>text</code></a>: zero or more</li>
-</ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: zero or more</li>
+            <li><a href="#text"><code>text</code></a>: zero or more</li>
+        </ul></li>
 </ul>
 <h3 id="text">&lt;text&gt;</h3>
 <p>Works similarly to <a href="#title"><code>title</code></a> with regard to localization, but presents a body of text instead of just the title.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
-</ul></li>
-<li>Content: HTML formatted text</li>
+    <li>Attributes:
+        <ul>
+            <li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
+        </ul></li>
+    <li>Content: HTML formatted text</li>
 </ul>
 <h3 id="question">&lt;question&gt;</h3>
 <p>Defines a single question that will appear in the resulting CSV.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>id</code>: <strong>mandatory</strong> Specifies how will the result appear in the resulting CSV (=column name). (NOTE: Some question types may not use the ID directly, but may derive multiple real IDs from it, for example <a href="#time-progression"><code>time-progression</code></a>). Total length of the generated question ID MUST not exceed 64 characters.</li>
-<li><code>required</code>: Boolean, default is <code>true</code>, which means that the question must have a response before moving on to the next section.</li>
-</ul></li>
-<li>Content: Nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: Zero or more</li>
-<li><a href="#text"><code>text</code></a>: Zero or more</li>
-<li><a href="#one-of"><code>one-of</code></a>, <a href="#free-text"><code>free-text</code></a>, <a href="#scale"><code>scale</code></a> or <a href="#time-progression"><code>time-progression</code></a>: Exactly one</li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>id</code>: <strong>mandatory</strong> Specifies how will the result appear in the resulting CSV (=column name). (NOTE: Some question types may not use the ID directly, but may derive multiple real IDs from it, for example <a href="#time-progression"><code>time-progression</code></a>). Total length of the generated question ID MUST not exceed 64 characters.</li>
+            <li><code>required</code>: Boolean, default is <code>true</code>, which means that the question must have a response before moving on to the next section.</li>
+        </ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: Zero or more</li>
+            <li><a href="#text"><code>text</code></a>: Zero or more</li>
+            <li><a href="#one-of"><code>one-of</code></a>, <a href="#free-text"><code>free-text</code></a>, <a href="#scale"><code>scale</code></a> or <a href="#time-progression"><code>time-progression</code></a>: Exactly one</li>
+        </ul></li>
 </ul>
 <h3 id="one-of">&lt;one-of&gt;</h3>
 <p>This question type allows user to select one of the available options. Option is specified by <a href="#title"><code>title</code></a> text.</p>
 <p>Options can be grouped by their category - those categories can have own titles. Note that still only one option from one category can be selected.</p>
 <p>Each option must have a distinct <code>value</code> attribute. This value will be shown in the resulting CSV (=cell value).</p>
 <ul>
-<li>Content: Nested elements
-<ul>
-<li>either <a href="#category"><code>category</code></a> or <a href="#option"><code>option</code></a>: One or more. Using <a href="#option"><code>option</code></a> elements is equivalent to using a single <a href="#category"><code>category</code></a> with these <a href="#option"><code>option</code></a>s and serves as a shorthand.</li>
-</ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li>either <a href="#category"><code>category</code></a> or <a href="#option"><code>option</code></a>: One or more. Using <a href="#option"><code>option</code></a> elements is equivalent to using a single <a href="#category"><code>category</code></a> with these <a href="#option"><code>option</code></a>s and serves as a shorthand.</li>
+        </ul></li>
 </ul>
 <h3 id="category">&lt;category&gt;</h3>
 <p>A category of options for <a href="#one-of"><code>one-of</code></a>. May have its own title.</p>
 <ul>
-<li>Content: Nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: Zero or more</li>
-<li><a href="#option"><code>option</code></a>: One or more</li>
-</ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: Zero or more</li>
+            <li><a href="#option"><code>option</code></a>: One or more</li>
+        </ul></li>
 </ul>
 <h3 id="option">&lt;option&gt;</h3>
 <p>A single option that can be chosen in the <a href="#one-of"><code>one-of</code></a> question type.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>value</code>: Specifies how will this option appear in the resulting CSV. If it is omitted, then the full text of the default title is used. It is an error to specify two options with the same value in one question.</li>
-<li><code>detail</code>: Boolean value signifying if user can specify additional free-text detail when picking this option. The detail text will appear in a column with the same ID as the question, with "-detail-<value>" appended. For example: "condition", "condition-detail-faults".</li>
-<li><code>detail-type</code>: One of <a href="#free-text"><code>free-text</code></a> types.</li>
-</ul></li>
-<li>Content: Either HTML formatted text, which is a shorthand to the same text wrapped in a <a href="#title"><code>title</code></a> or nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: One or more - the text that is displayed to the user when picking this option</li>
-<li><a href="#detail"><code>detail</code></a>: Zero or more - the prompt name for the detail field, if enabled</li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>value</code>: Specifies how will this option appear in the resulting CSV. If it is omitted, then the full text of the default title is used. It is an error to specify two options with the same value in one question.</li>
+            <li><code>detail</code>: Boolean value signifying if user can specify additional free-text detail when picking this option. The detail text will appear in a column with the same ID as the question, with "-detail-<value>" appended. For example: "condition", "condition-detail-faults".</li>
+            <li><code>detail-type</code>: One of <a href="#free-text"><code>free-text</code></a> types.</li>
+        </ul></li>
+    <li>Content: Either HTML formatted text, which is a shorthand to the same text wrapped in a <a href="#title"><code>title</code></a> or nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: One or more - the text that is displayed to the user when picking this option</li>
+            <li><a href="#detail"><code>detail</code></a>: Zero or more - the prompt name for the detail field, if enabled</li>
+        </ul></li>
 </ul>
 <h3 id="detail">&lt;detail&gt;</h3>
 <p>Works identically to <a href="#text"><code>text</code></a>.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
-</ul></li>
-<li>Content: HTML formatted text</li>
+    <li>Attributes:
+        <ul>
+            <li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
+        </ul></li>
+    <li>Content: HTML formatted text</li>
 </ul>
 <h3 id="free-text">&lt;free-text&gt;</h3>
 <p>Question type that allows user to input arbitrary text, possibly with some hints on what the text should be.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>type</code>:
-<ul>
-<li><code>sentence</code>: <strong>(default)</strong> single line of text is expected</li>
-<li><code>paragraph</code>: a more substantial amount of text is expected</li>
-<li><code>number</code>: a number is expected ("real" numbers are allowed, including negatives and non-whole numbers, but some browsers may not support writing them)</li>
-</ul></li>
-</ul></li>
-<li>Content: Nested elements
-<ul>
-<li><a href="#placeholder"><code>placeholder</code></a>: Zero or more - the text shown in dimmed styling when no input is entered, but is not submitted. Used to hint on what kind of value this field expects. Beware of introducing question biases through this hint.</li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>type</code>:
+                <ul>
+                    <li><code>sentence</code>: <strong>(default)</strong> single line of text is expected</li>
+                    <li><code>paragraph</code>: a more substantial amount of text is expected</li>
+                    <li><code>number</code>: a number is expected ("real" numbers are allowed, including negatives and non-whole numbers, but some browsers may not support writing them)</li>
+                </ul></li>
+        </ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#placeholder"><code>placeholder</code></a>: Zero or more - the text shown in dimmed styling when no input is entered, but is not submitted. Used to hint on what kind of value this field expects. Beware of introducing question biases through this hint.</li>
+        </ul></li>
 </ul>
 <h3 id="placeholder">&lt;placeholder&gt;</h3>
 <p>Works similarly to <a href="#text"><code>text</code></a>.</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
-</ul></li>
-<li>Content: text without HTML tags</li>
+    <li>Attributes:
+        <ul>
+            <li><code>lang</code>: <a href="#language-format">Language</a> of the text</li>
+        </ul></li>
+    <li>Content: text without HTML tags</li>
 </ul>
 <h3 id="scale">&lt;scale&gt;</h3>
 <p>Similar to <a href="#one-of"><code>one-of</code></a>, only one option can be chosen, but the options are numbers in the range given by <code>min</code> and <code>max</code> attributes. Both ends of the range are inclusive.</p>
 <p>Ends of the scale can optionally be titled using <a href="#min-and-max"><code>min</code></a> and <a href="#min-and-max"><code>max</code></a> tags.</p>
 <ul>
-<li>Attributes
-<ul>
-<li><code>min</code>: Whole number. Low end of the scale, inclusive. <strong>1</strong> by default.</li>
-<li><code>max</code>: Whole number. High end of the scale, inclusive. <strong>7</strong> by default.</li>
-</ul></li>
-<li>Content: Nested elements
-<ul>
-<li><a href="#min-and-max"><code>min</code></a>: Zero or one. The label for the low end of the scale.</li>
-<li><a href="#min-and-max"><code>max</code></a>: Zero or one. The label for the high end of the scale.</li>
-</ul></li>
+    <li>Attributes
+        <ul>
+            <li><code>min</code>: Whole number. Low end of the scale, inclusive. <strong>1</strong> by default.</li>
+            <li><code>max</code>: Whole number. High end of the scale, inclusive. <strong>7</strong> by default.</li>
+        </ul></li>
+    <li>Content: Nested elements
+        <ul>
+            <li><a href="#min-and-max"><code>min</code></a>: Zero or one. The label for the low end of the scale.</li>
+            <li><a href="#min-and-max"><code>max</code></a>: Zero or one. The label for the high end of the scale.</li>
+        </ul></li>
 </ul>
 <h3 id="min-and-max">&lt;min&gt; and &lt;max&gt;</h3>
 <p>Works similarly to <a href="#option"><code>option</code></a> in that it either accepts text directly or wrapped in <a href="#title"><code>title</code></a>, when more languages than default are required.</p>
 <ul>
-<li>Content: Either HTML formatted text, which is a shorthand to the same text wrapped in a <a href="#title"><code>title</code></a> or nested elements
-<ul>
-<li><a href="#title"><code>title</code></a>: One or more - the text that is displayed to the user when picking this option</li>
-</ul></li>
+    <li>Content: Either HTML formatted text, which is a shorthand to the same text wrapped in a <a href="#title"><code>title</code></a> or nested elements
+        <ul>
+            <li><a href="#title"><code>title</code></a>: One or more - the text that is displayed to the user when picking this option</li>
+        </ul></li>
 </ul>
 <h3 id="time-progression">&lt;time-progression&gt;</h3>
 <p>Container that presents the same question repeatedly after given time intervals. Timer starts after an explicit start and then presents the same question again repeatedly in fixed intervals. If user does not manage to respond in time, value is left blank.</p>
 <p>A <code>require="true"</code> on this question type does not mean that all repeats of the progression must be answered, but that the time progression must show all repeats. The question presented inside is not mandatory, to prevent skewing the results when a respondent does not manage to answer in time.</p>
 <p>In resulting CSV, the values will be in columns labelled <code>N-ID</code>, where ID is the question ID and N is the repeat. For example for <code>&lt;question id="taste"&gt; &lt;time-progression repeats="3"&gt;</code>, those columns will be created: "0-taste", "1-taste", "2-taste".</p>
 <ul>
-<li>Attributes:
-<ul>
-<li><code>interval</code>: Whole positive number of how many seconds there should be between questions. Values smaller than 5 seconds may be difficult to respond properly for some users.</li>
-<li><code>repeats</code>: Whole positive number. How many times should the question be shown.</li>
-</ul></li>
-<li>Content: One nested element
-<ul>
-<li>Either <a href="#one-of"><code>one-of</code></a> or <a href="#scale"><code>scale</code></a></li>
-</ul></li>
+    <li>Attributes:
+        <ul>
+            <li><code>interval</code>: Whole positive number of how many seconds there should be between questions. Values smaller than 5 seconds may be difficult to respond properly for some users.</li>
+            <li><code>repeats</code>: Whole positive number. How many times should the question be shown.</li>
+        </ul></li>
+    <li>Content: One nested element
+        <ul>
+            <li>Either <a href="#one-of"><code>one-of</code></a> or <a href="#scale"><code>scale</code></a></li>
+        </ul></li>
 </ul>
 <h2 id="full-examples">Full examples</h2>
 <p>As a starting point for your own templates, feel free to use one of these example templates.</p>
 <ul>
-<li>Simple template showcasing most question types and localization support - <a href="/docs/questionnaire-example.xml" download><strong>Download</strong></a></li>
-<li>Showcase of the <a href="#time-progression"><code>time-progression</code></a> question type - <a href="/docs/questionnaire-example-time-progression.xml" download><strong>Download</strong></a></li>
+    <li>Simple template showcasing most question types and localization support - <a href="/docs/questionnaire-example.xml" download><strong>Download</strong></a></li>
+    <li>Showcase of the <a href="#time-progression"><code>time-progression</code></a> question type - <a href="/docs/questionnaire-example-time-progression.xml" download><strong>Download</strong></a></li>
 </ul>
+<h2 id="quick-html-formatting-guide">Quick HTML formatting guide</h2>
+<p>All webpages are made (not only, but most importantly) with HTML. Therefore it is possible to do anything you have seen on a webpage also in the questionnaire. This small guide covers only the most basic things, but you can always find many resources on the Web.</p>
+<p>Note that this guide does not always suggest the modern best practises, because they are often a bit cryptic for beginners. There is nothing wrong in following them, and you should follow them if you want to do anything more complex, but for the purposes of basic styling and formatting, the content of this guide should be enough.</p>
+<h3 id="text-formatting">Text formatting</h3>
+<p>When you write any longer text with paragraphs, you will notice, that your newlines disappear, and you will end up with no paragraphs at all. That is because XML (and HTML as well) disregards your newlines as unnecessary whitespace. To create a paragraph, wrap it in the <code>&lt;p&gt;</code> tag, like so:</p>
+<p>This is a paragraph.</p>
+
+<div class="sourceCode" id="cb7"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">&lt;p&gt;</span>This is a paragraph.<span class="kw">&lt;/p&gt;</span></a></code></pre></div>
+<p>If you don't want a full paragraph but just a new line, use the self-closing <code>&lt;br&gt;</code> tag (it stands for "break"):</p>
+<p>First line.<br />
+    Second line.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb8-1" title="1">First line.</a>
+<a class="sourceLine" id="cb8-2" title="2"><span class="kw">&lt;br&gt;</span></a>
+<a class="sourceLine" id="cb8-3" title="3">Second line.</a></code></pre></div>
+<p>You can also easily make your text <i>italic</i>, <b>bold</b>, <u>underlined</u>, <font size="+2">bigger</font>, <font size="-2">smaller</font>, or even a <font color="red"> different color</font>:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb9-1" title="1">You can also easily make your text <span class="kw">&lt;i&gt;</span>italic<span class="kw">&lt;/i&gt;</span>, <span class="kw">&lt;b&gt;</span>bold<span class="kw">&lt;/b&gt;</span>, <span class="kw">&lt;u&gt;</span>underlined<span class="kw">&lt;/u&gt;</span>, <span class="kw">&lt;font</span><span class="ot"> size=</span><span class="st">&quot;+2&quot;</span><span class="kw">&gt;</span>bigger<span class="kw">&lt;/font&gt;</span>,</a>
+<a class="sourceLine" id="cb9-2" title="2"><span class="kw">&lt;font</span><span class="ot"> size=</span><span class="st">&quot;-2&quot;</span><span class="kw">&gt;</span>smaller<span class="kw">&lt;/font&gt;</span>, or even a <span class="kw">&lt;font</span><span class="ot"> color=</span><span class="st">&quot;red&quot;</span><span class="kw">&gt;</span> different color<span class="kw">&lt;/font&gt;</span>.</a></code></pre></div>
+<h3 id="images">Images</h3>
+<p>To add an image, link it, like so:</p>
+<img src="/internal/vincent.jpg"/>
+
+<div class="sourceCode" id="cb10"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">&lt;img</span><span class="ot"> src=</span><span class="st">&quot;/internal/vincent.jpg&quot;</span><span class="kw">/&gt;</span></a></code></pre></div>
+<p>You can also center it horizontally and add a nice padding around it:</p>
+<div style="text-align: center; margin: 1.5rem;"> <img src="/internal/vincent.jpg"/> </div>
+
+<div class="sourceCode" id="cb11"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb11-1" title="1"><span class="kw">&lt;div</span><span class="ot"> style=</span><span class="st">&quot;text-align: center; margin: 1.5rem;&quot;</span><span class="kw">&gt;</span> <span class="kw">&lt;img</span><span class="ot"> src=</span><span class="st">&quot;/internal/vincent.jpg&quot;</span><span class="kw">/&gt;</span> <span class="kw">&lt;/div&gt;</span></a></code></pre></div>
+<h3 id="lists">Lists</h3>
+<p>You can easily make unordered lists:</p>
+<ul>
+    <li>Coffee</li>
+    <li>Donut</li>
+    <li>Cheesecake</li>
+    <li>Pie</li>
+</ul>
+
+<div class="sourceCode" id="cb12"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb12-1" title="1"><span class="kw">&lt;ul&gt;</span></a>
+<a class="sourceLine" id="cb12-2" title="2">    <span class="kw">&lt;li&gt;</span>Coffee<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb12-3" title="3">    <span class="kw">&lt;li&gt;</span>Donut<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb12-4" title="4">    <span class="kw">&lt;li&gt;</span>Cheesecake<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb12-5" title="5">    <span class="kw">&lt;li&gt;</span>Pie<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb12-6" title="6"><span class="kw">&lt;/ul&gt;</span></a></code></pre></div>
+<p>And ordered lists:</p>
+<ol>
+    <li>Potato</li>
+    <li>Tomato</li>
+    <li>Gravy</li>
+    <li>Peas</li>
+</ol>
+
+<div class="sourceCode" id="cb13"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb13-1" title="1"><span class="kw">&lt;ol&gt;</span></a>
+<a class="sourceLine" id="cb13-2" title="2">    <span class="kw">&lt;li&gt;</span>Potato<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb13-3" title="3">    <span class="kw">&lt;li&gt;</span>Tomato<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb13-4" title="4">    <span class="kw">&lt;li&gt;</span>Gravy<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb13-5" title="5">    <span class="kw">&lt;li&gt;</span>Peas<span class="kw">&lt;/li&gt;</span></a>
+<a class="sourceLine" id="cb13-6" title="6"><span class="kw">&lt;/ol&gt;</span></a></code></pre></div>
+<h3 id="tables">Tables</h3>
+<p>Tables are a bit verbose, but not hard:</p>
+<table>
+    <tr>
+        <th>Name</th>
+        <th>Surname</th>
+    </tr>
+    <tr>
+        <td>Ken</td>
+        <td>Thompson</td>
+    </tr>
+    <tr>
+        <td>Alan</td>
+        <td>Turing</td>
+    </tr>
+</table>
+
+<div class="sourceCode" id="cb14"><pre class="sourceCode html"><code class="sourceCode html"><a class="sourceLine" id="cb14-1" title="1"><span class="kw">&lt;table&gt;</span></a>
+<a class="sourceLine" id="cb14-2" title="2">    <span class="kw">&lt;tr&gt;</span></a>
+<a class="sourceLine" id="cb14-3" title="3">        <span class="kw">&lt;th&gt;</span>Name<span class="kw">&lt;/th&gt;</span></a>
+<a class="sourceLine" id="cb14-4" title="4">        <span class="kw">&lt;th&gt;</span>Surname<span class="kw">&lt;/th&gt;</span></a>
+<a class="sourceLine" id="cb14-5" title="5">    <span class="kw">&lt;/tr&gt;</span></a>
+<a class="sourceLine" id="cb14-6" title="6">    <span class="kw">&lt;tr&gt;</span></a>
+<a class="sourceLine" id="cb14-7" title="7">        <span class="kw">&lt;td&gt;</span>Ken<span class="kw">&lt;/td&gt;</span></a>
+<a class="sourceLine" id="cb14-8" title="8">        <span class="kw">&lt;td&gt;</span>Thompson<span class="kw">&lt;/td&gt;</span></a>
+<a class="sourceLine" id="cb14-9" title="9">    <span class="kw">&lt;/tr&gt;</span></a>
+<a class="sourceLine" id="cb14-10" title="10">    <span class="kw">&lt;tr&gt;</span></a>
+<a class="sourceLine" id="cb14-11" title="11">        <span class="kw">&lt;td&gt;</span>Alan<span class="kw">&lt;/td&gt;</span></a>
+<a class="sourceLine" id="cb14-12" title="12">        <span class="kw">&lt;td&gt;</span>Turing<span class="kw">&lt;/td&gt;</span></a>
+<a class="sourceLine" id="cb14-13" title="13">    <span class="kw">&lt;/tr&gt;</span></a>
+<a class="sourceLine" id="cb14-14" title="14"><span class="kw">&lt;/table&gt;</span></a></code></pre></div>
+<p><code>&lt;tr&gt;</code> stands for table row, <code>&lt;th&gt;</code> for table header (= not data but label) and <code>&lt;td&gt;</code> for table data.</p>
 <!-- This file is converted to HTML using pandoc: `pandoc -f gfm -t html QuestionnaireDesign.md -o QuestionnaireDesign.html` -->
 

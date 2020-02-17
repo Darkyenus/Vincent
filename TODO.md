@@ -4,11 +4,6 @@
 
 # Backlog
 - file upload/download
-- html tutorial
-    - paragraphs/break
-    - images
-    - font styles & sizes
-    - tables
 - credits at the bottom of profile
 
 # Low priority
