@@ -13,7 +13,7 @@ val Vincent by project {
 
 	projectGroup set { "it.unibz.inf" }
 	projectName set { "Vincent" }
-	projectVersion set { "0.1-SNAPSHOT" }
+	projectVersion set { "1.0" }
 
 	kotlinVersion set { KotlinCompilerVersion.Version1_3_61 }
 
