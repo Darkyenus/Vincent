@@ -25,7 +25,7 @@ val Vincent by project {
 	projectName set { "Vincent" }
 	projectVersion set { "0.1-SNAPSHOT" }
 
-	kotlinVersion set { KotlinCompilerVersion.Version1_3_41 }
+	kotlinVersion set { KotlinCompilerVersion.Version1_3_61 }
 
 	mainClass set { "it.unibz.vincent.Main" }
 	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources"}" }
@@ -45,6 +45,7 @@ val Vincent by project {
 	libraryDependencies add { dependency("com.lambdaworks", "scrypt", "1.4.0") }
 	// Html builder
 	libraryDependencies add { dependency("org.jetbrains.kotlinx", "kotlinx-html-jvm", "0.6.12", exclusions = listOf(
+			// It uses a very old stdlib
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib"),
 			DependencyExclusion("org.jetbrains.kotlin", "kotlin-stdlib-common")
 	)) }

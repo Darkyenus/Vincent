@@ -263,7 +263,7 @@ object Accounts : LongIdTable() {
 }
 
 object DemographyInfo : Table() {
-	val user = long("user").references(Accounts.id)
+	val user = long("user").references(Accounts.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
 	private const val MAX_QUESTION_ID_LENGTH = 64
 	val questionId = varchar("question_id", MAX_QUESTION_ID_LENGTH)
 
@@ -400,7 +400,7 @@ object WineParticipantAssignment : Table() {
 object QuestionnaireResponses : Table() {
 	/** Who created this response */
 	val participant = long("participant")
-			.references(Accounts.id, onDelete = ReferenceOption.NO_ACTION, onUpdate = ReferenceOption.CASCADE)
+			.references(Accounts.id, onDelete = ReferenceOption.RESTRICT, onUpdate = ReferenceOption.CASCADE)
 	/** Into which questionnaire */
 	val questionnaire = long("questionnaire")
 			.references(Questionnaires.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.CASCADE)
