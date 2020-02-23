@@ -922,21 +922,21 @@ fun RoutingHandler.setupQuestionnaireEditRoutes() {
 		transaction {
 			for (guest in guests) {
 				QuestionnaireParticipants.insert {
-					it[participant] = guest.accountId
+					it[participant] = guest.value
 					it[QuestionnaireParticipants.questionnaire] = questionnaire.id
 				}
 			}
 
 			val wineIds = questionnaireWineIds(questionnaire.id)
 			for (guest in guests) {
-				regenerateParticipantWineAssignment(questionnaire.id, guest.accountId, providedWineIds = wineIds)
+				regenerateParticipantWineAssignment(questionnaire.id, guest.value, providedWineIds = wineIds)
 			}
 		}
 
-		if (guests.size == 1) {
+		if (guests.size() == 1) {
 			exchange.messageInfo("Guest invited")
 		} else {
-			exchange.messageInfo("${guests.size} guests invited")
+			exchange.messageInfo("${guests.size()} guests invited")
 		}
 		exchange.redirect(questionnaireEditPath(questionnaire.id))
 	}
