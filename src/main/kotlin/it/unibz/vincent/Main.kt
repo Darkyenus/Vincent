@@ -2,6 +2,9 @@
 package it.unibz.vincent
 
 import com.darkyen.tproll.TPLogger
+import com.darkyen.tproll.logfunctions.FileLogFunction
+import com.darkyen.tproll.logfunctions.LogFunctionMultiplexer
+import com.darkyen.tproll.logfunctions.SimpleLogFunction
 import io.undertow.Handlers
 import io.undertow.Undertow
 import io.undertow.server.HttpHandler
@@ -40,9 +43,9 @@ import kotlin.system.exitProcess
 private val LOG = LoggerFactory.getLogger("Main")
 
 /** The brand name for the app, shown to users. It will always be Vincent in my heart. */
-//const val BRAND_NAME = "SENSY"
-const val BRAND_NAME = "Vincent"
-const val BRAND_LOGO = false
+const val BRAND_NAME = "SENSY"
+//const val BRAND_NAME = "Vincent"
+const val BRAND_LOGO = true
 
 var VINCENT_UNSAFE_MODE = false
 	private set
@@ -51,10 +54,17 @@ var VINCENT_UNSAFE_MODE = false
 fun main(args: Array<String>) {
 	System.setProperty("org.jboss.logging.provider", "slf4j")
 
+	val root = Paths.get(".").toAbsolutePath().normalize()
+
+	TPLogger.setLogFunction(LogFunctionMultiplexer(
+			FileLogFunction(root.resolve("logs").toFile()),
+			SimpleLogFunction.CONSOLE_LOG_FUNCTION
+	))
+
 	val staticFileDirectories = ArrayList<Path>()
 	var host = "0.0.0.0"
 	var port = 7000
-	var databaseFile:Path? = null
+	var databaseFile:Path? = root.resolve("database")
 	var behindReverseProxy = false
 
 	// Parse options
@@ -80,13 +90,18 @@ fun main(args: Array<String>) {
 				host = arg
 			},
 			Option('d', "database", "Path to the database file", true, "file") { arg, _ ->
-				val path = Paths.get(arg!!)
-				Files.createDirectories(path.parent)
-				if (Files.exists(path) && !Files.isRegularFile(path)) {
-					LOG.warn("--database: Path {} does not denote a file, ignoring", arg)
+				if (arg == "-") {
+					LOG.info("Serving database from memory")
+					databaseFile = null
 				} else {
-					databaseFile = path.toAbsolutePath() // Can't use real path, because the file may not exist
-					LOG.info("Serving database from {}", databaseFile)
+					val path = Paths.get(arg!!)
+					Files.createDirectories(path.parent)
+					if (Files.exists(path) && !Files.isRegularFile(path)) {
+						LOG.warn("--database: Path {} does not denote a file, ignoring", arg)
+					} else {
+						databaseFile = path.toAbsolutePath() // Can't use real path, because the file may not exist
+						LOG.info("Serving database from {}", databaseFile)
+					}
 				}
 			},
 			Option(Option.NO_SHORT_NAME, "unsafe-mode", "Disable some security measures to work even without HTTPS") { _, _ ->
@@ -113,6 +128,11 @@ fun main(args: Array<String>) {
 	)
 
 	val extraArguments = Option.parseOptions(args, options) ?: exitProcess(1)
+
+	if (staticFileDirectories.isEmpty()) {
+		staticFileDirectories.add(root.resolve("resources"))
+		staticFileDirectories.add(root.resolve("resources/favicon"))
+	}
 
 	if (extraArguments.isNotEmpty()) {
 		LOG.warn("{} extra argument(s) ignored", extraArguments.size)

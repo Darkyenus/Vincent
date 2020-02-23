@@ -5,16 +5,6 @@ import wemi.configuration
 import wemi.dependency.JCenter
 import wemi.dependency.Jitpack
 
-val deployment by configuration("Temporary deployment config") {
-	runArguments set { listOf(
-			"--static=${projectRoot.get().toAbsolutePath() / "resources"}",
-			"--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}",
-			"--database=${cacheDirectory.get() / "-database/vincent" }",
-			"--host=localhost",
-			"--port=8071",
-			"--behind-reverse-proxy") }
-}
-
 val continuousDebug by configuration("") {
 	runOptions add { "-agentlib:jdwp=transport=dt_socket,server=n,suspend=n,address=5005" }
 }
@@ -23,13 +13,11 @@ val Vincent by project {
 
 	projectGroup set { "it.unibz.inf" }
 	projectName set { "Vincent" }
-	projectVersion set { "0.1-SNAPSHOT" }
+	projectVersion set { "0.1" }
 
 	kotlinVersion set { KotlinCompilerVersion.Version1_3_61 }
 
 	mainClass set { "it.unibz.vincent.Main" }
-	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources"}" }
-	runArguments add { "--static=${projectRoot.get().toAbsolutePath() / "resources/favicon"}" }
 	runArguments add { "--unsafe-mode" }
 	runArguments add { "--database=${cacheDirectory.get() / "-database/vincent" }" }
 	runArguments add { "--host=localhost" }
@@ -67,4 +55,14 @@ val Vincent by project {
 
 	// Localization help
 	libraryDependencies add { dependency("com.ibm.icu", "icu4j", "65.1") }
+
+	assemblyMapFilter set {
+		{ path, source ->
+			if (path.startsWith("META-INF/") && (path.endsWith(".RSA") || path.endsWith(".DSA") || path.endsWith(".SF"))) {
+				null
+			} else {
+				source.data
+			}
+		}
+	}
 }
