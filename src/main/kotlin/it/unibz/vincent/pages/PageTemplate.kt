@@ -36,6 +36,7 @@ import kotlinx.html.button
 import kotlinx.html.checkBoxInput
 import kotlinx.html.div
 import kotlinx.html.emailInput
+import kotlinx.html.footer
 import kotlinx.html.form
 import kotlinx.html.head
 import kotlinx.html.hiddenInput
@@ -173,6 +174,12 @@ fun HttpServerExchange.sendBase(title:String, showHeader:Boolean = true, createB
 			}
 
 			createBody(this@sendBase, languages)
+
+			footer {
+				a(href= CREDITS_PATH) {
+					+"© 2019-2020 Jan Polák"
+				}
+			}
 		}
 	}
 }
